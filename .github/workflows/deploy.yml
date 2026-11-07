@@ -1,0 +1,51 @@
+name: Deploy public demo to GitHub Pages
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.repository == 'alex-lemberger/intrend-mission-control-demo'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce public site allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e site/.git
+          test -z "$(find site -type l -print)"
+          actual="$(find site -type f -print | LC_ALL=C sort)"
+          expected="$(printf '%s\n' site/app.js site/index.html site/styles.css)"
+          test "$actual" = "$expected"
+          test -s site/index.html
+          test -s site/styles.css
+          test -s site/app.js
+      - name: Upload only the public site directory
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site/
+
+  deploy:
+    needs: prepare
+    if: github.repository == 'alex-lemberger/intrend-mission-control-demo'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy Pages artifact
+        id: deployment
+        uses: actions/deploy-pages@v4

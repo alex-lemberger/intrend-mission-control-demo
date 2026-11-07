@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#11242c">
+  <title>inTrend Mission Control · Field Operations</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Zum Inhalt springen</a>
+  <div class="app">
+    <aside class="rail" aria-label="Hauptnavigation">
+      <div class="brand"><span class="brand-mark">i<span>•</span></span><div><strong>inTrend</strong><small>MISSION CONTROL</small></div></div>
+      <nav class="rail-nav" aria-label="Bereiche">
+        <button type="button" class="nav-item active" data-view="field"><span aria-hidden="true">▣</span> Tagesbericht</button>
+        <button type="button" class="nav-item" data-view="dashboard"><span aria-hidden="true">▦</span> Mission Control</button>
+      </nav>
+      <div class="rail-foot"><span class="live-dot"></span> Lokaler UX-Prototyp<br><small>Synthetische Beispieldaten</small></div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar"><div class="topbar-title"><span class="eyebrow">FIELD OPERATIONS / POC</span><strong id="top-title">Tagesbericht</strong></div><div class="topbar-right"><span class="demo-chip">DEMO / SYNTHETISCHE DATEN</span><span class="avatar" aria-label="Demo-Nutzer">MS</span></div></header>
+      <main id="main" tabindex="-1">
+        <section id="field-view" class="view" aria-labelledby="field-title">
+          <div class="page-head field-page-head"><div><span class="eyebrow">MOBIL · VORARBEITER</span><h1 id="field-title">Tagesbericht <em>erfassen.</em></h1><p>Mannschaft prüfen. Besonderheiten bei Bedarf ergänzen.</p></div><div class="head-tag"><span class="live-dot"></span> Heute auf der Baustelle</div></div>
+          <div class="field-layout"><div class="phone-shell"><div class="phone-top"><span>9:41</span><span aria-hidden="true">●●● ▰</span></div><div class="phone-screen">
+            <div class="mobile-header"><div><span class="eyebrow">TAGESBERICHT</span><h2>Team &amp; Arbeit</h2></div><div class="mobile-avatar">MS</div></div>
+            <div class="date-card"><div><small>BERICHT FÜR</small><strong id="date-display">Heute</strong></div><span class="date-icon" aria-hidden="true">▦</span></div>
+            <form id="report-form" novalidate>
+              <div class="form-section"><div class="section-heading"><span class="step">01</span><div><h3>Baustelle &amp; Verantwortung</h3><p>Wo war die Mannschaft heute?</p></div></div>
+                <label for="project">Bauprojekt</label><select id="project" required></select>
+                <div class="two-col"><div><label for="date">Datum</label><input id="date" type="date" required></div><div><label for="floor">Ort / Etage</label><select id="floor"><option>2. OG · Ostflügel</option><option>EG · Eingangsbereich</option><option>1. OG · Westflügel</option><option>3. OG · Nordflügel</option><option>Anderer Bereich</option></select></div></div>
+                <label for="responsible">Verantwortlich</label><select id="responsible"><option>Martin Seidel · Vorarbeiter</option><option>Deniz Yilmaz · Vertretung</option><option>Laura Beck · Vertretung</option></select><p class="field-hint">Vertretung hier für die Demo wählen · keine echte Zuweisung</p>
+              </div>
+              <div class="form-section"><div class="section-heading"><span class="step">02</span><div><h3>Mannschaft &amp; Arbeit</h3><p>Heute wie gestern? Einmal prüfen, fertig.</p></div></div>
+                <div class="crew-head"><span>PERSONAL</span><span>STUNDEN</span></div><div id="crew-list"></div><button class="text-action" type="button" id="add-person">＋ Person hinzufügen</button>
+                <label for="work">Ausgeführte Arbeiten</label><textarea id="work" rows="2" placeholder="Was wurde heute gemacht?" required></textarea>
+                <p class="field-hint">Ort und Tätigkeit oben gelten als Vorschlag für alle. Einzelne Personen können darunter abweichen.</p>
+                <details class="optional"><summary>LV-Position optional verknüpfen <span>Unverifiziert</span></summary><label for="lv">Möglicher Bezug</label><select id="lv"><option value="">Keine LV-Referenz</option><option>LV 03 · Pos. 2.4.10 · Trockenbauwand</option><option>LV 03 · Pos. 2.5.20 · Deckenbekleidung</option></select><p class="field-hint">Nur ein Hinweis. Keine geprüfte Leistung oder Vertragsgrundlage.</p></details>
+              </div>
+              <div class="form-section exception-section"><div class="section-heading"><span class="step">03</span><div><h3>Besonderheiten</h3><p id="event-summary">Keine Ereignisse. Ganz normaler Tag.</p></div></div><div id="event-list"></div><button class="add-event" type="button" id="add-event"><span aria-hidden="true">＋</span><span><strong>Ereignis ergänzen</strong><small>Hindernis, Zusatzarbeit oder Abweichung</small></span><span aria-hidden="true">›</span></button></div>
+              <div id="form-message" class="form-message" role="status" aria-live="polite" hidden></div>
+              <div class="submit-area"><button class="primary" type="submit">Tagesbericht speichern <span aria-hidden="true">→</span></button><p>Nur in diesem Browser bis zum Neuladen · nicht zentral gespeichert oder übertragen</p></div>
+            </form>
+          </div><div class="phone-home"></div></div>
+          <aside class="field-side"><div class="note-card"><span class="eyebrow">SCHNELLER REGELTAG</span><div class="big-number">01<span>/ 03</span></div><h3>Nur das Wesentliche.</h3><p>Projekt, Ort und wiederkehrende Arbeiten sind vorausgefüllt. Die Mannschaft braucht nur die Stunden zu prüfen.</p></div><div class="note-card dark"><span class="eyebrow">WENN ETWAS PASSIERT</span><h3>Ein Formular.<br>Mehr Kontext bei Bedarf.</h3><p>Ereignisse öffnen erst dann Felder für Beschreibung, Hindernis, Zusatzstunden und Fotos.</p><span class="line-icon" aria-hidden="true">↗</span></div></aside></div>
+        </section>
+        <section id="dashboard-view" class="view" hidden aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="outline" type="button" data-view="field">＋ Tagesbericht erfassen</button></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">TAGESGESCHÄFT</span><h2>Berichte</h2></div><span id="report-count" class="count-pill"></span></div><div id="reports-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></section></div><div class="dashboard-foot">DEMO / SYNTHETISCHE DATEN · Eingaben bleiben nur in diesem Browser bis zum Neuladen · keine Übertragung</div></section>
+        <section id="detail-view" class="view" hidden aria-labelledby="detail-title"><button class="back" type="button" data-view="dashboard">← Zurück zu Mission Control</button><div class="detail-grid"><div id="detail-content"></div><aside id="detail-aside"></aside></div></section>
+        <section id="draft-view" class="view" hidden aria-labelledby="draft-title"><button class="back" type="button" data-view="detail">← Zurück zum Ereignis</button><div id="draft-content"></div></section>
+      </main>
+    </div>
+  </div>
+  <nav class="mobile-nav" aria-label="Mobile Navigation"><button type="button" class="active" data-view="field">▣<span>Bericht</span></button><button type="button" data-view="dashboard">▦<span>Mission Control</span></button></nav>
+</body>
+</html>
