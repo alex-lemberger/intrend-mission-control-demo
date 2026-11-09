@@ -22,7 +22,8 @@
   const newAssignment = (data = {}) => ({
     id: nextId('a'), start: '', end: '', breakMin: '', work: '', lv: '', locations: [], locationDraft: '', photos: [], ...data
   });
-  const newEmployee = (data = {}) => ({ id: nextId('e'), name: '', assignments: [newAssignment()], ...data });
+  // `collapsed` only affects the small-screen summary view; it is UI state, not data.
+  const newEmployee = (data = {}) => ({ id: nextId('e'), name: '', collapsed: false, assignments: [newAssignment()], ...data });
   const newEvent = type => ({ id: nextId('v'), type, description: '', people: [], from: '', to: '' });
 
   // Recognizer experiment: supports only the supplied two-sentence pattern; returns suggestions, never state.
@@ -155,29 +156,32 @@
     return `<div class="ac01-assignment" data-assignment="${id}">
       <div class="ac01-assignment-head"><strong>Arbeit ${index + 1}</strong>${employee.assignments.length > 1 ? `<button class="ac01-remove" type="button" data-action="remove-assignment" aria-label="Arbeit ${index + 1} entfernen">Entfernen</button>` : ''}</div>
       <div class="ac01-times">
-        <div><label for="${id}-start">Beginn</label><input id="${id}-start" data-field="start" type="time" value="${escapeHtml(assignment.start)}"></div>
-        <div><label for="${id}-end">Ende</label><input id="${id}-end" data-field="end" type="time" value="${escapeHtml(assignment.end)}"></div>
+        <div class="ac01-timefield" data-empty="${assignment.start === ''}"><label for="${id}-start">Beginn</label><input id="${id}-start" data-field="start" type="time" value="${escapeHtml(assignment.start)}"></div>
+        <div class="ac01-timefield" data-empty="${assignment.end === ''}"><label for="${id}-end">Ende</label><input id="${id}-end" data-field="end" type="time" value="${escapeHtml(assignment.end)}"></div>
         <div><label for="${id}-break">Pause (Min.)</label><input id="${id}-break" data-field="breakMin" type="number" min="0" max="480" step="5" inputmode="numeric" value="${escapeHtml(assignment.breakMin)}" placeholder="optional"></div>
         <div class="ac01-work"><label for="${id}-work">Leistungsgruppe</label><input id="${id}-work" data-field="work" list="ac01-categories" value="${escapeHtml(assignment.work)}" placeholder="z. B. Wände"></div>
       </div>
       <div class="ac01-where">
         <label for="${id}-location">Ort / Bauteil (mehrere möglich)</label>
         <div class="ac01-chips" data-chips>${chipsMarkup(assignment)}</div>
-        <div class="ac01-chip-add"><input id="${id}-location" data-field="locationDraft" list="ac01-locations" value="${escapeHtml(assignment.locationDraft)}" placeholder="Ort wählen oder eingeben"><button class="ac01-add" type="button" data-action="add-location">Ort hinzufügen</button></div>
+        <div class="ac01-chip-add"><input id="${id}-location" data-field="locationDraft" list="ac01-locations" value="${escapeHtml(assignment.locationDraft)}" placeholder="Ort eingeben"><button class="ac01-add" type="button" data-action="add-location">Ort hinzufügen</button></div>
       </div>
       <div class="ac01-extra-fields">
         <div><label for="${id}-lv">LV-Position oder eigene Tätigkeit (optional)</label><input id="${id}-lv" data-field="lv" value="${escapeHtml(assignment.lv)}" placeholder="z. B. Pos. 2.4.10 oder freier Text"></div>
-        <div><label for="${id}-photos">Fotos zur Tätigkeit (lokale Demoauswahl)</label><input id="${id}-photos" data-field="photos" type="file" accept="image/*" multiple><span class="ac01-photo-names" data-photo-names>${escapeHtml(photosText(assignment))}</span></div>
+        <div><label for="${id}-photos">Fotos zur Tätigkeit (lokale Demoauswahl)</label><input id="${id}-photos" data-field="photos" type="file" accept="image/*" multiple><span class="ac01-photo-names" data-photo-names>${assignment.photos.length ? escapeHtml(photosText(assignment)) : ''}</span></div>
       </div>
       <p class="ac01-row-note" role="status" hidden></p>
     </div>`;
   }
 
   function renderEmployees() {
-    employeesEl.innerHTML = employees.map((employee, index) => `<article class="ac01-employee" data-employee="${employee.id}">
+    employeesEl.innerHTML = employees.map((employee, index) => `<article class="ac01-employee${employee.collapsed ? ' is-collapsed' : ''}" data-employee="${employee.id}">
+      <button class="ac01-employee-summary" type="button" data-action="toggle-employee" aria-expanded="${!employee.collapsed}" aria-controls="${employee.id}-body"><span class="ac01-summary-main" data-summary></span><span class="ac01-chevron" aria-hidden="true"></span></button>
+      <div class="ac01-employee-body" id="${employee.id}-body">
       <header class="ac01-employee-head"><div class="ac01-name"><label for="${employee.id}-name">Mitarbeiter ${index + 1}</label><input id="${employee.id}-name" data-employee-field="name" list="ac01-people" value="${escapeHtml(employee.name)}" placeholder="Name"></div><button class="ac01-remove" type="button" data-action="remove-employee" aria-label="Mitarbeiter ${index + 1} entfernen">Entfernen</button></header>
       ${employee.assignments.map((assignment, assignmentIndex) => renderAssignment(employee, assignment, assignmentIndex)).join('')}
       <button class="ac01-add" type="button" data-action="add-assignment">＋ Weitere Arbeit für diese Person</button>
+      </div>
     </article>`).join('') || '<p class="ac01-empty">Noch keine Mitarbeitenden erfasst.</p>';
     refresh();
   }
@@ -187,7 +191,7 @@
       <div class="ac01-assignment-head"><strong>Ereignis ${index + 1}</strong><button class="ac01-remove" type="button" data-action="remove-event" aria-label="Ereignis ${index + 1} entfernen">Entfernen</button></div>
       <div class="ac01-fields">
         <div><label for="${event.id}-type">Ereignisart</label><select id="${event.id}-type" data-event-field="type">${eventTypes.map(type => `<option ${type === event.type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')}</select></div>
-        <div class="ac01-times ac01-event-times"><div><label for="${event.id}-from">Zeit von (optional)</label><input id="${event.id}-from" data-event-field="from" type="time" value="${escapeHtml(event.from)}"></div><div><label for="${event.id}-to">bis</label><input id="${event.id}-to" data-event-field="to" type="time" value="${escapeHtml(event.to)}"></div></div>
+        <div class="ac01-times ac01-event-times"><div class="ac01-timefield" data-empty="${event.from === ''}"><label for="${event.id}-from">Von (optional)</label><input id="${event.id}-from" data-event-field="from" type="time" value="${escapeHtml(event.from)}"></div><div class="ac01-timefield" data-empty="${event.to === ''}"><label for="${event.id}-to">Bis (optional)</label><input id="${event.id}-to" data-event-field="to" type="time" value="${escapeHtml(event.to)}"></div></div>
       </div>
       <label for="${event.id}-description">Beschreibung</label><textarea id="${event.id}-description" data-event-field="description" rows="2" placeholder="Was ist passiert, wo, welche Arbeiten waren betroffen?">${escapeHtml(event.description)}</textarea>
       <fieldset class="ac01-affected"><legend>Betroffene Mitarbeiter</legend>${employees.map((employee, employeeIndex) => `<label class="ac01-check"><input type="checkbox" data-event-person="${employee.id}" ${event.people.includes(employee.id) ? 'checked' : ''}> ${escapeHtml(employeeLabel(employee, employeeIndex))}</label>`).join('') || '<span class="ac01-hint">Zuerst Mitarbeitende erfassen.</span>'}</fieldset>
@@ -210,6 +214,25 @@
       note.textContent = notes.join(' ');
       note.hidden = !notes.length;
     });
+    employeesEl.querySelectorAll('[data-summary]').forEach(element => {
+      const index = employees.findIndex(item => item.id === element.closest('[data-employee]').dataset.employee);
+      if (index >= 0) element.innerHTML = summaryMarkup(employees[index], index, issues);
+    });
+    $('#ac01-jump-events').textContent = events.length ? `(${events.length})` : '';
+  }
+
+  // Compact line shown on small screens; every piece mirrors what is entered, missing parts are marked.
+  function summaryMarkup(employee, index, issues) {
+    const warn = text => `<em class="ac01-warn">${text}</em>`;
+    const name = employee.name.trim();
+    const first = employee.assignments[0];
+    const flagged = employee.assignments.some(assignment => (issues[assignment.id] || []).length);
+    if (!first) return `<strong>${name ? escapeHtml(name) : `Mitarbeiter ${index + 1}`}</strong><span class="ac01-summary-detail">${warn('Keine Arbeit erfasst')}</span>`;
+    const time = first.start || first.end ? `${escapeHtml(first.start || '?')}–${escapeHtml(first.end || '?')}` : warn('Zeit fehlt');
+    const work = escapeHtml([first.work, first.lv].find(value => value.trim()) || '') || warn('Tätigkeit fehlt');
+    const place = first.locations.length ? escapeHtml(first.locations.join(', ')) : warn('Ort fehlt');
+    const more = employee.assignments.length > 1 ? ` · +${employee.assignments.length - 1} weitere` : '';
+    return `<strong>${name ? escapeHtml(name) : `Mitarbeiter ${index + 1}`}${name ? '' : ` ${warn('Name fehlt')}`}</strong><span class="ac01-summary-detail">${time} · ${work} · ${place}${more}${flagged ? ` · ${warn('Hinweis prüfen')}` : ''}</span>`;
   }
 
   const listItems = items => items.map(item => `<li>${escapeHtml(item)}</li>`).join('');
@@ -267,6 +290,7 @@
     const assignment = findAssignment(employee, event.target);
     const field = event.target.dataset.field;
     if (assignment && field && field !== 'photos') assignment[field] = event.target.value;
+    if (event.target.type === 'time') event.target.parentElement.dataset.empty = String(event.target.value === '');
     refresh();
   });
 
@@ -287,7 +311,7 @@
     if (assignment && event.target.dataset.field === 'locationDraft') commitLocation(employee, assignment, event.target.closest('[data-assignment]'));
     if (assignment && event.target.dataset.field === 'photos') {
       assignment.photos = [...event.target.files].map(file => file.name);
-      event.target.closest('[data-assignment]').querySelector('[data-photo-names]').textContent = photosText(assignment);
+      event.target.closest('[data-assignment]').querySelector('[data-photo-names]').textContent = assignment.photos.length ? photosText(assignment) : '';
       refresh();
     }
   });
@@ -305,6 +329,12 @@
     const employee = findEmployee(button);
     const assignment = findAssignment(employee, button);
     const action = button.dataset.action;
+    if (action === 'toggle-employee' && employee) {
+      employee.collapsed = !employee.collapsed;
+      button.closest('[data-employee]').classList.toggle('is-collapsed', employee.collapsed);
+      button.setAttribute('aria-expanded', String(!employee.collapsed));
+      return;
+    }
     if (action === 'add-location' && assignment) {
       const row = button.closest('[data-assignment]');
       assignment.locationDraft = row.querySelector('[data-field="locationDraft"]').value;
@@ -336,6 +366,7 @@
 
   $('#ac01-add-employee').addEventListener('click', () => {
     const created = newEmployee();
+    employees.forEach(item => { item.collapsed = true; });
     employees.push(created);
     renderEmployees();
     renderEvents();
@@ -356,7 +387,7 @@
   eventsEl.addEventListener('input', event => {
     const item = findEvent(event.target);
     const field = event.target.dataset.eventField;
-    if (item && field) { item[field] = event.target.value; renderReport(); }
+    if (item && field) { item[field] = event.target.value; if (event.target.type === 'time') event.target.parentElement.dataset.empty = String(event.target.value === ''); renderReport(); }
   });
   eventsEl.addEventListener('change', event => {
     const item = findEvent(event.target);
@@ -394,10 +425,12 @@
     const pristine = employee => !employee.name.trim() && employee.assignments.length === 1
       && ['start', 'end', 'breakMin', 'work', 'lv', 'locationDraft'].every(key => !employee.assignments[0][key]) && !employee.assignments[0].locations.length && !employee.assignments[0].photos.length;
     employees = employees.filter(employee => !pristine(employee));
+    employees.forEach(employee => { employee.collapsed = true; });
     const first = newEmployee();
     suggestions.forEach((item, groupIndex) => Array.from({ length: item.count }, (_, index) => {
       const created = groupIndex === 0 && index === 0 ? first : newEmployee();
       created.assignments = [newAssignment({ work: item.work, locations: [item.location] })];
+      created.collapsed = !(groupIndex === 0 && index === 0);
       employees.push(created);
     }));
     const applied = suggestions.reduce((sum, item) => sum + item.count, 0);
@@ -408,6 +441,14 @@
     setMessage(`${applied} Zeilen ergänzt. Namen und Zeiten bitte im Dashboard eintragen; vorhandene Eingaben blieben unverändert.`, false);
     employeesEl.querySelector(`[data-employee="${first.id}"] [data-employee-field="name"]`)?.focus();
   });
+
+  document.querySelectorAll('[data-jump]').forEach(button => button.addEventListener('click', () => {
+    const target = $(button.dataset.jump);
+    target.scrollIntoView({ block: 'start' });
+    target.focus({ preventScroll: true });
+  }));
+  // iOS WebKit shows nothing in an empty time input; CSS draws a hint only there.
+  if (typeof CSS !== 'undefined' && CSS.supports('-webkit-touch-callout', 'none')) document.documentElement.classList.add('ios-webkit');
 
   // Options are examples only; this is not a project master-data catalogue.
   [['ac01-categories', categoryOptions], ['ac01-locations', locationOptions], ['ac01-people', peopleOptions]].forEach(([id, options]) => {
