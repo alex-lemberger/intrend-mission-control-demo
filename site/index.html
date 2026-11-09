@@ -52,28 +52,46 @@
         </section>
         <section id="ac01-view" class="view" hidden aria-labelledby="ac01-title">
           <div class="page-head ac01-page-head">
-            <div><span class="eyebrow">EINGABE PER TEXT · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Arbeit beschreiben und prüfen. Daraus entsteht ein eigener interner Berichtsentwurf.</p></div>
+            <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Mitarbeitende, Zeiten, Arbeiten und Ereignisse direkt eintragen. Der interne Bericht entsteht daneben.</p></div>
           </div>
           <div class="ac01-workspace">
             <div class="ac01-work-area">
-              <section class="ac01-input-area" aria-labelledby="ac01-input-title">
-                <h2 id="ac01-input-title">1 · Arbeitstag beschreiben</h2>
+              <section class="ac01-block" aria-labelledby="ac01-ctx-title">
+                <h2 id="ac01-ctx-title"><span class="ac01-letter" aria-hidden="true">A</span> Projekt und Datum</h2>
+                <div class="ac01-fields"><div><label for="ac01-project">Bauprojekt</label><select id="ac01-project"></select></div><div><label for="ac01-date">Datum</label><input id="ac01-date" type="date"></div></div>
+                <p class="ac01-hint">Demoangaben; die Auswahl ändert keine Eingaben.</p>
+              </section>
+              <section class="ac01-block" aria-labelledby="ac01-crew-title">
+                <div class="ac01-heading-row"><h2 id="ac01-crew-title"><span class="ac01-letter" aria-hidden="true">B</span> Mitarbeitende und normale Arbeit</h2><span id="ac01-crew-count" aria-live="polite"></span></div>
+                <div id="ac01-employees"></div>
+                <button class="ac01-add" id="ac01-add-employee" type="button">＋ Mitarbeiter hinzufügen</button>
+              </section>
+              <section class="ac01-block" aria-labelledby="ac01-events-title">
+                <h2 id="ac01-events-title"><span class="ac01-letter" aria-hidden="true">C</span> Außergewöhnliche Ereignisse / Tickets</h2>
+                <p class="ac01-hint">Ein Ereignis löst weder eine Behinderungsanzeige noch einen Nachtrag, eine Beauftragung oder eine Mitteilung an den Auftraggeber aus.</p>
+                <div id="ac01-events"></div>
+                <div class="ac01-event-add" id="ac01-event-add" role="group" aria-label="Ereignis hinzufügen"><button type="button" class="ac01-add" data-type="Baubehinderung">＋ Baubehinderung</button><button type="button" class="ac01-add" data-type="Stundenzettel">＋ Stundenzettel</button><button type="button" class="ac01-add" data-type="Bedenken">＋ Bedenken</button><button type="button" class="ac01-add" data-type="Nachtrag / Nachtragsposition">＋ Nachtrag / Nachtragsposition</button><button type="button" class="ac01-add" data-type="Sonstiges">＋ Sonstiges</button></div>
+              </section>
+              <section class="ac01-block" aria-labelledby="ac01-extra-title">
+                <h2 id="ac01-extra-title"><span class="ac01-letter" aria-hidden="true">D</span> Weitere Tagesangaben</h2>
+                <label for="ac01-equipment">Geräte / Maschinen / Fahrzeuge</label><input id="ac01-equipment" placeholder="z. B. Gerüst, Hubwagen · Anzahl">
+                <label for="ac01-material">Materialanlieferung (kurze Notiz)</label><input id="ac01-material" placeholder="z. B. Gipskarton, Vormittag">
+                <label for="ac01-contacts">Kontakte / Anordnungen der Bauleitung oder des Auftraggebers</label><textarea id="ac01-contacts" rows="2" placeholder="Wer, wann, was wurde angeordnet?"></textarea>
+              </section>
+              <details class="ac01-experiment">
+                <summary>Experimentelle Texteingabe (optional)</summary>
+                <p class="ac01-hint">Fester, lokaler Mustererkenner, keine KI. Er macht nur einen Vorschlag; bestehende Eingaben ändert er nicht.</p>
                 <label for="ac01-input">Was wurde gemacht?</label>
                 <textarea id="ac01-input" rows="3" aria-describedby="ac01-input-hint">Heute haben drei Mitarbeiter an den Wänden im zweiten Obergeschoss gearbeitet. Drei weitere Mitarbeiter haben die Decken im dritten Obergeschoss bearbeitet.</textarea>
-                <div class="ac01-input-actions"><button class="primary ac01-action" id="ac01-interpret" type="button">Arbeiten erkennen <span aria-hidden="true">→</span></button><span id="ac01-input-hint">Tippen oder die Diktierfunktion der Tastatur nutzen · nur dieses Satzmuster wird erkannt</span></div>
+                <div class="ac01-input-actions"><button class="primary ac01-action" id="ac01-interpret" type="button">Arbeiten erkennen</button><span id="ac01-input-hint">Nur dieses Satzmuster wird erkannt · Diktierfunktion der Tastatur nutzbar</span></div>
                 <div id="ac01-message" class="form-message" role="status" aria-live="polite" hidden></div>
-              </section>
-              <section class="ac01-review-area" aria-labelledby="ac01-review-title">
-                <div class="ac01-heading-row"><h2 id="ac01-review-title" tabindex="-1">2 · Erkannte Arbeiten</h2><span id="ac01-review-count" aria-live="polite"></span></div>
-                <div id="ac01-groups" class="ac01-groups"><p class="ac01-empty">Noch keine Arbeiten erkannt. Werten Sie den Text aus oder fügen Sie eine Arbeit hinzu.</p></div>
-                <button class="ac01-add-group" id="ac01-add-group" type="button">＋ Arbeit hinzufügen</button>
-                <a class="ac01-jump" href="#ac01-draft-title">Tagesbericht ansehen ↓</a>
-              </section>
+                <div id="ac01-suggestions" class="ac01-suggestions" hidden></div>
+              </details>
             </div>
             <aside class="ac01-report-area" aria-labelledby="ac01-draft-title">
-              <div class="ac01-heading-row"><h2 id="ac01-draft-title">Tagesbericht ansehen</h2><span>Nur intern</span></div>
-              <div id="ac01-draft"><p class="ac01-empty">Der Entwurf erscheint, sobald Sie Arbeit erfassen.</p></div>
-              <details class="ac01-limitations"><summary>Hinweise zu dieser Demo</summary><p>Nur synthetische Daten und ein festes Textmuster; keine KI-Verbindung. Dieser Entwurf wird nicht in die separate Tagesbericht-Direkteingabe übernommen. Externe Berichte und Versand sind nicht Bestandteil dieser Demo.</p></details>
+              <div class="ac01-heading-row"><h2 id="ac01-draft-title"><span class="ac01-letter" aria-hidden="true">E</span> Interner Tagesbericht</h2><span>Nur intern</span></div>
+              <div id="ac01-draft"></div>
+              <details class="ac01-limitations"><summary>Hinweise zu dieser Demo</summary><p>Nur synthetische Daten im Arbeitsspeicher; beim Neuladen gehen Eingaben verloren. Gewählte Fotos werden nur als Dateiname gezeigt, nicht hochgeladen oder gespeichert. Dieser interne Entwurf ist weder ein externer Bautagesbericht noch ein Versand. Pausen-, Zeitzuordnungs- und Berichtseinheitsregeln sind offen.</p></details>
             </aside>
           </div>
         </section>
