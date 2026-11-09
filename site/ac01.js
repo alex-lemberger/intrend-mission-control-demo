@@ -157,7 +157,7 @@
     if (parsed) {
       setMessage('', false);
     } else {
-      setMessage('Dieser Wortlaut wird in der Demo nicht erkannt. Bitte Arbeit manuell hinzufügen.', true);
+      setMessage('Dieser Wortlaut wird in der Demo nicht erkannt. Prüfen Sie mögliche Diktierfehler im Text. Stimmt der Text, fügen Sie die Arbeit manuell hinzu; fehlende Personen und Stunden ergänzen Sie anschließend.', true);
     }
     renderGroups();
     if (parsed) $('#ac01-review-title').focus();
