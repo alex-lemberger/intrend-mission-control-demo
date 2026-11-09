@@ -9,3 +9,4 @@
 
 .demo-chip{white-space:nowrap}
 @media(max-width:390px){.demo-chip{font-size:8px;letter-spacing:0;padding:6px 7px}}
+@media(max-width:760px){.mobile-nav button{min-height:44px}}
