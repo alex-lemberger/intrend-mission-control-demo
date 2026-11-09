@@ -1,6 +1,6 @@
 # inTrend Mission Control — öffentliche Demo
 
-**Nur synthetische Daten.** Diese eigenständige Git-Historie enthält die drei öffentlichen Dateien unter `site/`, den manuellen Pages-Workflow und diese Dokumentation. Die private Architekturablage und deren Git-Historie gehören **nicht** in dieses Repository. GitHub Pages ist öffentlich erreichbar, auch wenn das Repository privat sein sollte.
+**Nur synthetische Daten.** Diese eigenständige Git-Historie enthält fünf öffentliche Anwendungsdateien unter `site/`, den Pages-Workflow und diese Dokumentation. Die private Architekturablage und deren Git-Historie gehören **nicht** in dieses Repository. GitHub Pages ist öffentlich erreichbar, auch wenn das Repository privat sein sollte.
 
 **Ziel:** `https://github.com/alex-lemberger/intrend-mission-control-demo`  
 **Erwartete Pages-Adresse:** `https://alex-lemberger.github.io/intrend-mission-control-demo/`
@@ -26,9 +26,9 @@
 
 Der Workflow folgt dem [offiziellen GitHub-Pages-Ablauf für eigene GitHub-Actions-Workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
-## Spätere Aktualisierung
+## AC-01-Aktualisierung
 
-Nur die geprüften drei statischen Dateien im separaten Repo aktualisieren, die Checkliste erneut durchgehen, lokal committen und `main` pushen. Danach den Workflow wieder **manuell** starten. Zusätzliche Dateien unter `site/` blockiert die Workflow-Allowlist, bis ihr öffentlicher Inhalt ausdrücklich geprüft und die Allowlist bewusst geändert wurde.
+Die fünf freigegebenen Dateien unter `site/` sind `index.html`, `styles.css`, `app.js`, `ac01.css` und `ac01.js`. Die AC-01-Ansicht ist direkt über `#ac01` erreichbar. Änderungen an `site/` auf `main` lösen den Pages-Workflow aus; ein manueller Workflow-Start bleibt möglich. Die Allowlist blockiert zusätzliche Dateien unter `site/`. Der feste Demo-Parser ist keine KI-Verbindung, der Tagesbericht ein interner Entwurf ohne Versand.
 
 ## Öffentliche Demo beenden
 

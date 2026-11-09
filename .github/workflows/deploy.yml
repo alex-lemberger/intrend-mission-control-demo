@@ -2,6 +2,10 @@ name: Deploy public demo to GitHub Pages
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
 
 permissions: {}
 
@@ -24,11 +28,13 @@ jobs:
           test ! -e site/.git
           test -z "$(find site -type l -print)"
           actual="$(find site -type f -print | LC_ALL=C sort)"
-          expected="$(printf '%s\n' site/app.js site/index.html site/styles.css)"
+          expected="$(printf '%s\n' site/ac01.css site/ac01.js site/app.js site/index.html site/styles.css)"
           test "$actual" = "$expected"
           test -s site/index.html
           test -s site/styles.css
           test -s site/app.js
+          test -s site/ac01.css
+          test -s site/ac01.js
       - name: Upload only the public site directory
         uses: actions/upload-pages-artifact@v4
         with:

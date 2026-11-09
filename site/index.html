@@ -6,7 +6,9 @@
   <meta name="theme-color" content="#11242c">
   <title>inTrend Mission Control · Field Operations</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="ac01.css">
   <script src="app.js" defer></script>
+  <script src="ac01.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -15,13 +17,14 @@
       <div class="brand"><span class="brand-mark">i<span>•</span></span><div><strong>inTrend</strong><small>MISSION CONTROL</small></div></div>
       <nav class="rail-nav" aria-label="Bereiche">
         <button type="button" class="nav-item active" data-view="field"><span aria-hidden="true">▣</span> Tagesbericht</button>
+        <button type="button" class="nav-item" data-view="ac01"><span aria-hidden="true">✎</span> Baustellentag erfassen</button>
         <button type="button" class="nav-item" data-view="dashboard"><span aria-hidden="true">▦</span> Mission Control</button>
       </nav>
       <div class="rail-foot"><span class="live-dot"></span> Lokaler UX-Prototyp<br><small>Synthetische Beispieldaten</small></div>
     </aside>
 
     <div class="workspace">
-      <header class="topbar"><div class="topbar-title"><span class="eyebrow">FIELD OPERATIONS / POC</span><strong id="top-title">Tagesbericht</strong></div><div class="topbar-right"><span class="demo-chip">DEMO / SYNTHETISCHE DATEN</span><span class="avatar" aria-label="Demo-Nutzer">MS</span></div></header>
+      <header class="topbar"><div class="topbar-title"><span class="eyebrow" id="top-eyebrow">FIELD OPERATIONS / POC</span><strong id="top-title">Tagesbericht</strong></div><div class="topbar-right"><span class="demo-chip">DEMO / SYNTHETISCHE DATEN</span><span class="avatar" aria-label="Demo-Nutzer">MS</span></div></header>
       <main id="main" tabindex="-1">
         <section id="field-view" class="view" aria-labelledby="field-title">
           <div class="page-head field-page-head"><div><span class="eyebrow">MOBIL · VORARBEITER</span><h1 id="field-title">Tagesbericht <em>erfassen.</em></h1><p>Mannschaft prüfen. Besonderheiten bei Bedarf ergänzen.</p></div><div class="head-tag"><span class="live-dot"></span> Heute auf der Baustelle</div></div>
@@ -47,12 +50,39 @@
           </div><div class="phone-home"></div></div>
           <aside class="field-side"><div class="note-card"><span class="eyebrow">SCHNELLER REGELTAG</span><div class="big-number">01<span>/ 03</span></div><h3>Nur das Wesentliche.</h3><p>Projekt, Ort und wiederkehrende Arbeiten sind vorausgefüllt. Die Mannschaft braucht nur die Stunden zu prüfen.</p></div><div class="note-card dark"><span class="eyebrow">WENN ETWAS PASSIERT</span><h3>Ein Formular.<br>Mehr Kontext bei Bedarf.</h3><p>Ereignisse öffnen erst dann Felder für Beschreibung, Hindernis, Zusatzstunden und Fotos.</p><span class="line-icon" aria-hidden="true">↗</span></div></aside></div>
         </section>
-        <section id="dashboard-view" class="view" hidden aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="outline" type="button" data-view="field">＋ Tagesbericht erfassen</button></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">TAGESGESCHÄFT</span><h2>Berichte</h2></div><span id="report-count" class="count-pill"></span></div><div id="reports-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></section></div><div class="dashboard-foot">DEMO / SYNTHETISCHE DATEN · Eingaben bleiben nur in diesem Browser bis zum Neuladen · keine Übertragung</div></section>
+        <section id="ac01-view" class="view" hidden aria-labelledby="ac01-title">
+          <div class="page-head ac01-page-head">
+            <div><span class="eyebrow">BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Beschreiben, erkannte Arbeiten prüfen, fehlende Angaben ergänzen.</p></div>
+          </div>
+          <div class="ac01-workspace">
+            <div class="ac01-work-area">
+              <section class="ac01-input-area" aria-labelledby="ac01-input-title">
+                <h2 id="ac01-input-title">1 · Arbeitstag beschreiben</h2>
+                <label for="ac01-input">Was wurde gemacht?</label>
+                <textarea id="ac01-input" rows="3">Heute haben drei Mitarbeiter an den Wänden im zweiten Obergeschoss gearbeitet. Drei weitere Mitarbeiter haben die Decken im dritten Obergeschoss bearbeitet.</textarea>
+                <div class="ac01-input-actions"><button class="primary ac01-action" id="ac01-interpret" type="button">Arbeiten erkennen <span aria-hidden="true">→</span></button><span>Beispieltext · nur dieses Satzmuster wird erkannt</span></div>
+                <div id="ac01-message" class="form-message" role="status" aria-live="polite" hidden></div>
+              </section>
+              <section class="ac01-review-area" aria-labelledby="ac01-review-title">
+                <div class="ac01-heading-row"><h2 id="ac01-review-title" tabindex="-1">2 · Erkannte Arbeiten</h2><span id="ac01-review-count" aria-live="polite"></span></div>
+                <div id="ac01-groups" class="ac01-groups"><p class="ac01-empty">Noch keine Arbeiten erkannt. Werten Sie den Text aus oder fügen Sie eine Arbeit hinzu.</p></div>
+                <button class="ac01-add-group" id="ac01-add-group" type="button">＋ Arbeit hinzufügen</button>
+                <a class="ac01-jump" href="#ac01-draft-title">Tagesbericht ansehen ↓</a>
+              </section>
+            </div>
+            <aside class="ac01-report-area" aria-labelledby="ac01-draft-title">
+              <div class="ac01-heading-row"><h2 id="ac01-draft-title">Tagesbericht ansehen</h2><span>Nur intern</span></div>
+              <div id="ac01-draft"><p class="ac01-empty">Der Entwurf erscheint, sobald Sie Arbeit erfassen.</p></div>
+              <details class="ac01-limitations"><summary>Hinweise zu dieser Demo</summary><p>Nur synthetische Daten und ein festes Textmuster; keine KI-Verbindung. P19/P20, externe Berichte und Versand sind nicht Bestandteil dieser Demo.</p></details>
+            </aside>
+          </div>
+        </section>
+        <section id="dashboard-view" class="view" hidden aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="outline" type="button" data-view="field">＋ Tagesbericht erfassen</button></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">TAGESGESCHÄFT</span><h2>Berichte</h2></div><span id="report-count" class="count-pill"></span></div><div id="reports-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></section></div><div class="dashboard-foot">Synthetische Daten · Lokaler Sitzungszustand · Keine automatische Zustellung</div></section>
         <section id="detail-view" class="view" hidden aria-labelledby="detail-title"><button class="back" type="button" data-view="dashboard">← Zurück zu Mission Control</button><div class="detail-grid"><div id="detail-content"></div><aside id="detail-aside"></aside></div></section>
         <section id="draft-view" class="view" hidden aria-labelledby="draft-title"><button class="back" type="button" data-view="detail">← Zurück zum Ereignis</button><div id="draft-content"></div></section>
       </main>
     </div>
   </div>
-  <nav class="mobile-nav" aria-label="Mobile Navigation"><button type="button" class="active" data-view="field">▣<span>Bericht</span></button><button type="button" data-view="dashboard">▦<span>Mission Control</span></button></nav>
+  <nav class="mobile-nav" aria-label="Mobile Navigation"><button type="button" class="active" data-view="field">▣<span>Bericht</span></button><button type="button" data-view="ac01">✎<span>Baustellentag</span></button><button type="button" data-view="dashboard">▦<span>Mission Control</span></button></nav>
 </body>
 </html>

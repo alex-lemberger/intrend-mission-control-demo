@@ -28,7 +28,8 @@ function switchView(view) {
   state.view = view;
   document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== `${view}-view`);
   document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active',el.dataset.view===view));
-  $('#top-title').textContent = ({field:'Tagesbericht',dashboard:'Mission Control',detail:'Ereignis',draft:'Dokumententwurf'})[view];
+  $('#top-eyebrow').textContent = view === 'ac01' ? 'BAUSTELLE · LOKALE DEMO' : 'FIELD OPERATIONS / POC';
+  $('#top-title').textContent = ({field:'Tagesbericht',ac01:'Baustellentag erfassen',dashboard:'Mission Control',detail:'Ereignis',draft:'Dokumententwurf'})[view];
   if(view==='dashboard') renderDashboard();
   if(view==='detail') renderDetail();
   if(view==='draft') renderDraft();
@@ -144,3 +145,4 @@ function renderDraft(){
   $('#draft-content').innerHTML=`<div class="draft-layout"><article class="draft-paper"><span class="stamp">${isHours?'PRÜFNOTIZ · KEIN STUNDENZETTEL':'ENTWURF · NICHT FREIGEGEBEN'}</span><span class="eyebrow" style="margin-top:28px">MISSION CONTROL / DOKUMENTVORSCHAU</span><h1 id="draft-title">${isHours?'Stundenzettel · Prüfnotiz':esc(state.draftType)}</h1><p class="lead">Vorbereitung auf Anforderung der Bauleitung. Erfasst, ungeprüft und nur mit synthetischen Daten.</p><div class="rule"></div><dl><dt>Bauprojekt</dt><dd>${esc(project(r.project).name)}</dd><dt>Datum</dt><dd>${esc(dateText(r.date))}</dd><dt>Ort</dt><dd>${esc(e.floor)}</dd><dt>Verantwortlich</dt><dd>${esc(r.responsible)}</dd><dt>Quellereignis</dt><dd>${esc(e.title)}</dd><dt>Ereignisaufwand</dt><dd>${hourText(e.hours)} · nicht zugeordnet, nicht addiert</dd><dt>LV-Hinweis</dt><dd>${esc(e.lv||r.lv||'Kein Bezug')} · unverifiziert</dd></dl><div class="content-block"><strong>Erfasster Sachverhalt</strong><p style="margin:9px 0 0">${esc(e.description)}</p>${e.obstacle?`<p style="margin:9px 0 0"><strong>Hindernis:</strong> ${esc(e.obstacle)}</p>`:''}</div>${hoursContent}<p class="field-hint">Belege in dieser Demo: ${esc(e.photos.join(', ')||'keine Foto-Dateinamen')}. Keine Datei wurde verarbeitet oder versandt.</p></article><aside class="side-card draft-side"><span class="eyebrow">VOR WEITERER NUTZUNG</span><h3>Prüfung erforderlich</h3><ol>${gaps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><div class="notice">Diese Vorschau ist kein freigegebenes Geschäftsdokument. Sie wird beim Neuladen verworfen.</div><button class="outline" type="button" data-view="detail" style="margin-top:18px;width:100%">Ereignis ansehen</button></aside></div>`;
 }
 renderDashboard();
+if (window.location.hash === '#ac01') switchView('ac01');
