@@ -198,7 +198,7 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 
 /* ---- Table mode (desktop): one compact line per employee; extra activities are indented sub-rows ---- */
 @media(min-width:1024px){
-#ac01-view{--ac-cols:142px 78px 78px 52px minmax(104px,1fr) minmax(72px,.6fr) minmax(132px,1.5fr) 58px 32px 30px}
+#ac01-view{--ac-cols:142px 78px 78px 52px minmax(104px,1fr) minmax(56px,.5fr) minmax(152px,1.6fr) 54px 30px 28px}
 .ac01-table-head span{min-width:0;overflow-wrap:normal}
 .ac01-table-head{display:grid;grid-template-columns:var(--ac-cols);column-gap:6px;align-items:end;margin:0 0 2px 42px;padding:6px 0;position:sticky;top:0;z-index:3;background:#fff;border-bottom:2px solid #b8cbbf;color:#33493e;font-size:11px;font-weight:850;letter-spacing:.2px}
 .ac01-employee{flex-wrap:nowrap;gap:0 6px;border:0;border-bottom:1px solid #dce7df;border-radius:0;background:transparent;margin:0;padding:3px 0}
@@ -233,7 +233,7 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 .ac01-chip button{width:22px;height:22px;font-size:15px}
 .ac01-chip-add{flex:1 1 84px;min-width:0;grid-template-columns:minmax(0,1fr) 30px;gap:3px}
 .ac01-chip-add .ac01-add,.ac01-add-inline,.ac01-assignment .ac01-remove{min-height:34px;width:34px;padding:0;text-align:center;font-size:17px}
-.ac01-assignment .ac01-remove{width:30px}
+.ac01-assignment .ac01-remove{width:28px}
 .ac01-chip-add .ac01-add,.ac01-add-inline{width:30px;border:1px solid #aac9b6;border-radius:8px;background:#f6faf6}
 .ac01-long{display:none}
 .ac01-short{display:inline}
@@ -300,7 +300,7 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
         too little width. On the AC-01 view only, the rail collapses to icons and paddings shrink; at 1240px and above
         nothing changes, below 1024px the cards remain. Required grid width is about 810px. ---- */
 @media(min-width:1024px) and (max-width:1239px){
-#ac01-view{--ac-cols:142px 78px 78px 50px minmax(104px,.9fr) minmax(72px,.6fr) minmax(112px,1.4fr) 58px 32px 30px}
+#ac01-view{--ac-cols:142px 78px 78px 50px minmax(104px,.9fr) minmax(56px,.5fr) minmax(148px,1.5fr) 54px 30px 28px}
 body:has(#ac01-view:not([hidden])) .rail{width:72px;padding:24px 10px}
 body:has(#ac01-view:not([hidden])) .rail .brand{padding:0 0 28px;justify-content:center}
 body:has(#ac01-view:not([hidden])) .rail .brand>div:last-child{display:none}
