@@ -7,9 +7,24 @@
 (function (root) {
   'use strict';
 
-  // Synthetic demo roster (25 people). The "previous day" is the first 22 of them; neither is real or persisted data.
-  const peopleOptions = Array.from({ length: 25 }, (_, index) => `Demo-Person ${String(index + 1).padStart(2, '0')}`);
-  const demoYesterday = peopleOptions.slice(0, 22);
+  /*
+   * Synthetic staff directory for the picker. None of it is real or persisted: 25 own site workers, 2 office entries and
+   * 12 subcontractor workers of three invented firms. `id` is a stable demo identifier used for de-duplication; labels
+   * are display text only. Subcontractor workers carry a pseudonym ("Firma Monteur-n"), not a name; the numbers are only
+   * meaningful within the current day and demo session and say nothing about the same person on another day.
+   */
+  const pad2 = number => String(number).padStart(2, '0');
+  const directory = [
+    ...Array.from({ length: 25 }, (_, i) => ({ id: `own-${pad2(i + 1)}`, group: 'own', label: `Demo-Person ${pad2(i + 1)}`, role: i < 3 ? 'Vorarbeiter' : 'Monteur' })),
+    ...[1, 2].map(i => ({ id: `office-${pad2(i)}`, group: 'office', label: `Demo-Büro ${pad2(i)}`, role: 'Büro' })),
+    ...[['Alpha', 5], ['Bravo', 4], ['Charlie', 3]].flatMap(([firm, count]) => Array.from({ length: count }, (_, i) => (
+      { id: `sub-${firm.toLowerCase()}-${pad2(i + 1)}`, group: 'sub', firm, label: `${firm} Monteur-${i + 1}`, role: 'Monteur' }))),
+  ];
+  // Office staff are available but never part of the default site selection.
+  const listStaff = includeOffice => directory.filter(entry => includeOffice || entry.group !== 'office');
+  const peopleOptions = directory.filter(entry => entry.group === 'own').map(entry => entry.label);
+  // The synthetic "previous day": the first 22 own site workers.
+  const yesterdayEntries = directory.filter(entry => entry.group === 'own').slice(0, 22);
   const categoryOptions = ['Wände', 'Decken', 'Spachteln', 'Deckenunterkonstruktion'];
   const locationOptions = ['Erdgeschoss', 'Zweites Obergeschoss', 'Drittes Obergeschoss', 'Treppenhaus', 'Flur'];
   const eventTypes = ['Baubehinderung', 'Stundenzettel', 'Bedenken', 'Nachtrag / Nachtragsposition', 'Sonstiges'];
@@ -26,7 +41,8 @@
   });
   // `collapsed` only affects the small-screen summary view; it is UI state, not data.
   // `selected` and `prefill` are UI state like `collapsed`; `prefill` names the demo source until the row is edited.
-  const newEmployee = (data = {}) => ({ id: nextId('e'), name: '', collapsed: false, selected: false, prefill: '', assignments: [newAssignment()], ...data });
+  // `personRef` is the stable demo id of a picker entry (de-duplication); `pseudonym` marks subcontractor identifiers.
+  const newEmployee = (data = {}) => ({ id: nextId('e'), name: '', collapsed: false, selected: false, prefill: '', personRef: '', pseudonym: false, assignments: [newAssignment()], ...data });
   const newEvent = type => ({ id: nextId('v'), type, description: '', people: [], from: '', to: '' });
 
   // Recognizer experiment: supports only the supplied two-sentence pattern; returns suggestions, never state.
@@ -135,15 +151,22 @@
    * Prefill proposes names only (never times). Existing entries are kept; only an untouched start row is replaced.
    * `source` labels the rows until the user edits them. Demo data, not a master-data or persistence feature.
    */
-  function prefillEmployees(employees, names, source) {
+  function prefillEmployees(employees, entries, source) {
     const kept = employees.filter(employee => !isPristine(employee));
-    const known = new Set(kept.map(employee => normalizeName(employee.name)).filter(Boolean));
+    const knownNames = new Set(kept.map(employee => normalizeName(employee.name)).filter(Boolean));
+    const knownRefs = new Set(kept.map(employee => employee.personRef).filter(Boolean));
     let added = 0, skipped = 0;
-    names.forEach(name => {
-      const key = normalizeName(name);
-      if (known.has(key)) { skipped += 1; return; }
-      known.add(key);
-      kept.push(newEmployee({ name, collapsed: true, prefill: source }));
+    entries.forEach(entry => {
+      if (typeof entry === 'string') {          // plain names (legacy path): matched by name
+        const key = normalizeName(entry);
+        if (knownNames.has(key)) { skipped += 1; return; }
+        knownNames.add(key);
+        kept.push(newEmployee({ name: entry, collapsed: true, prefill: source }));
+      } else {                                  // directory entries: matched by stable id, never by display name
+        if (knownRefs.has(entry.id)) { skipped += 1; return; }
+        knownRefs.add(entry.id);
+        kept.push(newEmployee({ name: entry.label, personRef: entry.id, pseudonym: entry.group === 'sub', collapsed: true, prefill: source }));
+      }
       added += 1;
     });
     return { employees: kept, added, skipped };
@@ -184,7 +207,7 @@
     return result;
   }
 
-  root.AC01Demo = { parse: parseDemonstrationText, summarize, toMinutes, newEmployee, newAssignment, newEvent, applyBulk, prefillEmployees, isPristine, demoPeople: peopleOptions, demoYesterday };
+  root.AC01Demo = { parse: parseDemonstrationText, summarize, toMinutes, newEmployee, newAssignment, newEvent, applyBulk, prefillEmployees, isPristine, demoPeople: peopleOptions, directory, listStaff, yesterdayEntries };
   if (!root.document) return;
 
   const $ = selector => document.querySelector(selector);
@@ -216,7 +239,7 @@
 
   // The name sits inside the first activity row so that table rows stay one line; one person stays one identity.
   function renderHead(employee, index) {
-    return `<header class="ac01-employee-head"><div class="ac01-name"><label for="${employee.id}-name">Mitarbeiter ${index + 1}</label><input id="${employee.id}-name" data-employee-field="name" list="ac01-people" value="${escapeHtml(employee.name)}" placeholder="Name">${employee.prefill ? `<span class="ac01-prefill-tag" title="${escapeHtml(employee.prefill)}">übernommen, bitte prüfen</span>` : ''}</div><button class="ac01-remove" type="button" data-action="remove-employee" aria-label="Mitarbeiter ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button></header>`;
+    return `<header class="ac01-employee-head"><div class="ac01-name"><label for="${employee.id}-name">Mitarbeiter ${index + 1}</label><input id="${employee.id}-name" data-employee-field="name" list="ac01-people" value="${escapeHtml(employee.name)}" placeholder="Name">${employee.prefill ? `<span class="ac01-prefill-tag" title="${escapeHtml(employee.prefill)}">übernommen, bitte prüfen</span>` : ''}${employee.pseudonym ? '<span class="ac01-pseudonym-tag" title="Subunternehmer-Kennung, kein Klarname; gilt nur für diesen Tag">Kennung, kein Klarname</span>' : ''}</div><button class="ac01-remove" type="button" data-action="remove-employee" aria-label="Mitarbeiter ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button></header>`;
   }
 
   function renderAssignment(employee, assignment, index, employeeIndex) {
@@ -245,7 +268,7 @@
   }
 
   function renderEmployees() {
-    employeesEl.innerHTML = employees.map((employee, index) => `<article class="ac01-employee${employee.collapsed ? ' is-collapsed' : ''}${employee.selected ? ' is-selected' : ''}${employee.prefill ? ' has-prefill' : ''}" data-employee="${employee.id}">
+    employeesEl.innerHTML = employees.map((employee, index) => `<article class="ac01-employee${employee.collapsed ? ' is-collapsed' : ''}${employee.selected ? ' is-selected' : ''}${employee.prefill ? ' has-prefill' : ''}${employee.pseudonym ? ' is-pseudonym' : ''}" data-employee="${employee.id}">
       <label class="ac01-select"><input type="checkbox" data-select aria-label="${escapeHtml(employeeLabel(employee, index))} auswählen"${employee.selected ? ' checked' : ''}></label>
       <button class="ac01-employee-summary" type="button" data-action="toggle-employee" aria-expanded="${!employee.collapsed}" aria-controls="${employee.id}-body"><span class="ac01-summary-main" data-summary></span><span class="ac01-chevron" aria-hidden="true"></span></button>
       <div class="ac01-employee-body" id="${employee.id}-body">
@@ -286,6 +309,8 @@
       element.classList.toggle('is-selected', Boolean(employees.find(employee => employee.id === element.dataset.employee)?.selected));
     });
     $('#ac01-prefill-legend').hidden = !employees.some(employee => employee.prefill);
+    $('#ac01-pseudonym-legend').hidden = !employees.some(employee => employee.pseudonym);
+    renderPicker();
   }
 
   function refresh() {
@@ -525,8 +550,7 @@
       ? `${result.added} ${what} übernommen. Synthetische Beispieldaten, ${note}, nicht gespeichert. Zeiten bleiben leer; bitte prüfen und ergänzen.${result.skipped ? ` ${result.skipped} waren schon vorhanden.` : ''}`
       : 'Alle Namen sind schon vorhanden; nichts geändert.';
   }
-  $('#ac01-prefill-yesterday').addEventListener('click', () => runPrefill(demoYesterday, 'Vortag (Demo)', 'Personen aus dem Demo-Vortag', 'kein echter Vortag'));
-  $('#ac01-prefill-list').addEventListener('click', () => runPrefill(peopleOptions, 'Mitarbeiterliste (Demo)', 'Namen aus der Demo-Mitarbeiterliste', 'kein echtes Personalverzeichnis'));
+  $('#ac01-prefill-yesterday').addEventListener('click', () => runPrefill(yesterdayEntries, 'Vortag (Demo)', 'Personen aus dem Demo-Vortag', 'kein echter Vortag'));
 
   $('#ac01-select-all').addEventListener('change', event => {
     employees.forEach(employee => { employee.selected = event.target.checked; });
@@ -573,6 +597,75 @@
   });
   // Phones start with the bulk tools folded away; wider screens show them.
   if (root.matchMedia?.('(max-width:760px)').matches) bulkEl.open = false;
+
+  // Employee picker: own staff and subcontractors by firm. Entries are matched by stable demo id, never by display text.
+  // Office staff are available but only listed on request and never preselected. Nothing here is persisted.
+  const pickerSelection = new Set();
+  let pickerOffice = false;
+  const groupsEl = $('#ac01-picker-groups');
+  const pickerMessage = $('#ac01-picker-message');
+  function pickerGroupList() {
+    const firms = [...new Set(directory.filter(entry => entry.group === 'sub').map(entry => entry.firm))];
+    return {
+      own: { key: 'own', title: 'Eigene Mitarbeitende', entries: directory.filter(entry => entry.group === 'own') },
+      subs: firms.map(firm => ({ key: `sub-${firm.toLowerCase()}`, title: firm, entries: directory.filter(entry => entry.group === 'sub' && entry.firm === firm) })),
+      office: { key: 'office', title: 'Büropersonal (nicht auf der Baustelle)', entries: directory.filter(entry => entry.group === 'office') }
+    };
+  }
+  function renderPicker() {
+    const present = new Set(employees.map(employee => employee.personRef).filter(Boolean));
+    [...pickerSelection].forEach(id => { if (present.has(id)) pickerSelection.delete(id); });
+    const item = entry => `<label class="ac01-check ac01-pick-item"><input type="checkbox" data-pick="${entry.id}"${present.has(entry.id) ? ' checked disabled' : pickerSelection.has(entry.id) ? ' checked' : ''}> <span>${escapeHtml(entry.label)}</span> <small>${escapeHtml(entry.role)}${present.has(entry.id) ? ' · in Tabelle' : ''}</small></label>`;
+    const group = ({ key, title, entries }) => `<fieldset class="ac01-picker-group" data-group="${key}"><legend><label class="ac01-check"><input type="checkbox" data-pick-group="${key}"> <strong>${escapeHtml(title)}</strong> <small>(${entries.length})</small></label></legend><div class="ac01-pick-items">${entries.map(item).join('')}</div></fieldset>`;
+    const lists = pickerGroupList();
+    groupsEl.innerHTML = group(lists.own)
+      + `<div class="ac01-picker-sub"><h4>Subunternehmer <small>nach Firma, nur Kennungen</small></h4>${lists.subs.map(group).join('')}</div>`
+      + (pickerOffice ? group(lists.office) : '');
+    syncPicker();
+  }
+  function syncPicker() {
+    groupsEl.querySelectorAll('[data-pick-group]').forEach(box => {
+      const boxes = [...box.closest('fieldset').querySelectorAll('[data-pick]:not(:disabled)')];
+      const picked = boxes.filter(item => item.checked).length;
+      box.disabled = boxes.length === 0;
+      box.checked = boxes.length > 0 && picked === boxes.length;
+      box.indeterminate = picked > 0 && picked < boxes.length;
+    });
+    $('#ac01-picker-count').textContent = String(pickerSelection.size);
+    $('#ac01-picker-add').disabled = pickerSelection.size === 0;
+  }
+  groupsEl.addEventListener('change', event => {
+    const single = event.target.dataset.pick;
+    const whole = event.target.dataset.pickGroup;
+    if (single) event.target.checked ? pickerSelection.add(single) : pickerSelection.delete(single);
+    if (whole) event.target.closest('fieldset').querySelectorAll('[data-pick]:not(:disabled)').forEach(item => {
+      item.checked = event.target.checked;
+      event.target.checked ? pickerSelection.add(item.dataset.pick) : pickerSelection.delete(item.dataset.pick);
+    });
+    syncPicker();
+  });
+  $('#ac01-picker-office').addEventListener('change', event => {
+    pickerOffice = event.target.checked;
+    if (!pickerOffice) directory.filter(entry => entry.group === 'office').forEach(entry => pickerSelection.delete(entry.id));
+    renderPicker();
+  });
+  $('#ac01-picker-add').addEventListener('click', () => {
+    const entries = directory.filter(entry => pickerSelection.has(entry.id));
+    if (!entries.length) return;
+    const before = cloneEmployees();
+    const result = prefillEmployees(employees, entries, '');
+    employees = result.employees;
+    pickerSelection.clear();
+    renderEmployees();
+    renderEvents();
+    setUndo(before);
+    const text = result.added
+      ? `${result.added} ${result.added === 1 ? 'Person' : 'Personen'} in die Tagestabelle übernommen (nur Name bzw. Kennung, keine Zeiten).${result.skipped ? ` ${result.skipped} waren schon vorhanden.` : ''}`
+      : 'Alle gewählten Personen sind schon in der Tagestabelle; nichts geändert.';
+    pickerMessage.textContent = text;
+    toolsMessage.textContent = text;       // visible although the picker folds away after adding
+    if (result.added) $('#ac01-picker').open = false;
+  });
 
   // Experimental text input: proposes rows; nothing changes until the user applies them.
   const suggestionsEl = $('#ac01-suggestions');

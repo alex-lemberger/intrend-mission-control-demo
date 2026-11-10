@@ -259,3 +259,38 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 .ac01-tools-message,.ac01-legend{color:#33493e}
 #ac01-view .ac01-employee-head{margin-top:2px}
 }
+
+/* ---- Employee picker (synthetic directory) and subcontractor pseudonym marker ---- */
+.ac01-picker{border:1px solid #9dc2ad;border-radius:12px;background:#f1f8f3;padding:0 14px 12px;margin:8px 0 12px}
+.ac01-picker>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:13px;font-weight:850;color:#0c4a38}
+.ac01-picker-office{margin:6px 0 4px}
+#ac01-picker-groups{display:grid;gap:10px;margin-top:6px}
+.ac01-picker-group{margin:0;padding:8px 10px 6px;min-width:0;border:1px solid #cbdacf;border-radius:10px;background:#fff}
+.ac01-picker-group legend{padding:0 4px;font-size:13px}
+#ac01-view .ac01-picker-group legend .ac01-check{min-height:32px;font-weight:700}
+.ac01-pick-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:0 12px}
+#ac01-view .ac01-pick-item{font-weight:600;font-size:13px}
+.ac01-pick-item>span{white-space:nowrap}
+.ac01-pick-item small{color:var(--ac-muted);font-size:11px}
+.ac01-picker-sub{display:grid;gap:8px}
+.ac01-picker-sub>h4{margin:6px 0 0;font-size:13px;color:#0c4a38}
+.ac01-picker-sub>h4 small{font-weight:600;color:var(--ac-muted)}
+.ac01-picker-sub .ac01-picker-group{border-left:4px solid #2a6fb0}
+.ac01-picker-actions{margin-top:10px}
+#ac01-view .ac01-picker-actions .ac01-action{min-width:260px}
+.ac01-picker button:disabled{opacity:.55;cursor:not-allowed}
+.ac01-legend-blue::before{background:#2a6fb0}
+.ac01-employee.is-pseudonym{border-left:4px solid #2a6fb0}
+.ac01-pseudonym-tag{display:block;margin-top:3px;color:#17456f;font-size:11px;font-weight:800}
+@media(min-width:1240px){
+.ac01-employee.is-pseudonym{border-left:0;box-shadow:inset 4px 0 #2a6fb0}
+.ac01-pseudonym-tag{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+}
+@media(max-width:760px){
+.ac01-picker{border:1.5px solid #7b9487;padding:0 12px 12px}
+#ac01-view .ac01-pick-item,#ac01-view .ac01-picker-group legend .ac01-check,#ac01-view .ac01-picker-office{min-height:44px}
+.ac01-pick-items{grid-template-columns:1fr}
+.ac01-employee.is-pseudonym{border-left:5px solid #2a6fb0}
+.ac01-pseudonym-tag{color:#0f3a60}
+#ac01-view .ac01-picker-actions .ac01-action{width:100%}
+}

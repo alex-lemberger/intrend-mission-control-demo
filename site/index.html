@@ -67,11 +67,19 @@
                 <p class="ac01-hint" id="ac01-plan-note">Planmarkierung der Ausführungsstelle im Bauplan: folgt später und ist hier noch nicht erfassbar.</p>
                 <div class="ac01-prefill-bar">
                   <button class="ac01-add" id="ac01-prefill-yesterday" type="button">Personen von gestern übernehmen</button>
-                  <button class="ac01-add" id="ac01-prefill-list" type="button">Mitarbeiterliste einblenden</button>
                   <label class="ac01-check"><input type="checkbox" id="ac01-select-all"> Alle auswählen</label>
                 </div>
                 <p class="ac01-hint ac01-tools-message" id="ac01-tools-message" role="status" aria-live="polite">Vorschläge stammen aus synthetischen Demodaten, nicht aus einem echten Vortag oder Personalverzeichnis.</p>
                 <p class="ac01-hint ac01-legend" id="ac01-prefill-legend" hidden>Orange Markierung: übernommen, noch nicht bearbeitet. Bitte prüfen.</p>
+                <p class="ac01-hint ac01-legend ac01-legend-blue" id="ac01-pseudonym-legend" hidden>Blaue Markierung: Subunternehmer-Kennung. Gilt nur für diesen Tag und diese Demo-Sitzung, nicht tagesübergreifend.</p>
+                <details class="ac01-picker" id="ac01-picker">
+                  <summary>Mitarbeitende aus Liste wählen</summary>
+                  <p class="ac01-hint">Synthetische Demodaten, keine echten Personen. Subunternehmer erscheinen nur mit Kennung („Firma Monteur-n“), nie mit Namen. Kennungen gelten nur für diesen Tag und diese Demo-Sitzung.</p>
+                  <label class="ac01-check ac01-picker-office"><input type="checkbox" id="ac01-picker-office"> Büropersonal einblenden (nicht auf der Baustelle)</label>
+                  <div id="ac01-picker-groups"></div>
+                  <div class="ac01-picker-actions"><button class="primary ac01-action" id="ac01-picker-add" type="button" disabled><span>Auswahl in Tagestabelle übernehmen (<span id="ac01-picker-count">0</span>)</span></button></div>
+                  <p class="ac01-hint" id="ac01-picker-message" role="status" aria-live="polite">Nur gewählte Personen werden als Zeilen angelegt; ohne Zeiten.</p>
+                </details>
                 <details class="ac01-bulk" id="ac01-bulk" open>
                   <summary>Sammelaktion für <span id="ac01-selected-count">0</span> ausgewählte Mitarbeitende</summary>
                   <div class="ac01-bulk-fields">
