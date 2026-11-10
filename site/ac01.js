@@ -7,7 +7,9 @@
 (function (root) {
   'use strict';
 
-  const peopleOptions = Array.from({ length: 12 }, (_, index) => `Demo-Person ${String(index + 1).padStart(2, '0')}`);
+  // Synthetic demo roster (25 people). The "previous day" is the first 22 of them; neither is real or persisted data.
+  const peopleOptions = Array.from({ length: 25 }, (_, index) => `Demo-Person ${String(index + 1).padStart(2, '0')}`);
+  const demoYesterday = peopleOptions.slice(0, 22);
   const categoryOptions = ['Wände', 'Decken', 'Spachteln', 'Deckenunterkonstruktion'];
   const locationOptions = ['Erdgeschoss', 'Zweites Obergeschoss', 'Drittes Obergeschoss', 'Treppenhaus', 'Flur'];
   const eventTypes = ['Baubehinderung', 'Stundenzettel', 'Bedenken', 'Nachtrag / Nachtragsposition', 'Sonstiges'];
@@ -23,7 +25,8 @@
     id: nextId('a'), start: '', end: '', breakMin: '', work: '', lv: '', locations: [], locationDraft: '', photos: [], ...data
   });
   // `collapsed` only affects the small-screen summary view; it is UI state, not data.
-  const newEmployee = (data = {}) => ({ id: nextId('e'), name: '', collapsed: false, assignments: [newAssignment()], ...data });
+  // `selected` and `prefill` are UI state like `collapsed`; `prefill` names the demo source until the row is edited.
+  const newEmployee = (data = {}) => ({ id: nextId('e'), name: '', collapsed: false, selected: false, prefill: '', assignments: [newAssignment()], ...data });
   const newEvent = type => ({ id: nextId('v'), type, description: '', people: [], from: '', to: '' });
 
   // Recognizer experiment: supports only the supplied two-sentence pattern; returns suggestions, never state.
@@ -123,7 +126,65 @@
     };
   }
 
-  root.AC01Demo = { parse: parseDemonstrationText, summarize, toMinutes, newEmployee, newAssignment, newEvent };
+  // A row with nothing entered; safe to replace when names are prefilled.
+  const isPristine = employee => !employee.name.trim() && employee.assignments.length === 1
+    && ['start', 'end', 'breakMin', 'work', 'lv', 'locationDraft'].every(key => !employee.assignments[0][key])
+    && !employee.assignments[0].locations.length && !employee.assignments[0].photos.length;
+
+  /*
+   * Prefill proposes names only (never times). Existing entries are kept; only an untouched start row is replaced.
+   * `source` labels the rows until the user edits them. Demo data, not a master-data or persistence feature.
+   */
+  function prefillEmployees(employees, names, source) {
+    const kept = employees.filter(employee => !isPristine(employee));
+    const known = new Set(kept.map(employee => normalizeName(employee.name)).filter(Boolean));
+    let added = 0, skipped = 0;
+    names.forEach(name => {
+      const key = normalizeName(name);
+      if (known.has(key)) { skipped += 1; return; }
+      known.add(key);
+      kept.push(newEmployee({ name, collapsed: true, prefill: source }));
+      added += 1;
+    });
+    return { employees: kept, added, skipped };
+  }
+
+  /*
+   * Bulk assignment copies the same values to every selected employee; each row stays independent afterwards.
+   * Modes: 'fill' only fills empty fields (default), 'overwrite' replaces existing values (explicit choice),
+   * 'add' appends a further activity. Times are copied as typed; the same checks as for manual input apply later.
+   */
+  function applyBulk(employees, ids, patch, mode = 'fill') {
+    const result = { set: 0, skipped: 0, added: 0, people: 0 };
+    const fields = ['start', 'end', 'breakMin', 'work'].filter(field => String(patch[field] ?? '').trim() !== '');
+    const locations = String(patch.location ?? '').split(',').map(item => item.trim()).filter(Boolean);
+    if (!ids.length || (!fields.length && !locations.length)) return result;
+    employees.filter(employee => ids.includes(employee.id)).forEach(employee => {
+      result.people += 1;
+      if (mode === 'add') {
+        const created = newAssignment({ locations: [...locations] });
+        fields.forEach(field => { created[field] = String(patch[field]).trim(); });
+        employee.assignments.push(created);
+        result.added += 1;
+        result.set += fields.length + (locations.length ? 1 : 0);
+        return;
+      }
+      if (!employee.assignments.length) employee.assignments.push(newAssignment());
+      const target = employee.assignments[0];
+      fields.forEach(field => {
+        const value = String(patch[field]).trim();
+        if (mode === 'overwrite' || target[field] === '') { if (target[field] !== value) result.set += 1; target[field] = value; }
+        else if (target[field] !== value) result.skipped += 1;
+      });
+      if (locations.length) {
+        if (mode === 'overwrite' || (!target.locations.length && !target.locationDraft.trim())) { target.locations = [...locations]; result.set += 1; }
+        else if (target.locations.join('|') !== locations.join('|')) result.skipped += 1;
+      }
+    });
+    return result;
+  }
+
+  root.AC01Demo = { parse: parseDemonstrationText, summarize, toMinutes, newEmployee, newAssignment, newEvent, applyBulk, prefillEmployees, isPristine, demoPeople: peopleOptions, demoYesterday };
   if (!root.document) return;
 
   const $ = selector => document.querySelector(selector);
@@ -151,36 +212,45 @@
     `<span class="ac01-chip">${escapeHtml(location)}<button type="button" data-action="remove-location" data-index="${index}" aria-label="Ort ${escapeHtml(location)} entfernen">×</button></span>`).join('');
   const photosText = assignment => assignment.photos.length ? `${assignment.photos.join(', ')} · nur lokale Auswahl, kein Upload` : 'Keine Fotos ausgewählt';
 
-  function renderAssignment(employee, assignment, index) {
+  const shortLong = (long, short) => `<span class="ac01-long">${long}</span><span class="ac01-short" aria-hidden="true">${short}</span>`;
+
+  // The name sits inside the first activity row so that table rows stay one line; one person stays one identity.
+  function renderHead(employee, index) {
+    return `<header class="ac01-employee-head"><div class="ac01-name"><label for="${employee.id}-name">Mitarbeiter ${index + 1}</label><input id="${employee.id}-name" data-employee-field="name" list="ac01-people" value="${escapeHtml(employee.name)}" placeholder="Name">${employee.prefill ? `<span class="ac01-prefill-tag" title="${escapeHtml(employee.prefill)}">übernommen, bitte prüfen</span>` : ''}</div><button class="ac01-remove" type="button" data-action="remove-employee" aria-label="Mitarbeiter ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button></header>`;
+  }
+
+  function renderAssignment(employee, assignment, index, employeeIndex) {
     const id = assignment.id;
     return `<div class="ac01-assignment" data-assignment="${id}">
-      <div class="ac01-assignment-head"><strong>Arbeit ${index + 1}</strong>${employee.assignments.length > 1 ? `<button class="ac01-remove" type="button" data-action="remove-assignment" aria-label="Arbeit ${index + 1} entfernen">Entfernen</button>` : ''}</div>
+      ${index === 0 ? renderHead(employee, employeeIndex) : ''}
+      <div class="ac01-assignment-head"><strong>Arbeit ${index + 1}</strong>${employee.assignments.length > 1 ? `<button class="ac01-remove" type="button" data-action="remove-assignment" aria-label="Arbeit ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button>` : ''}</div>
       <div class="ac01-times">
         <div class="ac01-timefield" data-empty="${assignment.start === ''}"><label for="${id}-start">Beginn</label><input id="${id}-start" data-field="start" type="time" value="${escapeHtml(assignment.start)}"></div>
         <div class="ac01-timefield" data-empty="${assignment.end === ''}"><label for="${id}-end">Ende</label><input id="${id}-end" data-field="end" type="time" value="${escapeHtml(assignment.end)}"></div>
-        <div><label for="${id}-break">Pause (Min.)</label><input id="${id}-break" data-field="breakMin" type="number" min="0" max="480" step="5" inputmode="numeric" value="${escapeHtml(assignment.breakMin)}" placeholder="optional"></div>
+        <div><label for="${id}-break">Pause (Min.)</label><input id="${id}-break" data-field="breakMin" type="number" min="0" max="480" step="5" inputmode="numeric" value="${escapeHtml(assignment.breakMin)}" placeholder="Min."></div>
         <div class="ac01-work"><label for="${id}-work">Leistungsgruppe</label><input id="${id}-work" data-field="work" list="ac01-categories" value="${escapeHtml(assignment.work)}" placeholder="z. B. Wände"></div>
       </div>
       <div class="ac01-where">
         <label for="${id}-location">Ort / Bauteil (mehrere möglich)</label>
         <div class="ac01-chips" data-chips>${chipsMarkup(assignment)}</div>
-        <div class="ac01-chip-add"><input id="${id}-location" data-field="locationDraft" list="ac01-locations" value="${escapeHtml(assignment.locationDraft)}" placeholder="Ort eingeben"><button class="ac01-add" type="button" data-action="add-location">Ort hinzufügen</button></div>
+        <div class="ac01-chip-add"><input id="${id}-location" data-field="locationDraft" list="ac01-locations" value="${escapeHtml(assignment.locationDraft)}" placeholder="Ort eingeben"><button class="ac01-add" type="button" data-action="add-location" aria-label="Ort hinzufügen">${shortLong('Ort hinzufügen', '＋')}</button></div>
       </div>
       <div class="ac01-extra-fields">
-        <div><label for="${id}-lv">LV-Position oder eigene Tätigkeit (optional)</label><input id="${id}-lv" data-field="lv" value="${escapeHtml(assignment.lv)}" placeholder="z. B. Pos. 2.4.10 oder freier Text"></div>
-        <div><label for="${id}-photos">Fotos zur Tätigkeit (lokale Demoauswahl)</label><input id="${id}-photos" data-field="photos" type="file" accept="image/*" multiple><span class="ac01-photo-names" data-photo-names>${assignment.photos.length ? escapeHtml(photosText(assignment)) : ''}</span></div>
+        <div class="ac01-lv"><label for="${id}-lv">LV-Position oder eigene Tätigkeit (optional)</label><input id="${id}-lv" data-field="lv" value="${escapeHtml(assignment.lv)}" placeholder="LV/Text"></div>
+        <div class="ac01-photo"><input class="ac01-file" id="${id}-photos" data-field="photos" type="file" accept="image/*" multiple><label class="ac01-photo-btn" for="${id}-photos" title="Lokale Demoauswahl: nur Dateinamen, kein Upload">${shortLong('Fotos wählen', 'Fotos')}<span data-photo-count>${assignment.photos.length ? ` (${assignment.photos.length})` : ''}</span></label><span class="ac01-photo-names" data-photo-names>${assignment.photos.length ? escapeHtml(photosText(assignment)) : ''}</span></div>
       </div>
       <p class="ac01-row-note" role="status" hidden></p>
+      ${index === 0 ? '<button class="ac01-add ac01-add-inline" type="button" data-action="add-assignment" aria-label="Weitere Arbeit für diese Person hinzufügen">＋</button>' : ''}
     </div>`;
   }
 
   function renderEmployees() {
-    employeesEl.innerHTML = employees.map((employee, index) => `<article class="ac01-employee${employee.collapsed ? ' is-collapsed' : ''}" data-employee="${employee.id}">
+    employeesEl.innerHTML = employees.map((employee, index) => `<article class="ac01-employee${employee.collapsed ? ' is-collapsed' : ''}${employee.selected ? ' is-selected' : ''}${employee.prefill ? ' has-prefill' : ''}" data-employee="${employee.id}">
+      <label class="ac01-select"><input type="checkbox" data-select aria-label="${escapeHtml(employeeLabel(employee, index))} auswählen"${employee.selected ? ' checked' : ''}></label>
       <button class="ac01-employee-summary" type="button" data-action="toggle-employee" aria-expanded="${!employee.collapsed}" aria-controls="${employee.id}-body"><span class="ac01-summary-main" data-summary></span><span class="ac01-chevron" aria-hidden="true"></span></button>
       <div class="ac01-employee-body" id="${employee.id}-body">
-      <header class="ac01-employee-head"><div class="ac01-name"><label for="${employee.id}-name">Mitarbeiter ${index + 1}</label><input id="${employee.id}-name" data-employee-field="name" list="ac01-people" value="${escapeHtml(employee.name)}" placeholder="Name"></div><button class="ac01-remove" type="button" data-action="remove-employee" aria-label="Mitarbeiter ${index + 1} entfernen">Entfernen</button></header>
-      ${employee.assignments.map((assignment, assignmentIndex) => renderAssignment(employee, assignment, assignmentIndex)).join('')}
-      <button class="ac01-add" type="button" data-action="add-assignment">＋ Weitere Arbeit für diese Person</button>
+      ${employee.assignments.map((assignment, assignmentIndex) => renderAssignment(employee, assignment, assignmentIndex, index)).join('')}
+      <button class="ac01-add ac01-add-bottom" type="button" data-action="add-assignment">＋ Weitere Arbeit für diese Person</button>
       </div>
     </article>`).join('') || '<p class="ac01-empty">Noch keine Mitarbeitenden erfasst.</p>';
     refresh();
@@ -200,9 +270,29 @@
     renderReport();
   }
 
+  // Undo only covers the last bulk/prefill step; any later change makes it unavailable so nothing is silently reverted.
+  let undoSnapshot = null;
+  const cloneEmployees = () => JSON.parse(JSON.stringify(employees));
+  function setUndo(snapshot) { undoSnapshot = snapshot; $('#ac01-bulk-undo').disabled = !snapshot; }
+
+  function updateSelection() {
+    const picked = employees.filter(employee => employee.selected);
+    $('#ac01-selected-count').textContent = String(picked.length);
+    const all = $('#ac01-select-all');
+    all.checked = employees.length > 0 && picked.length === employees.length;
+    all.indeterminate = picked.length > 0 && picked.length < employees.length;
+    $('#ac01-bulk-apply').disabled = picked.length === 0;
+    employeesEl.querySelectorAll('[data-employee]').forEach(element => {
+      element.classList.toggle('is-selected', Boolean(employees.find(employee => employee.id === element.dataset.employee)?.selected));
+    });
+    $('#ac01-prefill-legend').hidden = !employees.some(employee => employee.prefill);
+  }
+
   function refresh() {
+    setUndo(null);
     updateNotes();
     renderReport();
+    updateSelection();
     $('#ac01-crew-count').textContent = `${employees.length} ${employees.length === 1 ? 'Eintrag' : 'Einträge'}`;
   }
 
@@ -216,7 +306,10 @@
     });
     employeesEl.querySelectorAll('[data-summary]').forEach(element => {
       const index = employees.findIndex(item => item.id === element.closest('[data-employee]').dataset.employee);
-      if (index >= 0) element.innerHTML = summaryMarkup(employees[index], index, issues);
+      if (index >= 0) {
+        element.innerHTML = summaryMarkup(employees[index], index, issues);
+        element.closest('[data-employee]').querySelector('[data-select]')?.setAttribute('aria-label', `${employeeLabel(employees[index], index)} auswählen`);
+      }
     });
     $('#ac01-jump-events').textContent = events.length ? `(${events.length})` : '';
   }
@@ -232,7 +325,7 @@
     const work = escapeHtml([first.work, first.lv].find(value => value.trim()) || '') || warn('Tätigkeit fehlt');
     const place = first.locations.length ? escapeHtml(first.locations.join(', ')) : warn('Ort fehlt');
     const more = employee.assignments.length > 1 ? ` · +${employee.assignments.length - 1} weitere` : '';
-    return `<strong>${name ? escapeHtml(name) : `Mitarbeiter ${index + 1}`}${name ? '' : ` ${warn('Name fehlt')}`}</strong><span class="ac01-summary-detail">${time} · ${work} · ${place}${more}${flagged ? ` · ${warn('Hinweis prüfen')}` : ''}</span>`;
+    return `<strong>${name ? escapeHtml(name) : `Mitarbeiter ${index + 1}`}${name ? '' : ` ${warn('Name fehlt')}`}</strong><span class="ac01-summary-detail">${time} · ${work} · ${place}${more}${flagged ? ` · ${warn('Hinweis prüfen')}` : ''}${employee.prefill ? ` · ${warn('übernommen, bitte prüfen')}` : ''}</span>`;
   }
 
   const listItems = items => items.map(item => `<li>${escapeHtml(item)}</li>`).join('');
@@ -283,9 +376,19 @@
   });
 
   // Employees and assignments
+  function clearPrefill(employee) {
+    if (!employee.prefill) return;
+    employee.prefill = '';
+    const element = employeesEl.querySelector(`[data-employee="${employee.id}"]`);
+    element?.classList.remove('has-prefill');
+    element?.querySelector('.ac01-prefill-tag')?.remove();
+  }
+
   employeesEl.addEventListener('input', event => {
+    if (event.target.matches('[data-select]')) return;
     const employee = findEmployee(event.target);
     if (!employee) return;
+    clearPrefill(employee);
     if (event.target.dataset.employeeField === 'name') employee.name = event.target.value;
     const assignment = findAssignment(employee, event.target);
     const field = event.target.dataset.field;
@@ -306,12 +409,14 @@
 
   employeesEl.addEventListener('change', event => {
     const employee = findEmployee(event.target);
+    if (employee && event.target.matches('[data-select]')) { employee.selected = event.target.checked; updateSelection(); return; }
     const assignment = findAssignment(employee, event.target);
     if (event.target.dataset.employeeField === 'name') renderEvents();
     if (assignment && event.target.dataset.field === 'locationDraft') commitLocation(employee, assignment, event.target.closest('[data-assignment]'));
     if (assignment && event.target.dataset.field === 'photos') {
       assignment.photos = [...event.target.files].map(file => file.name);
       event.target.closest('[data-assignment]').querySelector('[data-photo-names]').textContent = assignment.photos.length ? photosText(assignment) : '';
+      event.target.closest('[data-assignment]').querySelector('[data-photo-count]').textContent = assignment.photos.length ? ` (${assignment.photos.length})` : '';
       refresh();
     }
   });
@@ -404,6 +509,71 @@
     renderEvents();
   });
 
+  // Prefill (synthetic demo data only; nothing is stored) and bulk assignment.
+  const toolsMessage = $('#ac01-tools-message'), bulkMessage = $('#ac01-bulk-message'), bulkEl = $('#ac01-bulk');
+  const dropMissingEventPeople = () => events.forEach(item => { item.people = item.people.filter(id => employees.some(employee => employee.id === id)); });
+
+  function runPrefill(names, label, what, note) {
+    const before = cloneEmployees();
+    const result = prefillEmployees(employees, names, label);
+    employees = result.employees;
+    dropMissingEventPeople();
+    renderEmployees();
+    renderEvents();
+    setUndo(before);
+    toolsMessage.textContent = result.added
+      ? `${result.added} ${what} übernommen. Synthetische Beispieldaten, ${note}, nicht gespeichert. Zeiten bleiben leer; bitte prüfen und ergänzen.${result.skipped ? ` ${result.skipped} waren schon vorhanden.` : ''}`
+      : 'Alle Namen sind schon vorhanden; nichts geändert.';
+  }
+  $('#ac01-prefill-yesterday').addEventListener('click', () => runPrefill(demoYesterday, 'Vortag (Demo)', 'Personen aus dem Demo-Vortag', 'kein echter Vortag'));
+  $('#ac01-prefill-list').addEventListener('click', () => runPrefill(peopleOptions, 'Mitarbeiterliste (Demo)', 'Namen aus der Demo-Mitarbeiterliste', 'kein echtes Personalverzeichnis'));
+
+  $('#ac01-select-all').addEventListener('change', event => {
+    employees.forEach(employee => { employee.selected = event.target.checked; });
+    employeesEl.querySelectorAll('[data-select]').forEach(box => { box.checked = event.target.checked; });
+    updateSelection();
+  });
+
+  ['#ac01-bulk-start', '#ac01-bulk-end'].forEach(selector => $(selector).addEventListener('input', event => { event.target.parentElement.dataset.empty = String(event.target.value === ''); }));
+  $('#ac01-bulk-example').addEventListener('click', () => {
+    [['start', '07:00'], ['end', '17:00'], ['break', '60']].forEach(([key, value]) => {
+      const input = $(`#ac01-bulk-${key}`);
+      input.value = value;
+      if (input.type === 'time') input.parentElement.dataset.empty = 'false';
+    });
+    bulkMessage.textContent = 'Beispielwerte eingesetzt (07:00–17:00, 60 Min. Pause): keine Regel und nicht freigegeben. Es wurde noch nichts in die Zeilen eingetragen.';
+  });
+  $('#ac01-bulk-mode').addEventListener('change', event => {
+    if (event.target.value === 'overwrite') bulkMessage.textContent = 'Überschreiben ersetzt vorhandene Werte der ausgewählten Zeilen. „Rückgängig“ stellt sie wieder her, bis etwas anderes geändert wird.';
+  });
+  $('#ac01-bulk-apply').addEventListener('click', () => {
+    const ids = employees.filter(employee => employee.selected).map(employee => employee.id);
+    const patch = { start: $('#ac01-bulk-start').value, end: $('#ac01-bulk-end').value, breakMin: $('#ac01-bulk-break').value, work: $('#ac01-bulk-work').value, location: $('#ac01-bulk-location').value };
+    const mode = $('#ac01-bulk-mode').value;
+    if (!ids.length) { bulkMessage.textContent = 'Zuerst Mitarbeitende auswählen.'; return; }
+    if (!Object.values(patch).some(value => String(value).trim())) { bulkMessage.textContent = 'Bitte mindestens einen Wert eintragen.'; return; }
+    const before = cloneEmployees();
+    const result = applyBulk(employees, ids, patch, mode);
+    renderEmployees();
+    renderEvents();
+    setUndo(before);
+    const kept = result.skipped ? ` ${result.skipped} vorhandene Werte blieben unverändert.` : '';
+    bulkMessage.textContent = mode === 'add'
+      ? `${result.added} weitere Arbeiten angelegt (${result.people} Personen); vorhandene Eingaben blieben unverändert. Jede Zeile bleibt einzeln änderbar.`
+      : mode === 'overwrite' ? `${result.set} Werte bei ${result.people} Personen gesetzt oder überschrieben. „Rückgängig“ stellt den Stand davor wieder her.`
+      : `${result.set} Werte bei ${result.people} Personen eingetragen.${kept} Jede Zeile bleibt einzeln änderbar.`;
+  });
+  $('#ac01-bulk-undo').addEventListener('click', () => {
+    if (!undoSnapshot) return;
+    employees = undoSnapshot;
+    dropMissingEventPeople();
+    renderEmployees();
+    renderEvents();
+    bulkMessage.textContent = 'Letzte Sammelaktion bzw. Übernahme rückgängig gemacht.';
+  });
+  // Phones start with the bulk tools folded away; wider screens show them.
+  if (root.matchMedia?.('(max-width:760px)').matches) bulkEl.open = false;
+
   // Experimental text input: proposes rows; nothing changes until the user applies them.
   const suggestionsEl = $('#ac01-suggestions');
   function renderSuggestions() {
@@ -422,9 +592,7 @@
 
   suggestionsEl.addEventListener('click', event => {
     if (!event.target.closest('#ac01-apply')) return;
-    const pristine = employee => !employee.name.trim() && employee.assignments.length === 1
-      && ['start', 'end', 'breakMin', 'work', 'lv', 'locationDraft'].every(key => !employee.assignments[0][key]) && !employee.assignments[0].locations.length && !employee.assignments[0].photos.length;
-    employees = employees.filter(employee => !pristine(employee));
+    employees = employees.filter(employee => !isPristine(employee));
     employees.forEach(employee => { employee.collapsed = true; });
     const first = newEmployee();
     suggestions.forEach((item, groupIndex) => Array.from({ length: item.count }, (_, index) => {

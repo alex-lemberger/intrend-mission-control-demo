@@ -64,6 +64,32 @@
               </section>
               <section class="ac01-block" aria-labelledby="ac01-crew-title">
                 <div class="ac01-heading-row"><h2 id="ac01-crew-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">B</span> Mitarbeitende und normale Arbeit</h2><span id="ac01-crew-count" aria-live="polite"></span></div>
+                <p class="ac01-hint" id="ac01-plan-note">Planmarkierung der Ausführungsstelle im Bauplan: folgt später und ist hier noch nicht erfassbar.</p>
+                <div class="ac01-prefill-bar">
+                  <button class="ac01-add" id="ac01-prefill-yesterday" type="button">Personen von gestern übernehmen</button>
+                  <button class="ac01-add" id="ac01-prefill-list" type="button">Mitarbeiterliste einblenden</button>
+                  <label class="ac01-check"><input type="checkbox" id="ac01-select-all"> Alle auswählen</label>
+                </div>
+                <p class="ac01-hint ac01-tools-message" id="ac01-tools-message" role="status" aria-live="polite">Vorschläge stammen aus synthetischen Demodaten, nicht aus einem echten Vortag oder Personalverzeichnis.</p>
+                <p class="ac01-hint ac01-legend" id="ac01-prefill-legend" hidden>Orange Markierung: übernommen, noch nicht bearbeitet. Bitte prüfen.</p>
+                <details class="ac01-bulk" id="ac01-bulk" open>
+                  <summary>Sammelaktion für <span id="ac01-selected-count">0</span> ausgewählte Mitarbeitende</summary>
+                  <div class="ac01-bulk-fields">
+                    <div class="ac01-timefield" data-empty="true"><label for="ac01-bulk-start">Beginn</label><input id="ac01-bulk-start" type="time"></div>
+                    <div class="ac01-timefield" data-empty="true"><label for="ac01-bulk-end">Ende</label><input id="ac01-bulk-end" type="time"></div>
+                    <div><label for="ac01-bulk-break">Pause (Min.)</label><input id="ac01-bulk-break" type="number" min="0" max="480" step="5" inputmode="numeric" placeholder="optional"></div>
+                    <div><label for="ac01-bulk-work">Leistungsgruppe</label><input id="ac01-bulk-work" list="ac01-categories" placeholder="z. B. Wände"></div>
+                    <div><label for="ac01-bulk-location">Ort / Bauteil</label><input id="ac01-bulk-location" list="ac01-locations" placeholder="Komma: mehrere"></div>
+                  </div>
+                  <div class="ac01-bulk-actions">
+                    <div class="ac01-bulk-mode"><label for="ac01-bulk-mode">Wirkung auf vorhandene Werte</label><select id="ac01-bulk-mode"><option value="fill">Nur leere Felder füllen</option><option value="add">Als weitere Arbeit anfügen</option><option value="overwrite">Vorhandene Werte überschreiben</option></select></div>
+                    <button class="ac01-add" id="ac01-bulk-example" type="button">Beispiel-Standardtag einsetzen</button>
+                    <button class="primary ac01-action" id="ac01-bulk-apply" type="button" disabled>Auf Auswahl anwenden</button>
+                    <button class="ac01-add" id="ac01-bulk-undo" type="button" disabled>Rückgängig</button>
+                  </div>
+                  <p class="ac01-hint" id="ac01-bulk-message" role="status" aria-live="polite">Beispielwerte sind keine Regel. Erst „Auf Auswahl anwenden“ trägt Werte ein; jede Zeile bleibt einzeln änderbar.</p>
+                </details>
+                <div class="ac01-table-head" aria-hidden="true"><span>Name</span><span>Beginn</span><span>Ende</span><span>Pause (Min.)</span><span>Leistungsgruppe</span><span>LV / Tätigkeit</span><span>Ort / Bauteil</span><span>Fotos</span><span></span><span></span></div>
                 <div id="ac01-employees"></div>
                 <button class="ac01-add" id="ac01-add-employee" type="button">＋ Mitarbeiter hinzufügen</button>
               </section>
