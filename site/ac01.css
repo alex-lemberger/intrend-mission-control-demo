@@ -197,8 +197,8 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 }
 
 /* ---- Table mode (desktop): one compact line per employee; extra activities are indented sub-rows ---- */
-@media(min-width:1240px){
-#ac01-view{--ac-cols:136px 78px 78px 52px minmax(104px,1fr) minmax(72px,.6fr) minmax(150px,1.5fr) 58px 32px 30px}
+@media(min-width:1024px){
+#ac01-view{--ac-cols:142px 78px 78px 52px minmax(104px,1fr) minmax(72px,.6fr) minmax(132px,1.5fr) 58px 32px 30px}
 .ac01-table-head span{min-width:0;overflow-wrap:normal}
 .ac01-table-head{display:grid;grid-template-columns:var(--ac-cols);column-gap:6px;align-items:end;margin:0 0 2px 42px;padding:6px 0;position:sticky;top:0;z-index:3;background:#fff;border-bottom:2px solid #b8cbbf;color:#33493e;font-size:11px;font-weight:850;letter-spacing:.2px}
 .ac01-employee{flex-wrap:nowrap;gap:0 6px;border:0;border-bottom:1px solid #dce7df;border-radius:0;background:transparent;margin:0;padding:3px 0}
@@ -226,13 +226,14 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 .ac01-row-note{grid-column:2/-1;grid-row:2;margin:2px 0 0}
 #ac01-view .ac01-assignment label:not(.ac01-photo-btn){position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 #ac01-view .ac01-assignment :is(input:not([type=file]):not([type=checkbox]),select){min-height:36px;padding:4px 6px;font-size:13px}
-#ac01-view .ac01-assignment input[type=time]{padding:4px 2px 4px 6px}
+#ac01-view .ac01-assignment .ac01-times .ac01-timefield input[type=time]{padding:4px 1px 4px 3px;font-size:12.5px}
 #ac01-view .ac01-photo-btn{min-height:36px;padding:0 4px;font-size:12px}
 .ac01-chips{display:contents}
 .ac01-chip{font-size:12px;padding:1px 1px 1px 7px;white-space:nowrap}
 .ac01-chip button{width:22px;height:22px;font-size:15px}
 .ac01-chip-add{flex:1 1 84px;min-width:0;grid-template-columns:minmax(0,1fr) 30px;gap:3px}
 .ac01-chip-add .ac01-add,.ac01-add-inline,.ac01-assignment .ac01-remove{min-height:34px;width:34px;padding:0;text-align:center;font-size:17px}
+.ac01-assignment .ac01-remove{width:30px}
 .ac01-chip-add .ac01-add,.ac01-add-inline{width:30px;border:1px solid #aac9b6;border-radius:8px;background:#f6faf6}
 .ac01-long{display:none}
 .ac01-short{display:inline}
@@ -282,7 +283,7 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 .ac01-legend-blue::before{background:#2a6fb0}
 .ac01-employee.is-pseudonym{border-left:4px solid #2a6fb0}
 .ac01-pseudonym-tag{display:block;margin-top:3px;color:#17456f;font-size:11px;font-weight:800}
-@media(min-width:1240px){
+@media(min-width:1024px){
 .ac01-employee.is-pseudonym{border-left:0;box-shadow:inset 4px 0 #2a6fb0}
 .ac01-pseudonym-tag{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
 }
@@ -293,4 +294,20 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 .ac01-employee.is-pseudonym{border-left:5px solid #2a6fb0}
 .ac01-pseudonym-tag{color:#0f3a60}
 #ac01-view .ac01-picker-actions .ac01-action{width:100%}
+}
+
+/* ---- Table on typical desktop widths (1024-1239px): the shared 242px navigation rail and the page padding would leave
+        too little width. On the AC-01 view only, the rail collapses to icons and paddings shrink; at 1240px and above
+        nothing changes, below 1024px the cards remain. Required grid width is about 810px. ---- */
+@media(min-width:1024px) and (max-width:1239px){
+#ac01-view{--ac-cols:142px 78px 78px 50px minmax(104px,.9fr) minmax(72px,.6fr) minmax(112px,1.4fr) 58px 32px 30px}
+body:has(#ac01-view:not([hidden])) .rail{width:72px;padding:24px 10px}
+body:has(#ac01-view:not([hidden])) .rail .brand{padding:0 0 28px;justify-content:center}
+body:has(#ac01-view:not([hidden])) .rail .brand>div:last-child{display:none}
+body:has(#ac01-view:not([hidden])) .rail .nav-item{justify-content:center;gap:0;padding:14px 0;font-size:0}
+body:has(#ac01-view:not([hidden])) .rail .nav-item span{font-size:20px}
+body:has(#ac01-view:not([hidden])) .rail .rail-foot{display:none}
+body:has(#ac01-view:not([hidden])) main{padding-left:16px;padding-right:16px}
+#ac01-view .ac01-block{padding:14px 12px}
+#ac01-view .ac01-bulk-fields{grid-template-columns:repeat(5,minmax(0,1fr))}
 }
