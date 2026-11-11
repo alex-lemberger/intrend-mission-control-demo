@@ -52,9 +52,10 @@
         </section>
         <section id="ac01-view" class="view" hidden aria-labelledby="ac01-title">
           <div class="page-head ac01-page-head">
-            <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Mitarbeitende, Zeiten, Arbeiten und Ereignisse direkt eintragen. Der interne Bericht entsteht daneben.</p></div>
+            <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Mitarbeitende, Zeiten, Arbeiten und Ereignisse in einer Ansicht eintragen. Oben steht der Überblick, der interne Bericht entsteht darunter.</p></div>
           </div>
           <nav class="ac01-jump" aria-label="Bereiche dieser Seite"><button type="button" data-jump="#ac01-crew-title">Mitarbeitende</button><button type="button" data-jump="#ac01-events-title">Ereignisse <span id="ac01-jump-events"></span></button><button type="button" data-jump="#ac01-draft-title">Tagesbericht</button></nav>
+          <section class="ac01-overview" id="ac01-overview" aria-label="Überblick über den erfassten Tag"></section>
           <div class="ac01-workspace">
             <div class="ac01-work-area">
               <section class="ac01-block" aria-labelledby="ac01-ctx-title">
@@ -63,7 +64,7 @@
                 <p class="ac01-hint">Demoangaben; die Auswahl ändert keine Eingaben.</p>
               </section>
               <section class="ac01-block" aria-labelledby="ac01-crew-title">
-                <div class="ac01-heading-row"><h2 id="ac01-crew-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">B</span> Mitarbeitende und normale Arbeit</h2><span id="ac01-crew-count" aria-live="polite"></span></div>
+                <div class="ac01-heading-row"><h2 id="ac01-crew-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">B</span> Mitarbeitende, Arbeit und Ereignisse</h2><span id="ac01-crew-count" aria-live="polite"></span></div>
                 <p class="ac01-hint" id="ac01-plan-note">Planmarkierung der Ausführungsstelle im Bauplan: folgt später und ist hier noch nicht erfassbar.</p>
                 <div class="ac01-prefill-bar">
                   <button class="ac01-add" id="ac01-prefill-yesterday" type="button">Personen von gestern übernehmen</button>
@@ -100,15 +101,14 @@
                 <div class="ac01-table-head" aria-hidden="true"><span>Name</span><span>Beginn</span><span>Ende</span><span>Pause (Min.)</span><span>Leistungsgruppe</span><span>LV / Tätigkeit</span><span>Ort / Bauteil</span><span>Fotos</span><span></span><span></span></div>
                 <div id="ac01-employees"></div>
                 <button class="ac01-add" id="ac01-add-employee" type="button">＋ Mitarbeiter hinzufügen</button>
-              </section>
-              <section class="ac01-block" aria-labelledby="ac01-events-title">
-                <h2 id="ac01-events-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">C</span> Außergewöhnliche Ereignisse / Tickets</h2>
-                <p class="ac01-hint">Ein Ereignis löst weder eine Behinderungsanzeige noch einen Nachtrag, eine Beauftragung oder eine Mitteilung an den Auftraggeber aus.</p>
-                <div id="ac01-events"></div>
-                <div class="ac01-event-add" id="ac01-event-add" role="group" aria-label="Ereignis hinzufügen"><button type="button" class="ac01-add" data-type="Baubehinderung">＋ Baubehinderung</button><button type="button" class="ac01-add" data-type="Stundenzettel">＋ Stundenzettel</button><button type="button" class="ac01-add" data-type="Bedenken">＋ Bedenken</button><button type="button" class="ac01-add" data-type="Nachtrag / Nachtragsposition">＋ Nachtrag / Nachtragsposition</button><button type="button" class="ac01-add" data-type="Sonstiges">＋ Sonstiges</button></div>
+                <div class="ac01-events-panel" aria-labelledby="ac01-events-title">
+                  <div class="ac01-heading-row ac01-events-head"><h3 id="ac01-events-title" tabindex="-1">Ereignisse / Tickets <small>ohne Zeitangabe</small></h3><button type="button" class="ac01-add ac01-add-event" id="ac01-event-add" data-action="add-event">＋ Ereignis hinzufügen</button></div>
+                  <p class="ac01-hint">Ein Ereignis hält fest, was passiert ist: Ort, Beschreibung und ein oder mehrere Gründe. Es hat keine eigene Zeit und ist keine Arbeitszeit; Personenzeit steht nur in den Arbeitszeilen. Es löst weder eine Behinderungsanzeige noch einen Nachtrag, eine Beauftragung oder eine Mitteilung an den Auftraggeber aus. Die fünf Gründe sind eine vorläufige Demo-Auswahl, kein bestätigter Katalog.</p>
+                  <div id="ac01-events"></div>
+                </div>
               </section>
               <section class="ac01-block" aria-labelledby="ac01-extra-title">
-                <h2 id="ac01-extra-title"><span class="ac01-letter" aria-hidden="true">D</span> Weitere Tagesangaben</h2>
+                <h2 id="ac01-extra-title"><span class="ac01-letter" aria-hidden="true">C</span> Weitere Tagesangaben</h2>
                 <label for="ac01-equipment">Geräte / Maschinen / Fahrzeuge</label><input id="ac01-equipment" placeholder="z. B. Gerüst, Hubwagen · Anzahl">
                 <label for="ac01-material">Materialanlieferung (kurze Notiz)</label><input id="ac01-material" placeholder="z. B. Gipskarton, Vormittag">
                 <label for="ac01-contacts">Kontakte / Anordnungen der Bauleitung oder des Auftraggebers</label><textarea id="ac01-contacts" rows="2" placeholder="Wer, wann, was wurde angeordnet?"></textarea>
@@ -124,7 +124,7 @@
               </details>
             </div>
             <aside class="ac01-report-area" aria-labelledby="ac01-draft-title">
-              <div class="ac01-heading-row"><h2 id="ac01-draft-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">E</span> Interner Tagesbericht</h2><span>Nur intern</span></div>
+              <div class="ac01-heading-row"><h2 id="ac01-draft-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">D</span> Interner Tagesbericht</h2><span>Nur intern</span></div>
               <div id="ac01-draft"></div>
               <details class="ac01-limitations"><summary>Hinweise zu dieser Demo</summary><p>Nur synthetische Daten im Arbeitsspeicher; beim Neuladen gehen Eingaben verloren. Gewählte Fotos werden nur als Dateiname gezeigt, nicht hochgeladen oder gespeichert. Dieser interne Entwurf ist weder ein externer Bautagesbericht noch ein Versand. Pausen-, Zeitzuordnungs- und Berichtseinheitsregeln sind offen.</p></details>
             </aside>

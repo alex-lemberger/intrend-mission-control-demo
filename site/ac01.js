@@ -27,7 +27,10 @@
   const yesterdayEntries = directory.filter(entry => entry.group === 'own').slice(0, 22);
   const categoryOptions = ['Wände', 'Decken', 'Spachteln', 'Deckenunterkonstruktion'];
   const locationOptions = ['Erdgeschoss', 'Zweites Obergeschoss', 'Drittes Obergeschoss', 'Treppenhaus', 'Flur'];
-  const eventTypes = ['Baubehinderung', 'Stundenzettel', 'Bedenken', 'Nachtrag / Nachtragsposition', 'Sonstiges'];
+  // Existing demo categories (formerly the "Ereignisart" buttons); an event may carry several of them. Short labels are display only.
+  const eventReasons = ['Baubehinderung', 'Stundenzettel', 'Bedenken', 'Nachtrag / Nachtragsposition', 'Sonstiges'];
+  const reasonShort = { 'Baubehinderung': 'Behinderung', 'Nachtrag / Nachtragsposition': 'Nachtrag' };
+  const reasonLabel = reason => reasonShort[reason] || reason;
   const numberWords = { eins: 1, eine: 1, einer: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6 };
   let sequence = 1;
   const nextId = prefix => `${prefix}${sequence++}`;
@@ -43,7 +46,12 @@
   // `selected` and `prefill` are UI state like `collapsed`; `prefill` names the demo source until the row is edited.
   // `personRef` is the stable demo id of a picker entry (de-duplication); `pseudonym` marks subcontractor identifiers.
   const newEmployee = (data = {}) => ({ id: nextId('e'), name: '', collapsed: false, selected: false, prefill: '', personRef: '', pseudonym: false, assignments: [newAssignment()], ...data });
-  const newEvent = type => ({ id: nextId('v'), type, description: '', people: [], from: '', to: '' });
+  /*
+   * One event row = one occurrence on site: where (location), what (description) and why (one or more reasons).
+   * It deliberately has no time fields: person time lives only in the employee/work rows, so event data can never be
+   * added to working time. `people` only references affected employees by id; it adds nothing to the head count.
+   */
+  const newEvent = (reasons = [], data = {}) => ({ id: nextId('v'), reasons: [].concat(reasons).filter(Boolean), location: '', description: '', people: [], ...data });
 
   // Recognizer experiment: supports only the supplied two-sentence pattern; returns suggestions, never state.
   function parseDemonstrationText(input) {
@@ -126,10 +134,17 @@
     });
     const duplicates = [...nameCounts].filter(([, count]) => count > 1).map(([name]) => name);
     duplicates.forEach(name => missing.push(`${name} ist mehrfach erfasst und zählt einmal; bitte zusammenführen`));
+    const reasonCounts = {};
     events.forEach((event, index) => {
-      if (!event.description.trim()) missing.push(`Ereignis ${index + 1} (${event.type}): Beschreibung fehlt`);
+      const label = `Ereignis ${index + 1}`;
+      if (!String(event.location || '').trim()) missing.push(`${label}: Ort / Bauteil fehlt`);
+      if (!String(event.description || '').trim()) missing.push(`${label}: Beschreibung fehlt`);
+      if (!(event.reasons || []).length) missing.push(`${label}: Ereignisgrund fehlt`);
+      (event.reasons || []).forEach(reason => { reasonCounts[reason] = (reasonCounts[reason] || 0) + 1; });
     });
     return {
+      eventCount: events.length,
+      reasonCounts,
       named: nameCounts.size,
       unnamed,
       duplicates,
@@ -207,7 +222,7 @@
     return result;
   }
 
-  root.AC01Demo = { parse: parseDemonstrationText, summarize, toMinutes, newEmployee, newAssignment, newEvent, applyBulk, prefillEmployees, isPristine, demoPeople: peopleOptions, directory, listStaff, yesterdayEntries };
+  root.AC01Demo = { parse: parseDemonstrationText, eventReasons, summarize, toMinutes, newEmployee, newAssignment, newEvent, applyBulk, prefillEmployees, isPristine, demoPeople: peopleOptions, directory, listStaff, yesterdayEntries };
   if (!root.document) return;
 
   const $ = selector => document.querySelector(selector);
@@ -279,17 +294,19 @@
     refresh();
   }
 
+  // Compact event row: Ort, Beschreibung and a multi-select of reasons; no time input. Affected people are an optional fold-out.
   function renderEvents() {
-    eventsEl.innerHTML = events.length ? events.map((event, index) => `<article class="ac01-event" data-event="${event.id}">
-      <div class="ac01-assignment-head"><strong>Ereignis ${index + 1}</strong><button class="ac01-remove" type="button" data-action="remove-event" aria-label="Ereignis ${index + 1} entfernen">Entfernen</button></div>
-      <div class="ac01-fields">
-        <div><label for="${event.id}-type">Ereignisart</label><select id="${event.id}-type" data-event-field="type">${eventTypes.map(type => `<option ${type === event.type ? 'selected' : ''}>${escapeHtml(type)}</option>`).join('')}</select></div>
-        <div class="ac01-times ac01-event-times"><div class="ac01-timefield" data-empty="${event.from === ''}"><label for="${event.id}-from">Von (optional)</label><input id="${event.id}-from" data-event-field="from" type="time" value="${escapeHtml(event.from)}"></div><div class="ac01-timefield" data-empty="${event.to === ''}"><label for="${event.id}-to">Bis (optional)</label><input id="${event.id}-to" data-event-field="to" type="time" value="${escapeHtml(event.to)}"></div></div>
-      </div>
-      <label for="${event.id}-description">Beschreibung</label><textarea id="${event.id}-description" data-event-field="description" rows="2" placeholder="Was ist passiert, wo, welche Arbeiten waren betroffen?">${escapeHtml(event.description)}</textarea>
-      <fieldset class="ac01-affected"><legend>Betroffene Mitarbeiter</legend>${employees.map((employee, employeeIndex) => `<label class="ac01-check"><input type="checkbox" data-event-person="${employee.id}" ${event.people.includes(employee.id) ? 'checked' : ''}> ${escapeHtml(employeeLabel(employee, employeeIndex))}</label>`).join('') || '<span class="ac01-hint">Zuerst Mitarbeitende erfassen.</span>'}</fieldset>
-      <p class="ac01-hint">Ereigniszeit ist keine Zusatzzeit zur normalen Arbeitszeit; die Zuordnung ist offen.</p>
-    </article>`).join('') : '<p class="ac01-empty">Noch keine Ereignisse erfasst.</p>';
+    eventsEl.innerHTML = events.length ? events.map((event, index) => {
+      const affected = event.people.filter(id => employees.some(employee => employee.id === id)).length;
+      return `<article class="ac01-event" data-event="${event.id}">
+      <strong class="ac01-event-label">Ereignis ${index + 1}</strong>
+      <div class="ac01-event-where"><label for="${event.id}-location">Ort / Bauteil</label><input id="${event.id}-location" data-event-field="location" list="ac01-locations" value="${escapeHtml(event.location)}" placeholder="Ort / Bauteil"></div>
+      <div class="ac01-event-desc"><label for="${event.id}-description">Beschreibung</label><textarea id="${event.id}-description" data-event-field="description" rows="1" placeholder="Was ist passiert, welche Arbeiten waren betroffen?">${escapeHtml(event.description)}</textarea></div>
+      <button class="ac01-remove ac01-event-remove" type="button" data-action="remove-event" aria-label="Ereignis ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button>
+      <fieldset class="ac01-reasons"><legend>Ereignisgründe <small>(mehrere möglich)</small></legend><div class="ac01-pills">${eventReasons.map(reason => `<label class="ac01-pill"><input type="checkbox" data-event-reason="${escapeHtml(reason)}"${event.reasons.includes(reason) ? ' checked' : ''}><span title="${escapeHtml(reason)}">${escapeHtml(reasonLabel(reason))}</span></label>`).join('')}</div></fieldset>
+      <details class="ac01-affected"><summary>${shortLong('Betroffene Mitarbeiter', 'Betroffene')} <span data-affected-count>${affected ? `(${affected})` : '(optional)'}</span></summary><div class="ac01-affected-list">${employees.map((employee, employeeIndex) => `<label class="ac01-check"><input type="checkbox" data-event-person="${employee.id}" ${event.people.includes(employee.id) ? 'checked' : ''}> ${escapeHtml(employeeLabel(employee, employeeIndex))}</label>`).join('') || '<span class="ac01-hint">Zuerst Mitarbeitende erfassen.</span>'}</div></details>
+    </article>`;
+    }).join('') : '<p class="ac01-empty">Noch keine Ereignisse erfasst.</p>';
     renderReport();
   }
 
@@ -371,8 +388,7 @@
       </li>`).join('') || '<li><span>Keine Arbeit erfasst</span></li>'}</ul></section>`).join('');
     const eventMarkup = events.length ? events.map(event => {
       const affected = event.people.map(id => names.get(id)).filter(Boolean);
-      const time = event.from || event.to ? `${event.from || '?'}–${event.to || '?'}` : '';
-      return `<li><strong>${escapeHtml(event.type)}</strong> <span>${escapeHtml(event.description.trim() || 'Beschreibung fehlt')}</span>${affected.length ? `<span>Betroffen: ${escapeHtml(affected.join(', '))}</span>` : ''}${time ? `<span>Zeit: ${escapeHtml(time)} · nicht zur Normalzeit addiert</span>` : ''}</li>`;
+      return `<li><strong>${escapeHtml(event.reasons.length ? event.reasons.join(' · ') : 'Grund fehlt')}</strong> <span>Ort: ${escapeHtml(event.location.trim() || 'fehlt')}</span><span>${escapeHtml(event.description.trim() || 'Beschreibung fehlt')}</span>${affected.length ? `<span>Betroffen: ${escapeHtml(affected.join(', '))} · Personenzeit steht nur in den Arbeitszeilen</span>` : ''}</li>`;
     }).join('') : '<li><span>Keine außergewöhnlichen Ereignisse erfasst.</span></li>';
     const note = value => value.trim() ? escapeHtml(value.trim()) : 'nicht angegeben';
     const incomplete = !summary.complete;
@@ -390,7 +406,35 @@
       <h3>Weitere Beobachtungen</h3>
       <dl class="ac01-facts"><div><dt>Geräte / Maschinen</dt><dd>${note(extras.equipment)}</dd></div><div><dt>Materialanlieferung</dt><dd>${note(extras.material)}</dd></div><div><dt>Kontakte / Anordnungen</dt><dd>${note(extras.contacts)}</dd></div></dl>
       ${incomplete && summary.missing.length ? `<div class="ac01-missing"><strong>${summary.missing.length} ${summary.missing.length === 1 ? 'Hinweis' : 'Hinweise'}</strong><details><summary>Fehlende oder zu prüfende Angaben ansehen</summary><ul>${listItems(summary.missing)}</ul></details></div>` : incomplete ? '' : '<p class="ac01-complete">Keine fehlenden Angaben erkannt. Der Entwurf bleibt ungeprüft; Pausen-, Zeit- und Berichtsregeln sind offen.</p>'}`;
+    renderOverview();
   }
+
+  // Live overview derived only from the entered rows (the Mission Control view of this working panel). Counts and the time
+  // window are shown; no hours are summed and events carry no time, so nothing can be counted twice.
+  const overviewEl = $('#ac01-overview');
+  function renderOverview() {
+    const summary = summarize(current());
+    const window_ = summary.earliest === null && summary.latest === null ? '–' : `${summary.earliest === null ? '?' : fromMinutes(summary.earliest)}–${summary.latest === null ? '?' : fromMinutes(summary.latest)}`;
+    const reasons = Object.entries(summary.reasonCounts).map(([reason, count]) => `${reasonLabel(reason)} ${count}`).join(' · ');
+    const open = summary.missing.length;
+    const stat = (label, value, extra = '') => `<div class="ac01-stat"><small>${label}</small><strong>${value}</strong>${extra ? `<span>${escapeHtml(extra)}</span>` : ''}</div>`;
+    overviewEl.innerHTML = stat('Mitarbeitende', `${summary.named}${summary.unnamed ? ` <em>+${summary.unnamed} ohne Namen</em>` : ''}`)
+      + stat('Zeitfenster', window_, 'früh. Beginn–spät. Ende')
+      + stat('Arbeitszeilen', String(summary.assignmentCount))
+      + stat('Ereignisse', String(summary.eventCount), reasons || 'ohne Zeit')
+      + `<button type="button" class="ac01-stat ac01-stat-open${open ? ' has-open' : ''}" data-jump="#ac01-draft-title"><small>Offene Hinweise</small><strong>${open}</strong><span>${summary.complete ? 'Entwurf · ungeprüft' : 'Entwurf · unvollständig'}</span></button>`
+      + '<button type="button" class="ac01-stat ac01-stat-link" data-view="dashboard"><small>Mission Control</small><strong>Übersicht →</strong><span>Demo-Berichte</span></button>';
+  }
+  // The sticky column header must sit below the sticky strip, whatever height the strip has at the current width.
+  if (root.ResizeObserver) new ResizeObserver(() => { const h = overviewEl.offsetHeight; if (h) document.documentElement.style.setProperty('--ac-strip-h', `${h}px`); }).observe(overviewEl);
+  // The strip is re-rendered often, so its jump buttons are handled by delegation.
+  overviewEl.addEventListener('click', event => {
+    const button = event.target.closest('[data-jump]');
+    if (!button) return;
+    const target = $(button.dataset.jump);
+    target.scrollIntoView({ block: 'start' });
+    target.focus({ preventScroll: true });
+  });
 
   // Context and additional information
   $('#ac01-project').innerHTML = projectList.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');
@@ -503,28 +547,32 @@
     employeesEl.querySelector(`[data-employee="${created.id}"] [data-employee-field="name"]`)?.focus();
   });
 
-  // Exceptional events
-  $('#ac01-event-add').addEventListener('click', event => {
-    const button = event.target.closest('[data-type]');
-    if (!button) return;
-    const created = newEvent(button.dataset.type);
+  // Exceptional events (compact rows)
+  $('#ac01-event-add').addEventListener('click', () => {
+    const created = newEvent();
     events.push(created);
     renderEvents();
-    eventsEl.querySelector(`[data-event="${created.id}"] textarea`)?.focus();
+    eventsEl.querySelector(`[data-event="${created.id}"] [data-event-field="location"]`)?.focus();
   });
 
   const findEvent = element => events.find(item => item.id === element.closest('[data-event]')?.dataset.event);
   eventsEl.addEventListener('input', event => {
     const item = findEvent(event.target);
     const field = event.target.dataset.eventField;
-    if (item && field) { item[field] = event.target.value; if (event.target.type === 'time') event.target.parentElement.dataset.empty = String(event.target.value === ''); renderReport(); }
+    if (item && field) { item[field] = event.target.value; renderReport(); }
   });
   eventsEl.addEventListener('change', event => {
     const item = findEvent(event.target);
     if (!item) return;
     const personId = event.target.dataset.eventPerson;
-    if (personId) item.people = event.target.checked ? [...new Set([...item.people, personId])] : item.people.filter(id => id !== personId);
-    else if (event.target.dataset.eventField === 'type') item.type = event.target.value;
+    const reason = event.target.dataset.eventReason;
+    if (personId) {
+      item.people = event.target.checked ? [...new Set([...item.people, personId])] : item.people.filter(id => id !== personId);
+      const count = event.target.closest('[data-event]').querySelector('[data-affected-count]');
+      if (count) count.textContent = item.people.length ? `(${item.people.length})` : '(optional)';
+    } else if (reason) {
+      item.reasons = event.target.checked ? eventReasons.filter(known => known === reason || item.reasons.includes(known)) : item.reasons.filter(known => known !== reason);
+    }
     renderReport();
   });
   eventsEl.addEventListener('click', event => {
