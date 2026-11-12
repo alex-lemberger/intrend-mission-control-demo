@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Stundenzettel vorbereiten – Mission Control</title>
+<link rel="stylesheet" href="stundenzettel/stundenzettel.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">i<span>T</span></span><div><strong>inTrend</strong><small>MISSION CONTROL</small></div></div>
+  <span class="demo-chip">DEMO · SYNTHETISCHE DATEN</span>
+</header>
+<main class="page">
+  <div class="page-head">
+    <p class="eyebrow">STUNDENZETTEL · BEISPIELDATEN</p>
+    <h1>Stundenzettel <span>vorbereiten.</span></h1>
+    <p>Einträge aus dem Tagesbericht auswählen, Angaben ergänzen, Vorschau prüfen und drucken. Der Tagesbericht bleibt unverändert; es wird nichts gesendet oder abgelegt.</p>
+  </div>
+  <nav class="steps" id="steps" aria-label="Arbeitsschritte"></nav>
+  <div class="tabs" id="tabs" role="tablist" aria-label="Ansicht">
+    <button type="button" role="tab" id="tab-edit" data-view="edit" aria-selected="true">Bearbeiten</button>
+    <button type="button" role="tab" id="tab-preview" data-view="preview" aria-selected="false">Vorschau <span id="tab-badge" class="badge" hidden></span></button>
+  </div>
+  <div class="layout" id="layout" data-view="edit">
+    <section class="editor" id="editor" aria-label="Bearbeiten"></section>
+    <section class="preview" id="preview-col" aria-label="Vorschau">
+      <div class="preview-head">
+        <h2><span class="letter">D</span>Vorschau</h2>
+        <span class="status" id="status"></span>
+        <button type="button" class="btn-primary" id="print">Drucken / als PDF sichern</button>
+      </div>
+      <div id="hints"></div>
+      <div id="docwrap"><div id="document"></div></div>
+      <div id="side"></div>
+    </section>
+  </div>
+</main>
+<div class="nextbar" id="nextbar"><span id="nextbar-info"></span><button type="button" class="btn-primary" id="to-preview">Weiter zur Vorschau →</button></div>
+<script type="module" src="stundenzettel/preview/stundenzettel.js"></script>
+</body>
+</html>

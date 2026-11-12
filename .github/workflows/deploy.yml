@@ -28,13 +28,34 @@ jobs:
           test ! -e site/.git
           test -z "$(find site -type l -print)"
           actual="$(find site -type f -print | LC_ALL=C sort)"
-          expected="$(printf '%s\n' site/ac01.css site/ac01.js site/app.js site/index.html site/styles.css)"
+          expected="$(printf '%s\n' \
+            site/ac01.css \
+            site/ac01.js \
+            site/app.js \
+            site/index.html \
+            site/stundenzettel.html \
+            site/stundenzettel/preview/stundenzettel.js \
+            site/stundenzettel/src/core/factories.js \
+            site/stundenzettel/src/core/ids.js \
+            site/stundenzettel/src/core/prefill.js \
+            site/stundenzettel/src/core/time.js \
+            site/stundenzettel/src/demo/demo-timesheet.js \
+            site/stundenzettel/src/repository/in-memory-repository.js \
+            site/stundenzettel/src/state/day-report.js \
+            site/stundenzettel/src/timesheet/timesheet.js \
+            site/stundenzettel/stundenzettel.css \
+            site/styles.css)"
           test "$actual" = "$expected"
           test -s site/index.html
           test -s site/styles.css
           test -s site/app.js
           test -s site/ac01.css
           test -s site/ac01.js
+          test -s site/stundenzettel.html
+          test -s site/stundenzettel/preview/stundenzettel.js
+          test -s site/stundenzettel/stundenzettel.css
+          # no external references or network calls in the published files
+          if grep -rEn 'fetch\(|XMLHttpRequest|WebSocket|sendBeacon' site/stundenzettel site/stundenzettel.html; then exit 1; fi
       - name: Upload only the public site directory
         uses: actions/upload-pages-artifact@v4
         with:

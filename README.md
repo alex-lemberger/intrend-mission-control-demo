@@ -1,6 +1,6 @@
 # inTrend Mission Control — öffentliche Demo
 
-**Nur synthetische Daten.** Diese eigenständige Git-Historie enthält fünf öffentliche Anwendungsdateien unter `site/`, den Pages-Workflow und diese Dokumentation. Die private Architekturablage und deren Git-Historie gehören **nicht** in dieses Repository. GitHub Pages ist öffentlich erreichbar, auch wenn das Repository privat sein sollte.
+**Nur synthetische Daten.** Diese eigenständige Git-Historie enthält die öffentlichen statischen Dateien unter `site/` (AC-01-Demo mit fünf Dateien und die Stundenzettel-Vorschau), den Pages-Workflow und diese Dokumentation. Die private Architekturablage und deren Git-Historie gehören **nicht** in dieses Repository. GitHub Pages ist öffentlich erreichbar, auch wenn das Repository privat sein sollte.
 
 **Ziel:** `https://github.com/alex-lemberger/intrend-mission-control-demo`  
 **Erwartete Pages-Adresse:** `https://alex-lemberger.github.io/intrend-mission-control-demo/`
@@ -29,6 +29,10 @@ Der Workflow folgt dem [offiziellen GitHub-Pages-Ablauf für eigene GitHub-Actio
 ## AC-01-Aktualisierung
 
 Die fünf freigegebenen Dateien unter `site/` sind `index.html`, `styles.css`, `app.js`, `ac01.css` und `ac01.js`. Die AC-01-Ansicht ist direkt über `#ac01` erreichbar. Änderungen an `site/` auf `main` lösen den Pages-Workflow aus; ein manueller Workflow-Start bleibt möglich. Die Allowlist blockiert zusätzliche Dateien unter `site/`. Der feste Demo-Parser ist keine KI-Verbindung, der Tagesbericht ein interner Entwurf ohne Versand.
+
+## Stundenzettel-Vorschau (Stakeholder-Prototyp)
+
+Zusätzliche Seite: `https://alex-lemberger.github.io/intrend-mission-control-demo/stundenzettel.html` (Datei `site/stundenzettel.html` plus `site/stundenzettel/`). Sie ist **nicht** mit dem AC-01-Zustand verbunden und verändert `index.html`, `ac01.*`, `app.js` und `styles.css` nicht. Einträge, Angaben und Anhänge sind synthetisch, bleiben nur im Browser und werden nicht übertragen. Der Stundenzettel ist ein **nicht freigegebener Entwurf**: Vorlage, Stundenberechnung (auch die Annahme bei leerer Pause) und Abrechnungsregeln sind nicht freigegeben; es gibt keinen Versand, keine Ablage und keine LV-/Rechnungsfunktion. Die Dateien unter `site/stundenzettel/` sind aus dem privaten Quellprojekt erzeugte, typbereinigte Browsermodule ohne Kommentare; sie werden nicht von Hand bearbeitet.
 
 ## Öffentliche Demo beenden
 
