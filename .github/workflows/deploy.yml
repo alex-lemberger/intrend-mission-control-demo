@@ -34,28 +34,23 @@ jobs:
             site/app.js \
             site/index.html \
             site/stundenzettel.html \
-            site/stundenzettel/preview/stundenzettel.js \
-            site/stundenzettel/src/core/factories.js \
-            site/stundenzettel/src/core/ids.js \
-            site/stundenzettel/src/core/prefill.js \
-            site/stundenzettel/src/core/time.js \
-            site/stundenzettel/src/demo/demo-timesheet.js \
-            site/stundenzettel/src/repository/in-memory-repository.js \
-            site/stundenzettel/src/state/day-report.js \
-            site/stundenzettel/src/timesheet/timesheet.js \
-            site/stundenzettel/stundenzettel.css \
-            site/styles.css)"
+            site/styles.css \
+            site/timesheet-view.js \
+            site/vendor/ac01-core.bundle.js \
+            site/vendor/stundenzettel.bundle.js \
+            site/workday-store.js)"
           test "$actual" = "$expected"
-          test -s site/index.html
-          test -s site/styles.css
-          test -s site/app.js
-          test -s site/ac01.css
-          test -s site/ac01.js
-          test -s site/stundenzettel.html
-          test -s site/stundenzettel/preview/stundenzettel.js
-          test -s site/stundenzettel/stundenzettel.css
-          # no external references or network calls in the published files
-          if grep -rEn 'fetch\(|XMLHttpRequest|WebSocket|sendBeacon' site/stundenzettel site/stundenzettel.html; then exit 1; fi
+          for f in $expected; do test -s "$f"; done
+          # no network calls, storage or dynamic code in any published file
+          if grep -rEn 'fetch\(|XMLHttpRequest|WebSocket|sendBeacon|importScripts|serviceWorker|localStorage|sessionStorage|indexedDB|document\.cookie|eval\(|new Function' site; then exit 1; fi
+          # the only absolute URL allowed is the SVG namespace inside the synthetic placeholder images
+          if grep -rhoE 'https?://[^"'"'"' )<>\\]+' site | grep -vx 'http://www.w3.org/2000/svg'; then exit 1; fi
+          # visible demo labels and the memory-only warning must stay
+          grep -q 'DEMO / SYNTHETISCHE DATEN' site/index.html
+          grep -q 'nach dem Neuladen der Seite ist alles weg' site/index.html
+          # compatibility page: relative redirect and visible link to AC-01 only
+          grep -q 'http-equiv="refresh" content="5; url=index.html#ac01"' site/stundenzettel.html
+          grep -q 'href="index.html#ac01"' site/stundenzettel.html
       - name: Upload only the public site directory
         uses: actions/upload-pages-artifact@v4
         with:

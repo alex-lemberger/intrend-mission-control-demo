@@ -4,40 +4,38 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Stundenzettel vorbereiten – Mission Control</title>
-<link rel="stylesheet" href="stundenzettel/stundenzettel.css">
+<meta http-equiv="refresh" content="5; url=index.html#ac01">
+<title>Stundenzettel – inTrend Mission Control (Demo)</title>
+<style>
+  :root{--ink:#14252c;--muted:#40594e;--line:#c8d7cc;--paper:#f5f7f4;--teal:#0a665e;--rail:#11242c;--lime:#d5f28a;
+    font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink);background:var(--paper)}
+  *{box-sizing:border-box} body{margin:0;font-size:16px;line-height:1.5;background:var(--paper)}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--rail);color:#eef4ee;padding:12px 20px}
+  header strong{font-size:18px;letter-spacing:-.5px} header small{display:block;font-size:9px;letter-spacing:2px;color:#afc0bc;font-weight:800}
+  .chip{white-space:nowrap;border:1px solid #3b5560;border-radius:99px;padding:6px 10px;font-size:10px;font-weight:800;letter-spacing:.6px;color:#cfe0da}
+  main{max-width:640px;margin:0 auto;padding:32px 20px}
+  .card{background:#fff;border:1px solid var(--line);border-left:4px solid var(--teal);border-radius:14px;padding:22px}
+  h1{font-size:26px;letter-spacing:-.6px;line-height:1.2;margin:0 0 12px} p{margin:0 0 12px;color:var(--muted)}
+  ol{margin:0 0 16px;padding-left:22px} li{margin:4px 0}
+  a.button{display:inline-block;min-height:44px;padding:11px 18px;border-radius:12px;background:var(--teal);color:#fff;font-weight:800;text-decoration:none}
+  a.button:focus-visible{outline:3px solid #73b99b;outline-offset:2px}
+  .small{font-size:13px;margin-top:14px}
+</style>
 </head>
 <body>
-<header class="topbar">
-  <div class="brand"><span class="brand-mark">i<span>T</span></span><div><strong>inTrend</strong><small>MISSION CONTROL</small></div></div>
-  <span class="demo-chip">DEMO · SYNTHETISCHE DATEN</span>
-</header>
-<main class="page">
-  <div class="page-head">
-    <p class="eyebrow">STUNDENZETTEL · BEISPIELDATEN</p>
-    <h1>Stundenzettel <span>vorbereiten.</span></h1>
-    <p>Einträge aus dem Tagesbericht auswählen, Angaben ergänzen, Vorschau prüfen und drucken. Der Tagesbericht bleibt unverändert; es wird nichts gesendet oder abgelegt.</p>
-  </div>
-  <nav class="steps" id="steps" aria-label="Arbeitsschritte"></nav>
-  <div class="tabs" id="tabs" role="tablist" aria-label="Ansicht">
-    <button type="button" role="tab" id="tab-edit" data-view="edit" aria-selected="true">Bearbeiten</button>
-    <button type="button" role="tab" id="tab-preview" data-view="preview" aria-selected="false">Vorschau <span id="tab-badge" class="badge" hidden></span></button>
-  </div>
-  <div class="layout" id="layout" data-view="edit">
-    <section class="editor" id="editor" aria-label="Bearbeiten"></section>
-    <section class="preview" id="preview-col" aria-label="Vorschau">
-      <div class="preview-head">
-        <h2><span class="letter">D</span>Vorschau</h2>
-        <span class="status" id="status"></span>
-        <button type="button" class="btn-primary" id="print">Drucken / als PDF sichern</button>
-      </div>
-      <div id="hints"></div>
-      <div id="docwrap"><div id="document"></div></div>
-      <div id="side"></div>
-    </section>
+<header><div><strong>inTrend</strong><small>MISSION CONTROL</small></div><span class="chip">DEMO / SYNTHETISCHE DATEN</span></header>
+<main>
+  <div class="card">
+    <h1>Der Stundenzettel entsteht jetzt aus einem gespeicherten Baustellentag.</h1>
+    <p>Die frühere eigenständige Stundenzettel-Seite mit festen Beispieleinträgen gibt es nicht mehr. Namen, Zeiten und Tätigkeiten werden nur noch einmal erfasst:</p>
+    <ol>
+      <li>„Baustellentag erfassen“: Tag eintragen und „Tag speichern → Mission Control“ wählen.</li>
+      <li>In Mission Control beim gespeicherten Tag „Stundenzettel erstellen“ wählen.</li>
+      <li>Einträge auswählen, Angaben ergänzen, prüfen und drucken.</li>
+    </ol>
+    <p><a class="button" href="index.html#ac01">Zu „Baustellentag erfassen“ →</a></p>
+    <p class="small">Sie werden in wenigen Sekunden automatisch weitergeleitet. Nur synthetische Daten; alles bleibt im Arbeitsspeicher des Browsers und ist nach dem Neuladen der Seite weg.</p>
   </div>
 </main>
-<div class="nextbar" id="nextbar"><span id="nextbar-info"></span><button type="button" class="btn-primary" id="to-preview">Weiter zur Vorschau →</button></div>
-<script type="module" src="stundenzettel/preview/stundenzettel.js"></script>
 </body>
 </html>

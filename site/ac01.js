@@ -8,221 +8,24 @@
   'use strict';
 
   /*
-   * Synthetic staff directory for the picker. None of it is real or persisted: 25 own site workers, 2 office entries and
-   * 12 subcontractor workers of three invented firms. `id` is a stable demo identifier used for de-duplication; labels
-   * are display text only. Subcontractor workers carry a pseudonym ("Firma Monteur-n"), not a name; the numbers are only
-   * meaningful within the current day and demo session and say nothing about the same person on another day.
+   * Pure logic and the synthetic demo data come from the tested TypeScript core (mission-control-spfx: src/core,
+   * src/demo, src/compat), loaded as the GENERATED vendor/ac01-core.bundle.js. This file keeps only the UI.
+   * Demo data: nothing is real; subcontractor workers carry pseudonyms ("Firma Monteur-n"), meaningful only per day.
    */
-  const pad2 = number => String(number).padStart(2, '0');
-  const directory = [
-    ...Array.from({ length: 25 }, (_, i) => ({ id: `own-${pad2(i + 1)}`, group: 'own', label: `Demo-Person ${pad2(i + 1)}`, role: i < 3 ? 'Vorarbeiter' : 'Monteur' })),
-    ...[1, 2].map(i => ({ id: `office-${pad2(i)}`, group: 'office', label: `Demo-Büro ${pad2(i)}`, role: 'Büro' })),
-    ...[['Alpha', 5], ['Bravo', 4], ['Charlie', 3]].flatMap(([firm, count]) => Array.from({ length: count }, (_, i) => (
-      { id: `sub-${firm.toLowerCase()}-${pad2(i + 1)}`, group: 'sub', firm, label: `${firm} Monteur-${i + 1}`, role: 'Monteur' }))),
-  ];
-  // Office staff are available but never part of the default site selection.
-  const listStaff = includeOffice => directory.filter(entry => includeOffice || entry.group !== 'office');
-  const peopleOptions = directory.filter(entry => entry.group === 'own').map(entry => entry.label);
-  // The synthetic "previous day": the first 22 own site workers.
-  const yesterdayEntries = directory.filter(entry => entry.group === 'own').slice(0, 22);
-  const categoryOptions = ['Wände', 'Decken', 'Spachteln', 'Deckenunterkonstruktion'];
-  const locationOptions = ['Erdgeschoss', 'Zweites Obergeschoss', 'Drittes Obergeschoss', 'Treppenhaus', 'Flur'];
-  // Existing demo categories (formerly the "Ereignisart" buttons); an event may carry several of them. Short labels are display only.
-  const eventReasons = ['Baubehinderung', 'Stundenzettel', 'Bedenken', 'Nachtrag / Nachtragsposition', 'Sonstiges'];
+  const core = root.AC01Core;
+  if (!core) throw new Error('AC01Core missing: load vendor/ac01-core.bundle.js before ac01.js');
+  const { newAssignment, newEmployee, newEvent, parseDemonstrationText, fromMinutes, normalizeName, employeeLabel, summarize, isPristine, prefillEmployees, applyBulk } = core;
+  const demo = core.createDemoData();
+  const { directory, yesterdayEntries, categoryOptions, locationOptions, eventReasons } = demo;
+  const peopleOptions = demo.demoPeople;
+  // Short labels are display only.
   const reasonShort = { 'Baubehinderung': 'Behinderung', 'Nachtrag / Nachtragsposition': 'Nachtrag' };
   const reasonLabel = reason => reasonShort[reason] || reason;
-  const numberWords = { eins: 1, eine: 1, einer: 1, zwei: 2, drei: 3, vier: 4, fünf: 5, sechs: 6 };
-  let sequence = 1;
-  const nextId = prefix => `${prefix}${sequence++}`;
-
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[char]);
 
-  const newAssignment = (data = {}) => ({
-    id: nextId('a'), start: '', end: '', breakMin: '', work: '', lv: '', locations: [], locationDraft: '', photos: [], ...data
-  });
-  // `collapsed` only affects the small-screen summary view; it is UI state, not data.
-  // `selected` and `prefill` are UI state like `collapsed`; `prefill` names the demo source until the row is edited.
-  // `personRef` is the stable demo id of a picker entry (de-duplication); `pseudonym` marks subcontractor identifiers.
-  const newEmployee = (data = {}) => ({ id: nextId('e'), name: '', collapsed: false, selected: false, prefill: '', personRef: '', pseudonym: false, assignments: [newAssignment()], ...data });
-  /*
-   * One event row = one occurrence on site: where (location), what (description) and why (one or more reasons).
-   * It deliberately has no time fields: person time lives only in the employee/work rows, so event data can never be
-   * added to working time. `people` only references affected employees by id; it adds nothing to the head count.
-   */
-  const newEvent = (reasons = [], data = {}) => ({ id: nextId('v'), reasons: [].concat(reasons).filter(Boolean), location: '', description: '', people: [], ...data });
-
-  // Recognizer experiment: supports only the supplied two-sentence pattern; returns suggestions, never state.
-  function parseDemonstrationText(input) {
-    const sentences = String(input).trim().replace(/\s+/g, ' ').split(/(?<=[.!?])\s+/).filter(Boolean);
-    const countPattern = '(?<count>drei|3)';
-    const first = new RegExp(`^(?:Heute )?haben ${countPattern} Mitarbeiter an den Wänden im zweiten Obergeschoss gearbeitet[.!?]?$`, 'i');
-    const second = new RegExp(`^${countPattern} weitere Mitarbeiter haben die Decken im dritten Obergeschoss bearbeitet[.!?]?$`, 'i');
-    if (sentences.length !== 2) return null;
-    const firstMatch = sentences[0].match(first);
-    const secondMatch = sentences[1].match(second);
-    if (!firstMatch || !secondMatch) return null;
-    const count = word => numberWords[word.toLowerCase()] || Number(word);
-    return [
-      { count: count(firstMatch.groups.count), work: 'Wände', location: 'Zweites Obergeschoss' },
-      { count: count(secondMatch.groups.count), work: 'Decken', location: 'Drittes Obergeschoss' }
-    ];
-  }
-
-  const toMinutes = value => {
-    const match = /^(\d{2}):(\d{2})$/.exec(value || '');
-    if (!match) return null;
-    const hours = Number(match[1]), minutes = Number(match[2]);
-    return hours < 24 && minutes < 60 ? hours * 60 + minutes : null;
-  };
-  const fromMinutes = total => `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
-  const normalizeName = name => String(name || '').trim().replace(/\s+/g, ' ').toLowerCase();
-  const employeeLabel = (employee, index) => employee.name.trim() || `Mitarbeiter ${index + 1} (ohne Namen)`;
-
-  /*
-   * Derives only what the entered data defines. No break is deducted, no hours are summed, and event
-   * times are never added to normal working time: those rules are open.
-   */
-  function summarize({ employees, events }) {
-    const nameCounts = new Map();
-    const issues = {};
-    const missing = [];
-    const starts = [], ends = [];
-    let unnamed = 0, assignmentCount = 0;
-
-    employees.forEach((employee, employeeIndex) => {
-      const label = employeeLabel(employee, employeeIndex);
-      const key = normalizeName(employee.name);
-      if (key) nameCounts.set(key, (nameCounts.get(key) || 0) + 1);
-      else { unnamed += 1; missing.push(`${label}: Name fehlt`); }
-      if (!employee.assignments.length) missing.push(`${label}: keine Arbeit erfasst`);
-      const spans = [];
-      employee.assignments.forEach((assignment, assignmentIndex) => {
-        assignmentCount += 1;
-        const where = `${label}, Arbeit ${assignmentIndex + 1}`;
-        const notes = [];
-        issues[assignment.id] = notes;
-        const start = toMinutes(assignment.start), end = toMinutes(assignment.end);
-        if (start === null) missing.push(`${where}: Beginn fehlt`); else starts.push(start);
-        if (end === null) missing.push(`${where}: Ende fehlt`); else ends.push(end);
-        if (start !== null && end !== null) {
-          if (end <= start) { notes.push('Das Ende liegt nicht nach dem Beginn.'); missing.push(`${where}: Ende liegt nicht nach dem Beginn`); }
-          else spans.push({ id: assignment.id, start, end });
-        }
-        if (assignment.breakMin !== '') {
-          const pause = Number(assignment.breakMin);
-          if (!Number.isFinite(pause) || pause < 0 || pause > 480) { notes.push('Die Pause muss zwischen 0 und 480 Minuten liegen.'); missing.push(`${where}: Pause ungültig`); }
-          else if (start !== null && end !== null && end > start && pause > end - start) { notes.push('Die Pause ist länger als die Zeitspanne.'); missing.push(`${where}: Pause länger als Zeitspanne`); }
-        }
-        if (!assignment.work.trim() && !assignment.lv.trim()) missing.push(`${where}: Tätigkeit fehlt`);
-        if (!assignment.locations.length && !assignment.locationDraft.trim()) missing.push(`${where}: Ort fehlt`);
-        if (assignment.locationDraft.trim()) {
-          notes.push(`Der Ort „${assignment.locationDraft.trim()}“ ist noch nicht hinzugefügt.`);
-          missing.push(`${where}: Ort noch nicht hinzugefügt`);
-        }
-      });
-      spans.sort((a, b) => a.start - b.start);
-      spans.forEach((span, index) => {
-        const next = spans[index + 1];
-        if (next && next.start < span.end) {
-          const warning = 'Überschneidung mit einer anderen Arbeit derselben Person: Die Zeit könnte doppelt erfasst sein (Regel offen).';
-          [span.id, next.id].forEach(id => { if (!issues[id].includes(warning)) issues[id].push(warning); });
-          missing.push(`${label}: sich überschneidende Arbeitszeiten`);
-        }
-      });
-    });
-    const duplicates = [...nameCounts].filter(([, count]) => count > 1).map(([name]) => name);
-    duplicates.forEach(name => missing.push(`${name} ist mehrfach erfasst und zählt einmal; bitte zusammenführen`));
-    const reasonCounts = {};
-    events.forEach((event, index) => {
-      const label = `Ereignis ${index + 1}`;
-      if (!String(event.location || '').trim()) missing.push(`${label}: Ort / Bauteil fehlt`);
-      if (!String(event.description || '').trim()) missing.push(`${label}: Beschreibung fehlt`);
-      if (!(event.reasons || []).length) missing.push(`${label}: Ereignisgrund fehlt`);
-      (event.reasons || []).forEach(reason => { reasonCounts[reason] = (reasonCounts[reason] || 0) + 1; });
-    });
-    return {
-      eventCount: events.length,
-      reasonCounts,
-      named: nameCounts.size,
-      unnamed,
-      duplicates,
-      assignmentCount,
-      earliest: starts.length ? Math.min(...starts) : null,
-      latest: ends.length ? Math.max(...ends) : null,
-      issues,
-      missing: [...new Set(missing)],
-      complete: assignmentCount > 0 && missing.length === 0
-    };
-  }
-
-  // A row with nothing entered; safe to replace when names are prefilled.
-  const isPristine = employee => !employee.name.trim() && employee.assignments.length === 1
-    && ['start', 'end', 'breakMin', 'work', 'lv', 'locationDraft'].every(key => !employee.assignments[0][key])
-    && !employee.assignments[0].locations.length && !employee.assignments[0].photos.length;
-
-  /*
-   * Prefill proposes names only (never times). Existing entries are kept; only an untouched start row is replaced.
-   * `source` labels the rows until the user edits them. Demo data, not a master-data or persistence feature.
-   */
-  function prefillEmployees(employees, entries, source) {
-    const kept = employees.filter(employee => !isPristine(employee));
-    const knownNames = new Set(kept.map(employee => normalizeName(employee.name)).filter(Boolean));
-    const knownRefs = new Set(kept.map(employee => employee.personRef).filter(Boolean));
-    let added = 0, skipped = 0;
-    entries.forEach(entry => {
-      if (typeof entry === 'string') {          // plain names (legacy path): matched by name
-        const key = normalizeName(entry);
-        if (knownNames.has(key)) { skipped += 1; return; }
-        knownNames.add(key);
-        kept.push(newEmployee({ name: entry, collapsed: true, prefill: source }));
-      } else {                                  // directory entries: matched by stable id, never by display name
-        if (knownRefs.has(entry.id)) { skipped += 1; return; }
-        knownRefs.add(entry.id);
-        kept.push(newEmployee({ name: entry.label, personRef: entry.id, pseudonym: entry.group === 'sub', collapsed: true, prefill: source }));
-      }
-      added += 1;
-    });
-    return { employees: kept, added, skipped };
-  }
-
-  /*
-   * Bulk assignment copies the same values to every selected employee; each row stays independent afterwards.
-   * Modes: 'fill' only fills empty fields (default), 'overwrite' replaces existing values (explicit choice),
-   * 'add' appends a further activity. Times are copied as typed; the same checks as for manual input apply later.
-   */
-  function applyBulk(employees, ids, patch, mode = 'fill') {
-    const result = { set: 0, skipped: 0, added: 0, people: 0 };
-    const fields = ['start', 'end', 'breakMin', 'work'].filter(field => String(patch[field] ?? '').trim() !== '');
-    const locations = String(patch.location ?? '').split(',').map(item => item.trim()).filter(Boolean);
-    if (!ids.length || (!fields.length && !locations.length)) return result;
-    employees.filter(employee => ids.includes(employee.id)).forEach(employee => {
-      result.people += 1;
-      if (mode === 'add') {
-        const created = newAssignment({ locations: [...locations] });
-        fields.forEach(field => { created[field] = String(patch[field]).trim(); });
-        employee.assignments.push(created);
-        result.added += 1;
-        result.set += fields.length + (locations.length ? 1 : 0);
-        return;
-      }
-      if (!employee.assignments.length) employee.assignments.push(newAssignment());
-      const target = employee.assignments[0];
-      fields.forEach(field => {
-        const value = String(patch[field]).trim();
-        if (mode === 'overwrite' || target[field] === '') { if (target[field] !== value) result.set += 1; target[field] = value; }
-        else if (target[field] !== value) result.skipped += 1;
-      });
-      if (locations.length) {
-        if (mode === 'overwrite' || (!target.locations.length && !target.locationDraft.trim())) { target.locations = [...locations]; result.set += 1; }
-        else if (target.locations.join('|') !== locations.join('|')) result.skipped += 1;
-      }
-    });
-    return result;
-  }
-
-  root.AC01Demo = { parse: parseDemonstrationText, eventReasons, summarize, toMinutes, newEmployee, newAssignment, newEvent, applyBulk, prefillEmployees, isPristine, demoPeople: peopleOptions, directory, listStaff, yesterdayEntries };
+  root.AC01Demo = core.createAC01Demo(demo);
   if (!root.document) return;
 
   const $ = selector => document.querySelector(selector);
@@ -231,6 +34,13 @@
   let events = [];
   const extras = { equipment: '', material: '', contacts: '' };
   let suggestions = [];
+  // Shared working-day store (workday-store.js): the only place a saved day lives. AC-01 keeps just the day being edited.
+  const { toDayReport, store: workdays } = root.WorkdayStore;
+  let editingKey = null;          // key of the saved day currently open, or null for a new day
+  let savedSnapshot = '';         // serialized business data at the last load/save; compared to detect unsaved changes
+  let replacePending = false;     // first Save click on a key that already holds another saved day: needs a second, explicit click
+  let newDayPending = false;      // first "Neuer leerer Tag" click with unsaved changes: needs a second click
+  let statusToken = 0;
 
   const employeesEl = $('#ac01-employees');
   const eventsEl = $('#ac01-events');
@@ -239,6 +49,12 @@
   const current = () => ({ employees, events });
   const findEmployee = element => employees.find(item => item.id === element.closest('[data-employee]')?.dataset.employee);
   const findAssignment = (employee, element) => employee?.assignments.find(item => item.id === element.closest('[data-assignment]')?.dataset.assignment);
+
+  const dayReport = () => toDayReport({ projectId: $('#ac01-project').value, date: $('#ac01-date').value, employees, events, extras });
+  const snapshot = () => JSON.stringify(dayReport());
+  const isDirty = () => snapshot() !== savedSnapshot;
+  const sameKey = (a, b) => Boolean(a && b) && a.projectId === b.projectId && a.date === b.date;
+  const projectNameOf = id => projectList.find(item => item.id === id)?.name || id;
 
   function setMessage(text, error = false) {
     messageEl.hidden = !text;
@@ -374,6 +190,7 @@
   const dateLabel = value => value ? new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(`${value}T12:00:00`)) : 'Datum fehlt';
 
   function renderReport() {
+    replacePending = false; newDayPending = false;
     const summary = summarize(current());
     const projectName = projectList.find(item => item.id === $('#ac01-project').value)?.name || 'Projekt fehlt';
     const names = new Map(employees.map((employee, index) => [employee.id, employeeLabel(employee, index)]));
@@ -407,12 +224,15 @@
       <dl class="ac01-facts"><div><dt>Geräte / Maschinen</dt><dd>${note(extras.equipment)}</dd></div><div><dt>Materialanlieferung</dt><dd>${note(extras.material)}</dd></div><div><dt>Kontakte / Anordnungen</dt><dd>${note(extras.contacts)}</dd></div></dl>
       ${incomplete && summary.missing.length ? `<div class="ac01-missing"><strong>${summary.missing.length} ${summary.missing.length === 1 ? 'Hinweis' : 'Hinweise'}</strong><details><summary>Fehlende oder zu prüfende Angaben ansehen</summary><ul>${listItems(summary.missing)}</ul></details></div>` : incomplete ? '' : '<p class="ac01-complete">Keine fehlenden Angaben erkannt. Der Entwurf bleibt ungeprüft; Pausen-, Zeit- und Berichtsregeln sind offen.</p>'}`;
     renderOverview();
+    renderSaveStatus();
   }
 
   // Live overview derived only from the entered rows (the Mission Control view of this working panel). Counts and the time
   // window are shown; no hours are summed and events carry no time, so nothing can be counted twice.
   const overviewEl = $('#ac01-overview');
   function renderOverview() {
+    $('#ac01-save-bottom').textContent = replacePending ? 'Ja, vorhandenen Tag ersetzen' : 'Tag speichern → Mission Control';
+    $('#ac01-save-bottom').classList.toggle('is-replace', replacePending);
     const summary = summarize(current());
     const window_ = summary.earliest === null && summary.latest === null ? '–' : `${summary.earliest === null ? '?' : fromMinutes(summary.earliest)}–${summary.latest === null ? '?' : fromMinutes(summary.latest)}`;
     const reasons = Object.entries(summary.reasonCounts).map(([reason, count]) => `${reasonLabel(reason)} ${count}`).join(' · ');
@@ -423,7 +243,7 @@
       + stat('Arbeitszeilen', String(summary.assignmentCount))
       + stat('Ereignisse', String(summary.eventCount), reasons || 'ohne Zeit')
       + `<button type="button" class="ac01-stat ac01-stat-open${open ? ' has-open' : ''}" data-jump="#ac01-draft-title"><small>Offene Hinweise</small><strong>${open}</strong><span>${summary.complete ? 'Entwurf · ungeprüft' : 'Entwurf · unvollständig'}</span></button>`
-      + '<button type="button" class="ac01-stat ac01-stat-link" data-view="dashboard"><small>Mission Control</small><strong>Übersicht →</strong><span>Demo-Berichte</span></button>';
+      + `<button type="button" class="ac01-stat ac01-save${replacePending ? ' is-replace' : ''}" data-action="save-day"><small>${replacePending ? 'Vorhandenen Tag ersetzen' : 'Tag speichern'}</small><strong>${replacePending ? 'Ja, ersetzen' : 'Speichern'}</strong><span>${replacePending ? 'zweiter Klick nötig' : '→ Mission Control'}</span></button>`;
   }
   // The sticky column header must sit below the sticky strip, whatever height the strip has at the current width.
   if (root.ResizeObserver) new ResizeObserver(() => { const h = overviewEl.offsetHeight; if (h) document.documentElement.style.setProperty('--ac-strip-h', `${h}px`); }).observe(overviewEl);
@@ -767,6 +587,94 @@
     document.body.append(datalist);
   });
 
+  // ---- Save to Mission Control, reopen, new day ---------------------------------------------------------------
+  const statusEl = $('#ac01-save-status');
+  async function renderSaveStatus() {
+    const token = ++statusToken;
+    const key = { projectId: $('#ac01-project').value, date: $('#ac01-date').value };
+    const label = `${projectNameOf(key.projectId)} · ${dateLabel(key.date)}`;
+    const existing = key.projectId && key.date ? await workdays.load(key) : null;
+    if (token !== statusToken) return;                    // a newer render superseded this one
+    const dirty = isDirty();
+    const open = editingKey ? `${projectNameOf(editingKey.projectId)} · ${dateLabel(editingKey.date)}` : '';
+    let text;
+    if (replacePending) text = `Für ${label} gibt es schon einen gespeicherten Tag. Erst ein zweiter Klick auf „Ja, ersetzen“ überschreibt ihn.`;
+    else if (existing && !sameKey(editingKey, key)) text = `Achtung: Für ${label} ist bereits ein Tag gespeichert. Speichern ersetzt ihn erst nach Bestätigung; geöffnet wird er über Mission Control.`;
+    else if (editingKey) text = dirty ? `Gespeicherter Tag ${open} wird bearbeitet · ungespeicherte Änderungen.` : `Gespeicherter Tag ${open} geöffnet · keine ungespeicherten Änderungen.`;
+    else text = dirty ? 'Neuer Tag · noch nicht gespeichert.' : 'Neuer, leerer Tag.';
+    statusEl.textContent = `${text} Nur im Arbeitsspeicher dieser Demo: nach dem Neuladen der Seite ist alles weg.`;
+    statusEl.classList.toggle('is-warning', replacePending || Boolean(existing && !sameKey(editingKey, key)));
+  }
+
+  async function saveDay() {
+    const key = { projectId: $('#ac01-project').value, date: $('#ac01-date').value };
+    const warn = text => { statusEl.textContent = text; statusEl.classList.add('is-warning'); };
+    if (!key.projectId || !key.date) { warn('Bitte Bauprojekt und Datum wählen, bevor der Tag gespeichert wird.'); return; }
+    if (employees.every(isPristine) && !events.length && !Object.values(extras).some(value => value.trim())) { warn('Noch nichts erfasst: Es gibt nichts zu speichern.'); return; }
+    const report = dayReport();
+    const existing = await workdays.load(key);
+    if (existing && !sameKey(editingKey, key) && !replacePending) {
+      replacePending = true;                              // set after the render that precedes this click, reset by the next edit
+      renderOverview();
+      renderSaveStatus();
+      return;
+    }
+    await workdays.save(report);
+    editingKey = key;
+    savedSnapshot = snapshot();
+    replacePending = false;
+    const summary = summarize(current());
+    if (typeof showSavedWorkday === 'function') showSavedWorkday(report, summary, Boolean(existing));
+    renderSaveStatus();
+  }
+
+  // Opens a saved day for editing. Business data comes back exactly as saved; UI-only row state starts fresh.
+  function openDay(report) {
+    const copy = structuredClone(report);
+    employees = copy.employees.length ? copy.employees.map(employee => ({ ...employee, collapsed: copy.employees.length > 1, selected: false, prefill: '' })) : [newEmployee()];
+    events = copy.events;
+    Object.assign(extras, copy.extras);
+    [['#ac01-equipment', 'equipment'], ['#ac01-material', 'material'], ['#ac01-contacts', 'contacts']].forEach(([selector, key]) => { $(selector).value = extras[key]; });
+    $('#ac01-project').value = copy.projectId;
+    $('#ac01-date').value = copy.date;
+    pickerSelection.clear();
+    suggestions = [];
+    renderSuggestions();
+    setMessage('');
+    editingKey = { projectId: copy.projectId, date: copy.date };
+    renderEmployees();
+    renderEvents();
+    savedSnapshot = snapshot();
+    renderSaveStatus();
+  }
+
+  function newDay() {
+    if (isDirty() && !newDayPending) {
+      newDayPending = true;
+      statusEl.textContent = 'Ungespeicherte Eingaben gehen verloren. Zum Verwerfen erneut auf „Neuer leerer Tag“ klicken.';
+      statusEl.classList.add('is-warning');
+      return;
+    }
+    employees = [newEmployee()];
+    events = [];
+    Object.keys(extras).forEach(key => { extras[key] = ''; });
+    [['#ac01-equipment'], ['#ac01-material'], ['#ac01-contacts']].forEach(([selector]) => { $(selector).value = ''; });
+    pickerSelection.clear();
+    suggestions = [];
+    renderSuggestions();
+    setMessage('');
+    editingKey = null;
+    renderEmployees();
+    renderEvents();
+    savedSnapshot = snapshot();
+    renderSaveStatus();
+  }
+  $('#ac01-new-day').addEventListener('click', newDay);
+  $('#ac01-view').addEventListener('click', event => { if (event.target.closest('[data-action="save-day"]')) saveDay(); });
+  root.AC01Workday = { open: openDay, isDirty, currentKey: () => (editingKey ? { ...editingKey } : null) };
+
   renderEmployees();
   renderEvents();
+  savedSnapshot = snapshot();
+  renderSaveStatus();
 })(globalThis);

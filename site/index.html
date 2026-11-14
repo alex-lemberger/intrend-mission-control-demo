@@ -7,8 +7,12 @@
   <title>inTrend Mission Control · Field Operations</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="ac01.css">
+  <script src="vendor/ac01-core.bundle.js" defer></script>
+  <script src="workday-store.js" defer></script>
   <script src="app.js" defer></script>
   <script src="ac01.js" defer></script>
+  <script src="vendor/stundenzettel.bundle.js" defer></script>
+  <script src="timesheet-view.js" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -19,6 +23,7 @@
         <button type="button" class="nav-item active" data-view="field" title="Tagesbericht"><span aria-hidden="true">▣</span> Tagesbericht</button>
         <button type="button" class="nav-item" data-view="ac01" title="Baustellentag erfassen"><span aria-hidden="true">✎</span> Baustellentag erfassen</button>
         <button type="button" class="nav-item" data-view="dashboard" title="Mission Control"><span aria-hidden="true">▦</span> Mission Control</button>
+        <button type="button" class="nav-item" data-view="timesheet" title="Stundenzettel"><span aria-hidden="true">▤</span> Stundenzettel</button>
       </nav>
       <div class="rail-foot"><span class="live-dot"></span> Lokaler UX-Prototyp<br><small>Synthetische Beispieldaten</small></div>
     </aside>
@@ -55,6 +60,7 @@
             <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Mitarbeitende, Zeiten, Arbeiten und Ereignisse in einer Ansicht eintragen. Oben steht der Überblick, der interne Bericht entsteht darunter.</p></div>
           </div>
           <nav class="ac01-jump" aria-label="Bereiche dieser Seite"><button type="button" data-jump="#ac01-crew-title">Mitarbeitende</button><button type="button" data-jump="#ac01-events-title">Ereignisse <span id="ac01-jump-events"></span></button><button type="button" data-jump="#ac01-draft-title">Tagesbericht</button></nav>
+          <div class="ac01-savebar" id="ac01-savebar"><p id="ac01-save-status" role="status" aria-live="polite"></p><div class="ac01-savebar-actions"><button type="button" class="ac01-add" id="ac01-new-day">Neuer leerer Tag</button><button type="button" class="ac01-add" data-view="dashboard">Mission Control ansehen →</button></div></div>
           <section class="ac01-overview" id="ac01-overview" aria-label="Überblick über den erfassten Tag"></section>
           <div class="ac01-workspace">
             <div class="ac01-work-area">
@@ -126,16 +132,18 @@
             <aside class="ac01-report-area" aria-labelledby="ac01-draft-title">
               <div class="ac01-heading-row"><h2 id="ac01-draft-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">D</span> Interner Tagesbericht</h2><span>Nur intern</span></div>
               <div id="ac01-draft"></div>
+              <div class="ac01-save-end"><button type="button" class="primary ac01-action" id="ac01-save-bottom" data-action="save-day">Tag speichern → Mission Control</button><p class="ac01-hint">Speichert den ganzen Tag (Mitarbeitende, Zeiten, Arbeiten, Ereignisse). Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.</p></div>
               <details class="ac01-limitations"><summary>Hinweise zu dieser Demo</summary><p>Nur synthetische Daten im Arbeitsspeicher; beim Neuladen gehen Eingaben verloren. Gewählte Fotos werden nur als Dateiname gezeigt, nicht hochgeladen oder gespeichert. Dieser interne Entwurf ist weder ein externer Bautagesbericht noch ein Versand. Pausen-, Zeitzuordnungs- und Berichtseinheitsregeln sind offen.</p></details>
             </aside>
           </div>
         </section>
-        <section id="dashboard-view" class="view" hidden aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="outline" type="button" data-view="field">＋ Tagesbericht erfassen</button></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">TAGESGESCHÄFT</span><h2>Berichte</h2></div><span id="report-count" class="count-pill"></span></div><div id="reports-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></section></div><div class="dashboard-foot">Synthetische Daten · Lokaler Sitzungszustand · Keine automatische Zustellung</div></section>
+        <section id="dashboard-view" class="view" hidden aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="outline" type="button" data-view="ac01">＋ Baustellentag erfassen</button></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="open-notice" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">AUS „BAUSTELLENTAG ERFASSEN“</span><h2>Erfasste Tage</h2></div><span id="wd-count" class="count-pill"></span></div><div id="wd-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="wd-event-count" class="count-pill"></span></div><div id="wd-events"></div></section></div><section class="panel legacy-panel" id="legacy-panel" hidden><div class="panel-head"><div><span class="eyebrow">BISHERIGES FORMULAR „TAGESBERICHT“ · NICHT AUS BAUSTELLENTAG ERFASSEN</span><h2>Berichte aus dem bisherigen Formular</h2></div><span id="report-count" class="count-pill"></span></div><div class="dashboard-grid"><div id="reports-list"></div><div><div class="panel-head"><h2>Ereignisse (bisheriges Formular)</h2><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></div></div></section><div class="dashboard-foot">Synthetische Daten · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg · Keine automatische Zustellung</div></section>
+        <section id="timesheet-view" class="view" hidden aria-labelledby="timesheet-title"><div class="page-head ts-head"><div><span class="eyebrow">MISSION CONTROL · AUS DEM GESPEICHERTEN BAUSTELLENTAG</span><h1 id="timesheet-title">Stundenzettel <em>erstellen.</em></h1><p>Einträge des Tages auswählen, Angaben ergänzen, prüfen und drucken. Namen, Zeiten und Tätigkeiten kommen aus dem Baustellentag. Es wird nichts gesendet oder abgelegt.</p></div><button class="outline" type="button" data-view="dashboard">← Zurück zu Mission Control</button></div><div id="ts-source"></div><div id="ts-host" hidden></div><div class="dashboard-foot">Synthetische Daten · Vorlage nicht freigegeben · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg</div></section>
         <section id="detail-view" class="view" hidden aria-labelledby="detail-title"><button class="back" type="button" data-view="dashboard">← Zurück zu Mission Control</button><div class="detail-grid"><div id="detail-content"></div><aside id="detail-aside"></aside></div></section>
         <section id="draft-view" class="view" hidden aria-labelledby="draft-title"><button class="back" type="button" data-view="detail">← Zurück zum Ereignis</button><div id="draft-content"></div></section>
       </main>
     </div>
   </div>
-  <nav class="mobile-nav" aria-label="Mobile Navigation"><button type="button" class="active" data-view="field">▣<span>Bericht</span></button><button type="button" data-view="ac01">✎<span>Baustellentag</span></button><button type="button" data-view="dashboard">▦<span>Mission Control</span></button></nav>
+  <nav class="mobile-nav" aria-label="Mobile Navigation"><button type="button" class="active" data-view="field">▣<span>Bericht</span></button><button type="button" data-view="ac01">✎<span>Baustellentag</span></button><button type="button" data-view="dashboard">▦<span>Mission Control</span></button><button type="button" data-view="timesheet">▤<span>Stundenzettel</span></button></nav>
 </body>
 </html>

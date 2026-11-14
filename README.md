@@ -1,17 +1,17 @@
 # inTrend Mission Control — öffentliche Demo
 
-**Nur synthetische Daten.** Diese eigenständige Git-Historie enthält die öffentlichen statischen Dateien unter `site/` (AC-01-Demo mit fünf Dateien und die Stundenzettel-Vorschau), den Pages-Workflow und diese Dokumentation. Die private Architekturablage und deren Git-Historie gehören **nicht** in dieses Repository. GitHub Pages ist öffentlich erreichbar, auch wenn das Repository privat sein sollte.
+**Nur synthetische Daten.** Diese eigenständige Git-Historie enthält die öffentlichen statischen Dateien unter `site/` (zehn Dateien, siehe unten), den Pages-Workflow und diese Dokumentation. Die private Architekturablage und deren Git-Historie gehören **nicht** in dieses Repository. GitHub Pages ist öffentlich erreichbar, auch wenn das Repository privat sein sollte.
 
 **Ziel:** `https://github.com/alex-lemberger/intrend-mission-control-demo`  
 **Erwartete Pages-Adresse:** `https://alex-lemberger.github.io/intrend-mission-control-demo/`
 
 ## Lokale Vorschau
 
-`site/index.html` im Browser öffnen. HTML, CSS und JavaScript verwenden relative Dateipfade. Die Anwendung hat keinen Backenddienst, keine Anmeldung und keinen Remote-Speicher. Eingaben und gewählte lokale Fotovorschauen bleiben nur im Browser bis zum Neuladen; keine Eingabe wird zentral gespeichert oder übertragen. Keine echten Personen-, Projekt- oder Vertragsdaten eingeben.
+`site/index.html` im Browser öffnen (direkt von der Festplatte oder über einen beliebigen statischen Webserver). HTML, CSS und JavaScript verwenden relative Dateipfade. Die Anwendung hat keinen Backenddienst, keine Anmeldung und keinen Remote-Speicher. **Alle Eingaben, gespeicherten Baustellentage und Stundenzettel-Entwürfe liegen nur im Arbeitsspeicher des Browsers und sind nach dem Neuladen der Seite weg**; nichts wird zentral gespeichert oder übertragen, auch nicht im Browserspeicher (kein `localStorage`). Keine echten Personen-, Projekt- oder Vertragsdaten eingeben.
 
 ## Erstveröffentlichung — erst nach ausdrücklicher Freigabe
 
-1. [Publikations-Checkliste](PUBLICATION-CHECKLIST.md) durchsehen und die drei `site/`-Dateien als öffentlich freigeben.
+1. [Publikations-Checkliste](PUBLICATION-CHECKLIST.md) durchsehen und die `site/`-Dateien als öffentlich freigeben.
 2. Im GitHub-Konto `alex-lemberger` ein **neues, leeres** Repository `intrend-mission-control-demo` anlegen. **Kein Import, Fork oder Mirror** von `intrend-architecture`; bei der Erstellung keine README/Lizenz hinzufügen. Die lokale Repo-Historie ist bereits separat initialisiert.
 3. Aus diesem lokalen Verzeichnis (dem Ordner mit dieser README) nach Freigabe verbinden und pushen:
 
@@ -26,13 +26,25 @@
 
 Der Workflow folgt dem [offiziellen GitHub-Pages-Ablauf für eigene GitHub-Actions-Workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
-## AC-01-Aktualisierung
+## Inhalt und Ablauf (Stand 2026-11-14)
 
-Die fünf freigegebenen Dateien unter `site/` sind `index.html`, `styles.css`, `app.js`, `ac01.css` und `ac01.js`. Die AC-01-Ansicht ist direkt über `#ac01` erreichbar. Änderungen an `site/` auf `main` lösen den Pages-Workflow aus; ein manueller Workflow-Start bleibt möglich. Die Allowlist blockiert zusätzliche Dateien unter `site/`. Der feste Demo-Parser ist keine KI-Verbindung, der Tagesbericht ein interner Entwurf ohne Versand.
+**Ablauf in einer Anwendung:** „Baustellentag erfassen“ (AC-01, direkt über `#ac01`) → „Tag speichern → Mission Control“ → in Mission Control beim gespeicherten Tag „Stundenzettel erstellen“ → Einträge auswählen, Angaben ergänzen, prüfen, drucken bzw. als PDF sichern. Namen, Zeiten und Tätigkeiten werden einmal erfasst; der Stundenzettel liest den gespeicherten Tag nur und verändert ihn nicht. Der bisherige Bereich „Tagesbericht“ bleibt als eigenes, getrenntes Formular erhalten.
 
-## Stundenzettel-Vorschau (Stakeholder-Prototyp)
+**Dateien unter `site/` (exakte Allowlist des Workflows):**
 
-Zusätzliche Seite: `https://alex-lemberger.github.io/intrend-mission-control-demo/stundenzettel.html` (Datei `site/stundenzettel.html` plus `site/stundenzettel/`). Sie ist **nicht** mit dem AC-01-Zustand verbunden und verändert `index.html`, `ac01.*`, `app.js` und `styles.css` nicht. Einträge, Angaben und Anhänge sind synthetisch, bleiben nur im Browser und werden nicht übertragen. Der Stundenzettel ist ein **nicht freigegebener Entwurf**: Vorlage, Stundenberechnung (auch die Annahme bei leerer Pause) und Abrechnungsregeln sind nicht freigegeben; es gibt keinen Versand, keine Ablage und keine LV-/Rechnungsfunktion. Die Dateien unter `site/stundenzettel/` sind aus dem privaten Quellprojekt erzeugte, typbereinigte Browsermodule ohne Kommentare; sie werden nicht von Hand bearbeitet.
+| Datei | Zweck |
+|---|---|
+| `index.html`, `styles.css`, `ac01.css` | Seite und Gestaltung |
+| `app.js` | Navigation, Mission Control, bisheriges Tagesbericht-Formular |
+| `ac01.js` | Oberfläche „Baustellentag erfassen“ |
+| `workday-store.js` | gemeinsamer Speicher der Baustellentage — **nur im Arbeitsspeicher** |
+| `timesheet-view.js` | Stundenzettel aus einem gespeicherten Baustellentag |
+| `vendor/ac01-core.bundle.js`, `vendor/stundenzettel.bundle.js` | **erzeugte** Dateien (Fachlogik, Stundenzettel-Oberfläche) aus dem privaten Quellprojekt; nicht von Hand bearbeiten |
+| `stundenzettel.html` | Kompatibilitätsseite für die frühere Adresse; erklärt den neuen Ablauf und leitet relativ zu `index.html#ac01` weiter |
+
+Änderungen an `site/` auf `main` lösen den Pages-Workflow aus; ein manueller Start bleibt möglich. Der Workflow prüft die exakte Dateiliste, verbietet Netzwerkaufrufe, Browserspeicher und dynamischen Code, erlaubt keine absoluten URLs außer dem SVG-Namensraum der synthetischen Platzhalterbilder und verlangt die sichtbare Demo-Kennzeichnung und den Hinweis zum Neuladen.
+
+**Stundenzettel:** nicht freigegebener Entwurf. Vorlage, Stundenberechnung (auch die sichtbare Annahme „leere Pause = 0 Min.“), Nummerierung, Unterschrift und Abrechnungsregeln sind nicht freigegeben; es gibt keinen Versand, keine Ablage und keine LV-, Nachtrags- oder Rechnungsfunktion. Fotos und Planausschnitte sind erzeugte synthetische Platzhalter.
 
 ## Öffentliche Demo beenden
 
@@ -40,4 +52,4 @@ Unter **Settings → Pages** die Veröffentlichung deaktivieren bzw. Quelle entf
 
 ## Technische Grenzen
 
-Die Demo erzeugt nur HTML-Vorschauen und keine versandfähigen Geschäftsdokumente. Projekt-/Datumsdaten, Tagesberichte und Ereignisse sind synthetisch und werden nach Neuladen zurückgesetzt. Es gibt keine Analyse-, Tracking-, API-, SharePoint-, Graph-, WhatsApp- oder Copilot-Verbindung. Die bestehende private Anwendung und der Copilot Studio PoC bleiben unverändert.
+Die Demo erzeugt nur HTML-Vorschauen und druckbare Entwürfe, keine versandfähigen Geschäftsdokumente. Projekte, Personen, Baustellentage, Ereignisse und Stundenzettel sind synthetisch und liegen nur im Arbeitsspeicher; nach dem Neuladen ist alles zurückgesetzt. Es gibt keine Analyse-, Tracking-, API-, SharePoint-, Graph-, WhatsApp- oder Copilot-Verbindung. Die bestehende private Anwendung und der Copilot Studio PoC bleiben unverändert.

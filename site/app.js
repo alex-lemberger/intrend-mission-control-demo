@@ -6,9 +6,10 @@ const projects = [
 ];
 const today = '2026-11-07';
 const seed = [
-  { id: 'r1', project: 'allee', date: today, floor: '1. OG · Westflügel', responsible: 'Deniz Yilmaz · Vertretung', work: 'Trockenbauwände gestellt, Türöffnungen vorbereitet', crew: [{name:'Deniz Yilmaz',hours:8},{name:'Jonas Krüger',hours:8},{name:'Mika Özdemir',hours:7.5}], lv:'', events:[{id:'e1',type:'Hindernis',title:'Material blockiert Arbeitsbereich',description:'Fremdmaterial steht im Flur vor Achse 4. Arbeiten an der Trockenbauwand dort unterbrochen.',hours:2,floor:'1. OG · Westflügel',photos:['Flur_Achse4.jpg'],obstacle:'Zugang zur Arbeitsfläche blockiert',lv:''}] },
-  { id: 'r2', project: 'quartier', date: '2026-11-06', floor: 'EG · Eingangsbereich', responsible: 'Laura Beck · Vertretung', work: 'Unterkonstruktion für Deckenbekleidung montiert', crew:[{name:'Laura Beck',hours:8},{name:'Emre Kaya',hours:8}], lv:'', events:[{id:'e2',type:'Zusatzarbeit',title:'Zusätzliche Abkofferung dokumentiert',description:'Zusätzliche Abkofferung an der Installationszone aufgenommen; Umfang vor Ausführung zu klären.',hours:1.5,floor:'EG · Eingangsbereich',photos:[],obstacle:'',lv:''}] }
+  { id: 'r1', seed: true, project: 'allee', date: today, floor: '1. OG · Westflügel', responsible: 'Deniz Yilmaz · Vertretung', work: 'Trockenbauwände gestellt, Türöffnungen vorbereitet', crew: [{name:'Deniz Yilmaz',hours:8},{name:'Jonas Krüger',hours:8},{name:'Mika Özdemir',hours:7.5}], lv:'', events:[{id:'e1',type:'Hindernis',title:'Material blockiert Arbeitsbereich',description:'Fremdmaterial steht im Flur vor Achse 4. Arbeiten an der Trockenbauwand dort unterbrochen.',hours:2,floor:'1. OG · Westflügel',photos:['Flur_Achse4.jpg'],obstacle:'Zugang zur Arbeitsfläche blockiert',lv:''}] },
+  { id: 'r2', seed: true, project: 'quartier', date: '2026-11-06', floor: 'EG · Eingangsbereich', responsible: 'Laura Beck · Vertretung', work: 'Unterkonstruktion für Deckenbekleidung montiert', crew:[{name:'Laura Beck',hours:8},{name:'Emre Kaya',hours:8}], lv:'', events:[{id:'e2',type:'Zusatzarbeit',title:'Zusätzliche Abkofferung dokumentiert',description:'Zusätzliche Abkofferung an der Installationszone aufgenommen; Umfang vor Ausführung zu klären.',hours:1.5,floor:'EG · Eingangsbereich',photos:[],obstacle:'',lv:''}] }
 ];
+/* `seed` reports exist only so the legacy form can demonstrate "existing report"; Mission Control never lists them. */
 const state = { reports: structuredClone(seed), selectedEvent:'e1', draftType:'Stundenzettel', draftRequested:false, draftEvent:null, view:'field' };
 const photoPreviews = new Map();
 const defaultCrew = [{name:'Martin Seidel',hours:8},{name:'Jonas Krüger',hours:8},{name:'Mika Özdemir',hours:8}];
@@ -24,15 +25,16 @@ const uid = () => 'demo-' + Math.random().toString(36).slice(2,9);
 
 function switchView(view) {
   if(state.view==='field' && view!=='field' && formDirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
-  if(view!=='dashboard') $('#save-confirmation').hidden=true;
+  if(view!=='dashboard'){ $('#save-confirmation').hidden=true; $('#open-notice').hidden=true; }
   state.view = view;
   document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== `${view}-view`);
   document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active',el.dataset.view===view));
   $('#top-eyebrow').textContent = ['field', 'ac01'].includes(view) ? 'BAUSTELLE · LOKALE DEMO' : 'MISSION CONTROL · LOKALE DEMO';
-  $('#top-title').textContent = ({field:'Tagesbericht',ac01:'Baustellentag erfassen',dashboard:'Mission Control',detail:'Ereignis',draft:'Dokumententwurf'})[view];
+  $('#top-title').textContent = ({field:'Tagesbericht',ac01:'Baustellentag erfassen',dashboard:'Mission Control',timesheet:'Stundenzettel',detail:'Ereignis',draft:'Dokumententwurf'})[view];
   if(view==='dashboard') renderDashboard();
   if(view==='detail') renderDetail();
   if(view==='draft') renderDraft();
+  if(view==='timesheet') TimesheetView.render();
   const route = view === 'ac01' ? '#ac01' : window.location.href.split('#')[0];
   if (view === 'ac01' ? window.location.hash !== '#ac01' : Boolean(window.location.hash)) {
     window.history.replaceState(null, '', route);
@@ -124,13 +126,83 @@ $('#report-form').addEventListener('submit',e=>{
   switchView('dashboard');
 });
 
-function renderDashboard(){
-  const reports=[...state.reports].sort((a,b)=>b.date.localeCompare(a.date)); const events=allEvents();
-  $('#metrics').innerHTML=`<div class="metric"><small>Tagesberichte</small><strong>${reports.length}</strong><span>im Überblick</span></div><div class="metric"><small>Im Team erfasst</small><strong>${reports.reduce((n,r)=>n+r.crew.length,0)}</strong><span>Personeneinträge</span></div><div class="metric"><small>Besonderheiten</small><strong>${events.length}</strong><span>zu prüfen</span></div>`;
-  $('#report-count').textContent=`${reports.length} Berichte`;$('#event-count').textContent=`${events.length} Ereignisse`;
-  $('#reports-list').innerHTML=reports.map(r=>`<div class="list-item"><div class="item-top"><strong>${esc(project(r.project).name)}</strong><span class="badge">Erfasst</span></div><div class="item-sub">${esc(dateText(r.date))} · ${esc(r.floor)} · ${esc(r.responsible.split(' · ')[0])}</div><div class="item-meta"><span class="badge">${r.crew.length} Personen</span><span class="badge">${hourText(r.crew.reduce((n,c)=>n+c.hours,0))} Personalzeit</span>${r.events.length?`<span class="badge orange">${r.events.length} Ereignis${r.events.length===1?'':'se'}</span>`:''}</div></div>`).join('')||'<div class="empty">Noch keine Berichte.</div>';
-  $('#events-list').innerHTML=events.map(e=>`<button class="list-item event-open" type="button" data-id="${esc(e.id)}"><div class="item-top"><strong>${esc(e.title)}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(e.report.project).name)} · ${esc(dateText(e.report.date))}</div><div class="item-meta"><span class="badge ${e.type==='Hindernis'?'red':'orange'}">${esc(e.type)}</span><span class="badge">Erfasst · ungeprüft</span>${e.photos.length?`<span class="badge">${e.photos.length} Foto${e.photos.length===1?'':'s'}</span>`:''}</div></button>`).join('')||'<div class="empty">Keine besonderen Ereignisse. Alles im Regelbetrieb.</div>';
+/*
+ * Mission Control shows the working days saved from "Baustellentag erfassen" (WorkdayStore, the single shared store).
+ * Reports saved with the older Tagesbericht form still live in `state.reports` and are listed separately and labelled,
+ * because they are a different record shape; nothing is copied or synchronized between the two.
+ */
+const hm = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+const reasonShort = {'Baubehinderung':'Behinderung','Nachtrag / Nachtragsposition':'Nachtrag'};
+const empLabel = (e,i) => e.name.trim() || `Mitarbeiter ${i+1} (ohne Namen)`;
+let dashboardToken = 0;
+async function renderDashboard(){
+  const token = ++dashboardToken;
+  const days = await WorkdayStore.store.list();
+  if(token !== dashboardToken) return;                       // a newer render superseded this one
+  const rows = days.map(report => ({report, summary: AC01Demo.summarize({employees:report.employees, events:report.events})}));
+  const sum = pick => rows.reduce((n,row)=>n+pick(row.summary),0);
+  const unnamed = sum(x=>x.unnamed);
+  $('#metrics').className = 'metrics wd-metrics';
+  $('#metrics').innerHTML = [
+    ['Erfasste Tage', rows.length, 'aus Baustellentag erfassen'],
+    ['Mitarbeitende', `${sum(x=>x.named)}${unnamed?` <em>+${unnamed} ohne Namen</em>`:''}`, 'benannt, je Tag einmal'],
+    ['Arbeitszeilen', sum(x=>x.assignmentCount), 'keine Stundensumme (Regel offen)'],
+    ['Ereignisse', sum(x=>x.eventCount), 'ohne Zeitangabe'],
+    ['Offene Hinweise', sum(x=>x.missing.length), 'fehlende oder zu prüfende Angaben']
+  ].map(([label,value,sub])=>`<div class="metric"><small>${label}</small><strong>${value}</strong><span>${sub}</span></div>`).join('');
+  $('#wd-count').textContent = `${rows.length} ${rows.length===1?'Tag':'Tage'}`;
+  // Compact card per saved day: figures, status and a short preview. Everything else is one click away: the day opens in AC-01.
+  const top = (items,max) => items.length>max ? `${items.slice(0,max).join(', ')} <em>und ${items.length-max} weitere</em>` : items.join(', ');
+  const count = values => { const m=new Map(); values.forEach(v=>m.set(v,(m.get(v)||0)+1)); return [...m].sort((a,b)=>b[1]-a[1]); };   // stable: ties keep first-seen order
+  $('#wd-list').innerHTML = rows.map(({report:r,summary:x}) => {
+    const win = x.earliest===null && x.latest===null ? '' : ` · ${x.earliest===null?'?':hm(x.earliest)}–${x.latest===null?'?':hm(x.latest)}`;
+    const reasons = Object.entries(x.reasonCounts).map(([k,n])=>`<span class="badge orange">${esc(reasonShort[k]||k)} ${n}</span>`).join('');
+    const rowsAll = r.employees.flatMap(e=>e.assignments);
+    const people = r.employees.map((e,i)=>esc(empLabel(e,i)));
+    const work = count(rowsAll.map(a=>a.work.trim()||a.lv.trim()||'Tätigkeit fehlt')).map(([k,n])=>`${esc(k)} ${n}`);
+    const places = [...new Set(rowsAll.flatMap(a=>a.locations))].map(esc);
+    const filled = [['Geräte',r.extras.equipment],['Material',r.extras.material],['Kontakte / Anordnungen',r.extras.contacts]].filter(([,v])=>v.trim()).map(([k])=>k);
+    const dd = (cls,label,value) => `<div><dt>${label}</dt><dd class="${cls}">${value}</dd></div>`;
+    return `<article class="list-item wd-day" data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(project(r.projectId).name)}</strong><span class="badge">Erfasst · ungeprüft</span></div><div class="item-sub">${esc(dateText(r.date))} · <span class="wd-figures">${x.named} Mitarbeitende · ${x.assignmentCount} Arbeitszeilen · ${x.eventCount} Ereignisse</span>${win}</div><div class="item-meta">${x.complete?'<span class="badge">Keine fehlenden Angaben erkannt</span>':`<span class="badge orange">${x.missing.length} Hinweise offen</span>`}${reasons}</div><dl class="wd-preview">${dd('wd-preview-people','Mitarbeitende',people.length?top(people,5):'noch keine')}${dd('wd-preview-work','Arbeiten (Zeilen)',work.length?top(work,4):'noch keine')}${dd('wd-preview-places','Orte / Bauteile',places.length?top(places,4):'keine')}${dd('wd-preview-extras','Weitere Tagesangaben',filled.length?filled.join(', ')+' erfasst':'keine')}</dl><div class="wd-open-row"><button class="outline wd-open" type="button" data-wd-open>Alle Angaben im Baustellentag öffnen <span aria-hidden="true">→</span></button><button class="outline wd-timesheet" type="button" data-ts-open>Stundenzettel erstellen <span aria-hidden="true">→</span></button><span class="wd-open-hint">Bearbeiten nur im Baustellentag</span></div></article>`;
+  }).join('') || '<div class="empty">Noch kein Tag gespeichert. In „Baustellentag erfassen“ einen Tag eintragen und „Speichern → Mission Control“ wählen.</div>';
+  const evAll = rows.flatMap(({report:r}) => r.events.map(v=>({v,r})));
+  $('#wd-event-count').textContent = `${evAll.length} ${evAll.length===1?'Ereignis':'Ereignisse'}`;
+  $('#wd-events').innerHTML = evAll.map(({v,r})=>`<button class="list-item wd-event" type="button" data-wd-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(v.description.trim().slice(0,62)||'Beschreibung fehlt')}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(r.projectId).name)} · ${esc(dateText(r.date))} · Ort: ${esc(v.location.trim()||'fehlt')}</div><div class="item-meta">${v.reasons.map(k=>`<span class="badge ${k==='Baubehinderung'?'red':'orange'}">${esc(reasonShort[k]||k)}</span>`).join('')||'<span class="badge">Grund fehlt</span>'}<span class="badge">Erfasst · ungeprüft</span></div></button>`).join('') || '<div class="empty">Keine besonderen Ereignisse erfasst.</div>';
+  // Legacy form reports (never the seed examples)
+  const legacy=state.reports.filter(r=>!r.seed).sort((a,b)=>b.date.localeCompare(a.date)); const events=allEvents().filter(e=>!e.report.seed);
+  $('#legacy-panel').hidden = !legacy.length;
+  $('#report-count').textContent=`${legacy.length} Berichte`;$('#event-count').textContent=`${events.length} Ereignisse`;
+  $('#reports-list').innerHTML=legacy.map(r=>`<div class="list-item"><div class="item-top"><strong>${esc(project(r.project).name)}</strong><span class="badge">Erfasst</span></div><div class="item-sub">${esc(dateText(r.date))} · ${esc(r.floor)} · ${esc(r.responsible.split(' · ')[0])}</div><div class="item-meta"><span class="badge">${r.crew.length} Personen</span><span class="badge">${hourText(r.crew.reduce((n,c)=>n+c.hours,0))} Personalzeit</span>${r.events.length?`<span class="badge orange">${r.events.length} Ereignis${r.events.length===1?'':'se'}</span>`:''}</div></div>`).join('');
+  $('#events-list').innerHTML=events.map(e=>`<button class="list-item event-open" type="button" data-id="${esc(e.id)}"><div class="item-top"><strong>${esc(e.title)}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(e.report.project).name)} · ${esc(dateText(e.report.date))}</div><div class="item-meta"><span class="badge ${e.type==='Hindernis'?'red':'orange'}">${esc(e.type)}</span><span class="badge">Erfasst · ungeprüft</span>${e.photos.length?`<span class="badge">${e.photos.length} Foto${e.photos.length===1?'':'s'}</span>`:''}</div></button>`).join('')||'<div class="empty">Keine Ereignisse.</div>';
 }
+
+// Called by AC-01 after a successful save: confirmation first, then Mission Control shows the stored record.
+function showSavedWorkday(report, summary, replaced){
+  $('#open-notice').hidden=true;
+  $('#save-confirmation').hidden=false;
+  $('#save-confirmation').textContent=`✓ Baustellentag für ${project(report.projectId).name} am ${dateText(report.date)} ${replaced?'aktualisiert':'gespeichert'} · ${summary.named} Mitarbeitende · ${summary.assignmentCount} Arbeitszeilen · ${summary.eventCount} Ereignisse. Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.`;
+  switchView('dashboard');
+}
+// Reopening replaces the day in AC-01; unsaved changes there need a second, explicit click.
+async function openWorkday(key, force=false){
+  const report = await WorkdayStore.store.load(key); if(!report) return;
+  const notice=$('#open-notice');
+  if(!force && AC01Workday.isDirty()){
+    notice.hidden=false;
+    notice.innerHTML=`In „Baustellentag erfassen“ gibt es ungespeicherte Änderungen. Beim Öffnen von ${esc(project(key.projectId).name)} (${esc(dateText(key.date))}) gehen sie verloren. <button class="outline" type="button" data-wd-force data-project="${esc(key.projectId)}" data-date="${esc(key.date)}">Verwerfen und öffnen</button>`;
+    notice.scrollIntoView({block:'nearest'});
+    return;
+  }
+  notice.hidden=true;
+  AC01Workday.open(report);
+  switchView('ac01');
+}
+document.addEventListener('click', e => {
+  const open=e.target.closest('[data-wd-open]'), force=e.target.closest('[data-wd-force]');
+  const src=open||force; if(!src) return;
+  const holder=src.closest('[data-project]')||src;
+  openWorkday({projectId:holder.dataset.project,date:holder.dataset.date}, Boolean(force));
+});
 $('#events-list').addEventListener('click',e=>{const button=e.target.closest('.event-open');if(button){state.selectedEvent=button.dataset.id;state.draftRequested=false;switchView('detail');}});
 function selected(){return allEvents().find(e=>e.id===state.selectedEvent)||allEvents()[0];}
 function renderDetail(){
@@ -148,5 +220,5 @@ function renderDraft(){
   const hoursContent=isHours?`<div class="notice"><strong>Kein fertiger Stundenzettel:</strong> ${hourText(e.hours)} Ereignisaufwand sind keiner Person oder Zeitspanne zugeordnet und können in den Personalstunden enthalten sein. Eine Zeitposition wird deshalb nicht erzeugt.</div><div class="content-block"><strong>Normal erfasste Personenstunden · nur Kontext</strong>${r.crew.map(c=>`<p class="draft-crew">${esc(c.name)} · ${hourText(c.hours)} · ${esc(c.floor||r.floor)} · ${esc(c.work||r.work)}</p>`).join('')}</div>`:'';
   $('#draft-content').innerHTML=`<div class="draft-layout"><article class="draft-paper"><span class="stamp">${isHours?'PRÜFNOTIZ · KEIN STUNDENZETTEL':'ENTWURF · NICHT FREIGEGEBEN'}</span><span class="eyebrow" style="margin-top:28px">MISSION CONTROL / DOKUMENTVORSCHAU</span><h1 id="draft-title">${isHours?'Stundenzettel · Prüfnotiz':esc(state.draftType)}</h1><p class="lead">Vorbereitung auf Anforderung der Bauleitung. Erfasst, ungeprüft und nur mit synthetischen Daten.</p><div class="rule"></div><dl><dt>Bauprojekt</dt><dd>${esc(project(r.project).name)}</dd><dt>Datum</dt><dd>${esc(dateText(r.date))}</dd><dt>Ort</dt><dd>${esc(e.floor)}</dd><dt>Verantwortlich</dt><dd>${esc(r.responsible)}</dd><dt>Quellereignis</dt><dd>${esc(e.title)}</dd><dt>Ereignisaufwand</dt><dd>${hourText(e.hours)} · nicht zugeordnet, nicht addiert</dd><dt>LV-Hinweis</dt><dd>${esc(e.lv||r.lv||'Kein Bezug')} · unverifiziert</dd></dl><div class="content-block"><strong>Erfasster Sachverhalt</strong><p style="margin:9px 0 0">${esc(e.description)}</p>${e.obstacle?`<p style="margin:9px 0 0"><strong>Hindernis:</strong> ${esc(e.obstacle)}</p>`:''}</div>${hoursContent}<p class="field-hint">Belege in dieser Demo: ${esc(e.photos.join(', ')||'keine Foto-Dateinamen')}. Keine Datei wurde verarbeitet oder versandt.</p></article><aside class="side-card draft-side"><span class="eyebrow">VOR WEITERER NUTZUNG</span><h3>Prüfung erforderlich</h3><ol>${gaps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol><div class="notice">Diese Vorschau ist kein freigegebenes Geschäftsdokument. Sie wird beim Neuladen verworfen.</div><button class="outline" type="button" data-view="detail" style="margin-top:18px;width:100%">Ereignis ansehen</button></aside></div>`;
 }
-renderDashboard();
+document.addEventListener('DOMContentLoaded', renderDashboard);
 if (window.location.hash === '#ac01' || window.location.hash.startsWith('#ac01-')) switchView('ac01');
