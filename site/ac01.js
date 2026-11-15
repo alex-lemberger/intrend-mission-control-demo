@@ -14,6 +14,16 @@
    */
   const core = root.AC01Core;
   if (!core) throw new Error('AC01Core missing: load vendor/ac01-core.bundle.js before ac01.js');
+  // Mixed-version guard: this file needs summary.conflicts from the matching core bundle. If a cached older bundle was combined
+  // with newer files, say so visibly instead of misclassifying validation results.
+  if (root.document && !Array.isArray(core.summarize({ employees: [], events: [] }).conflicts)) {
+    const banner = root.document.createElement('p');
+    banner.setAttribute('role', 'alert');
+    banner.style.cssText = 'margin:0;padding:14px 18px;background:#fff0d8;color:#4d2900;font:600 15px sans-serif';
+    banner.textContent = 'Die Seite wurde aktualisiert, ein älterer Zwischenspeicher passt nicht mehr dazu. Bitte die Seite neu laden (Strg/Cmd + Umschalt + R).';
+    root.document.body.prepend(banner);
+    throw new Error('Mixed asset versions: ac01-core.bundle.js is older than ac01.js');
+  }
   const { newAssignment, newEmployee, newEvent, parseDemonstrationText, fromMinutes, normalizeName, employeeLabel, summarize, isPristine, prefillEmployees, applyBulk } = core;
   const demo = core.createDemoData();
   const { directory, yesterdayEntries, categoryOptions, locationOptions, eventReasons } = demo;
@@ -41,12 +51,19 @@
   let replacePending = false;     // first Save click on a key that already holds another saved day: needs a second, explicit click
   let newDayPending = false;      // first "Neuer leerer Tag" click with unsaved changes: needs a second click
   let statusToken = 0;
+  let reviewRequested = false;    // UI only: the user asked to see what is still open (tile click); reset on save/open/new day
+
+  // Calm validation: `summary.missing` mixes two things. "Noch zu klären" = information not entered yet;
+  // "Widerspruch" = entered values that contradict each other or are invalid. The core reports the second kind
+  // structurally as `summary.conflicts` (a subset of `missing`); nothing here parses message wording.
+  const splitMissing = summary => ({ open: summary.missing.filter(text => !summary.conflicts.includes(text)), conflicts: summary.conflicts });
 
   const employeesEl = $('#ac01-employees');
   const eventsEl = $('#ac01-events');
   const reportEl = $('#ac01-draft');
   const messageEl = $('#ac01-message');
   const current = () => ({ employees, events });
+  const isEmptyDay = () => employees.every(isPristine) && !events.length && !Object.values(extras).some(value => value.trim());
   const findEmployee = element => employees.find(item => item.id === element.closest('[data-employee]')?.dataset.employee);
   const findAssignment = (employee, element) => employee?.assignments.find(item => item.id === element.closest('[data-assignment]')?.dataset.assignment);
 
@@ -175,6 +192,7 @@
   // Compact line shown on small screens; every piece mirrors what is entered, missing parts are marked.
   function summaryMarkup(employee, index, issues) {
     const warn = text => `<em class="ac01-warn">${text}</em>`;
+    if (isPristine(employee)) return `<strong>Mitarbeiter ${index + 1}</strong><span class="ac01-summary-detail">noch leer</span>`;
     const name = employee.name.trim();
     const first = employee.assignments[0];
     const flagged = employee.assignments.some(assignment => (issues[assignment.id] || []).length);
@@ -194,10 +212,10 @@
     const summary = summarize(current());
     const projectName = projectList.find(item => item.id === $('#ac01-project').value)?.name || 'Projekt fehlt';
     const names = new Map(employees.map((employee, index) => [employee.id, employeeLabel(employee, index)]));
-    const people = summary.named || summary.unnamed
+    const people = (summary.named || summary.unnamed) && !isEmptyDay()
       ? `${summary.named} benannt${summary.unnamed ? ` · ${summary.unnamed} ohne Namen` : ''}${summary.duplicates.length ? ' · Doppelnamen zählen einmal' : ''}`
       : 'Noch keine';
-    const crewMarkup = employees.map((employee, index) => `<section class="ac01-draft-employee"><h4>${escapeHtml(employeeLabel(employee, index))}</h4><ul>${employee.assignments.map(assignment => `<li>
+    const crewMarkup = employees.every(isPristine) ? '<p class="ac01-subtotal">Noch keine Mitarbeitenden erfasst.</p>' : employees.filter(employee => !isPristine(employee)).map(employee => [employee, employees.indexOf(employee)]).map(([employee, index]) => `<section class="ac01-draft-employee"><h4>${escapeHtml(employeeLabel(employee, index))}</h4><ul>${employee.assignments.map(assignment => `<li>
         <strong>${escapeHtml(assignment.start || '?')}–${escapeHtml(assignment.end || '?')}</strong> <span>${assignment.breakMin !== '' ? `Pause ${escapeHtml(assignment.breakMin)} Min.` : 'Pause nicht angegeben'}</span>
         <span>${escapeHtml([assignment.work, assignment.lv].filter(value => value.trim()).join(' · ') || 'Tätigkeit fehlt')}</span>
         <span>Ort: ${escapeHtml(assignment.locations.join(', ') || 'fehlt')}</span>
@@ -209,8 +227,19 @@
     }).join('') : '<li><span>Keine außergewöhnlichen Ereignisse erfasst.</span></li>';
     const note = value => value.trim() ? escapeHtml(value.trim()) : 'nicht angegeben';
     const incomplete = !summary.complete;
+    const empty = isEmptyDay();
+    const { open: openInfo, conflicts } = splitMissing(summary);
+    // Orange only for real contradictions, or once the user asked what is open; missing information alone stays calm.
+    const alarm = conflicts.length > 0 || (reviewRequested && openInfo.length > 0);
+    const statusText = empty ? 'Entwurf · noch leer' : conflicts.length ? 'Entwurf · Widersprüche prüfen' : incomplete ? 'Entwurf · Angaben fehlen noch' : 'Entwurf · ungeprüft';
+    const clarifyMarkup = !empty && summary.missing.length
+      ? `<div class="ac01-missing${alarm ? '' : ' is-calm'}"><strong>Noch zu klären: ${summary.missing.length} ${summary.missing.length === 1 ? 'Angabe' : 'Angaben'}</strong>`
+        + (openInfo.length ? `<details${reviewRequested ? ' open' : ''}><summary>Fehlende Angaben (${openInfo.length})</summary><ul>${listItems(openInfo)}</ul></details>` : '')
+        + (conflicts.length ? `<details open><summary>Widersprüchliche oder ungültige Angaben prüfen (${conflicts.length})</summary><ul>${listItems(conflicts)}</ul></details>` : '')
+        + '</div>'
+      : '';
 
-    reportEl.innerHTML = `<div class="ac01-report-status"><span class="ac01-status ${incomplete ? 'is-incomplete' : ''}">${incomplete ? 'Entwurf · unvollständig' : 'Entwurf · ungeprüft'}</span><span>Keine Freigabe · kein Versand</span></div>
+    reportEl.innerHTML = `<div class="ac01-report-status"><span class="ac01-status ${alarm ? 'is-incomplete' : ''}">${statusText}</span><span>Keine Freigabe · kein Versand</span></div>
       <div class="ac01-draft-meta"><div><small>BAUPROJEKT</small><strong>${escapeHtml(projectName)}</strong></div><div><small>DATUM</small><strong>${escapeHtml(dateLabel($('#ac01-date').value))}</strong></div></div>
       <p class="ac01-demo-line">Projekt und Datum sind synthetische Beispiele.</p>
       <h3>Normaler Arbeitstag</h3>
@@ -222,7 +251,7 @@
       ${events.length ? '<p class="ac01-subtotal">Ereignisse sind Entwürfe: keine Behinderungsanzeige, kein Nachtrag, keine Beauftragung und keine Mitteilung an den Auftraggeber.</p>' : ''}
       <h3>Weitere Beobachtungen</h3>
       <dl class="ac01-facts"><div><dt>Geräte / Maschinen</dt><dd>${note(extras.equipment)}</dd></div><div><dt>Materialanlieferung</dt><dd>${note(extras.material)}</dd></div><div><dt>Kontakte / Anordnungen</dt><dd>${note(extras.contacts)}</dd></div></dl>
-      ${incomplete && summary.missing.length ? `<div class="ac01-missing"><strong>${summary.missing.length} ${summary.missing.length === 1 ? 'Hinweis' : 'Hinweise'}</strong><details><summary>Fehlende oder zu prüfende Angaben ansehen</summary><ul>${listItems(summary.missing)}</ul></details></div>` : incomplete ? '' : '<p class="ac01-complete">Keine fehlenden Angaben erkannt. Der Entwurf bleibt ungeprüft; Pausen-, Zeit- und Berichtsregeln sind offen.</p>'}`;
+      ${clarifyMarkup || (incomplete ? '' : '<p class="ac01-complete">Keine fehlenden Angaben erkannt. Der Entwurf bleibt ungeprüft; Pausen-, Zeit- und Berichtsregeln sind offen.</p>')}`;
     renderOverview();
     renderSaveStatus();
   }
@@ -237,12 +266,16 @@
     const window_ = summary.earliest === null && summary.latest === null ? '–' : `${summary.earliest === null ? '?' : fromMinutes(summary.earliest)}–${summary.latest === null ? '?' : fromMinutes(summary.latest)}`;
     const reasons = Object.entries(summary.reasonCounts).map(([reason, count]) => `${reasonLabel(reason)} ${count}`).join(' · ');
     const open = summary.missing.length;
+    const empty = isEmptyDay();
+    const { conflicts } = splitMissing(summary);
+    const alarm = conflicts.length > 0 || (reviewRequested && open > 0);
+    const clarifySub = empty ? 'Noch nichts erfasst' : conflicts.length ? `${conflicts.length} ${conflicts.length === 1 ? 'Widerspruch' : 'Widersprüche'} prüfen` : open ? 'Angaben fehlen noch' : 'Entwurf · ungeprüft';
     const stat = (label, value, extra = '') => `<div class="ac01-stat"><small>${label}</small><strong>${value}</strong>${extra ? `<span>${escapeHtml(extra)}</span>` : ''}</div>`;
-    overviewEl.innerHTML = stat('Mitarbeitende', `${summary.named}${summary.unnamed ? ` <em>+${summary.unnamed} ohne Namen</em>` : ''}`)
+    overviewEl.innerHTML = stat('Mitarbeitende', `${summary.named}${summary.unnamed && !empty ? ` <em>+${summary.unnamed} ohne Namen</em>` : ''}`)
       + stat('Zeitfenster', window_, 'früh. Beginn–spät. Ende')
       + stat('Arbeitszeilen', String(summary.assignmentCount))
       + stat('Ereignisse', String(summary.eventCount), reasons || 'ohne Zeit')
-      + `<button type="button" class="ac01-stat ac01-stat-open${open ? ' has-open' : ''}" data-jump="#ac01-draft-title"><small>Offene Hinweise</small><strong>${open}</strong><span>${summary.complete ? 'Entwurf · ungeprüft' : 'Entwurf · unvollständig'}</span></button>`
+      + `<button type="button" class="ac01-stat ac01-stat-open${alarm ? ' has-open' : ''}" data-review data-jump="#ac01-draft-title"><small>Noch zu klären</small><strong>${empty ? '–' : open}</strong><span>${clarifySub}</span></button>`
       + `<button type="button" class="ac01-stat ac01-save${replacePending ? ' is-replace' : ''}" data-action="save-day"><small>${replacePending ? 'Vorhandenen Tag ersetzen' : 'Tag speichern'}</small><strong>${replacePending ? 'Ja, ersetzen' : 'Speichern'}</strong><span>${replacePending ? 'zweiter Klick nötig' : '→ Mission Control'}</span></button>`;
   }
   // The sticky column header must sit below the sticky strip, whatever height the strip has at the current width.
@@ -251,6 +284,7 @@
   overviewEl.addEventListener('click', event => {
     const button = event.target.closest('[data-jump]');
     if (!button) return;
+    if (button.hasAttribute('data-review') && !isEmptyDay()) { reviewRequested = true; renderReport(); }   // asking what is open shows the details
     const target = $(button.dataset.jump);
     target.scrollIntoView({ block: 'start' });
     target.focus({ preventScroll: true });
@@ -622,6 +656,7 @@
       return;
     }
     await workdays.save(report);
+    reviewRequested = false;
     editingKey = key;
     savedSnapshot = snapshot();
     replacePending = false;
@@ -644,6 +679,7 @@
     renderSuggestions();
     setMessage('');
     editingKey = { projectId: copy.projectId, date: copy.date };
+    reviewRequested = false;
     renderEmployees();
     renderEvents();
     savedSnapshot = snapshot();
@@ -666,6 +702,7 @@
     renderSuggestions();
     setMessage('');
     editingKey = null;
+    reviewRequested = false;
     renderEmployees();
     renderEvents();
     savedSnapshot = snapshot();

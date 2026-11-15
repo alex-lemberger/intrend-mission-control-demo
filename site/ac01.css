@@ -384,3 +384,8 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 #ac01-view{--ac-ev-cols:142px minmax(110px,1fr) minmax(0,2fr) 118px 28px}
 }
 @media(min-width:1024px){.ac01-event-remove{margin-left:8px}}
+
+/* Cognitive UX Sprint 2: missing information is calm; only contradictions or an explicit review request use the orange alarm style. */
+.ac01-missing.is-calm{border-left-color:#7da58f;background:#f1f7f3;color:#24473a}
+.ac01-missing.is-calm summary{color:#1b5a47}
+.ac01-stat-open:not(.has-open) strong{color:var(--ac-ink)}

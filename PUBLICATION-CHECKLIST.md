@@ -21,6 +21,14 @@
 - [ ] Nicht geprüft: echtes iPhone/Safari und die tatsächliche Pages-Auslieferung nach dem Push.
 - [ ] **Menschliche Freigabe dieser Aktualisierung vor dem Push.**
 
+## Release-Kandidat UX Sprint 2 (2026-11-15, lokal vorbereitet, nicht veröffentlicht)
+
+- [x] Geänderte Dateien (aus dem lokalen Integrationsstand `a4e7867`, byteidentisch): `site/index.html`, `site/styles.css`, `site/ac01.css`, `site/app.js`, `site/ac01.js`, `site/timesheet-view.js`, `site/vendor/stundenzettel.bundle.js`, `site/vendor/ac01-core.bundle.js`. Unverändert: `site/workday-store.js`, `site/stundenzettel.html`. Die Dateiliste des Workflows bleibt gleich (zehn Dateien); der Workflow wurde nicht geändert.
+- [x] Inhalt: ruhige Validierung („Noch zu klären“, Widersprüche bleiben sichtbar), einheitliche Aktionsbezeichnungen, nächste Aktion am gespeicherten Tag, „Alle auswählen“ / „Auswahl aufheben“ im Stundenzettel. Keine neuen Geschäftsregeln, weiterhin nur synthetische Daten im Arbeitsspeicher.
+- [x] Zwischenspeicher: `index.html` hängt allen acht lokalen Dateien dasselbe `?v=`-Token an; bei jeder Änderung einer Datei muss das Token in allen acht Verweisen erneuert werden (ein Integrationstest prüft die Einheitlichkeit). Zusätzlich zeigt `ac01.js` einen Neuladen-Hinweis, falls ein älteres Kernpaket mit neueren Dateien gemischt wird.
+- [x] Lokal geprüft: Workflow-Prüfungen (gleichwertig, lokal ausgeführt), `node --check` aller JS-Dateien, 32/32 Integrationsprüfungen gegen genau dieses Paket unter `/intrend-mission-control-demo/`, Bundle-Aktualitätsprüfungen, Browser-Rauchtest unter dem Pages-Pfad, Übergang von zwischengespeicherten Sprint-1-Dateien (Server mit `max-age=600`).
+- [ ] Nicht geprüft: tatsächliche Pages-Auslieferung nach dem Push, echtes iPhone/Safari. **Freigabe zum Push steht aus.**
+
 ## Prüfbefehle vor jeder Veröffentlichung
 
 Im lokalen Demo-Repository:

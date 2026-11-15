@@ -69,3 +69,7 @@ body[data-draft-dirty] .mobile-nav [data-view="ac01"]::after{position:absolute;t
 .leave-actions{display:flex;flex-wrap:wrap;gap:10px}.leave-actions .primary,.leave-actions .outline{width:auto;flex:1 1 180px;min-height:46px}
 @media print{.draft-notice,.leave-dialog,.legacy-banner{display:none!important}}
 .nav-item .nav-label{font-size:inherit;line-height:1.2}
+
+/* Cognitive UX Sprint 2: one primary action per saved day */
+.wd-open-row .primary,.wd-open-row .outline{min-height:44px;padding:0 17px}
+.wd-open-row .primary{width:auto}   /* the global .primary is full-width; inside the card it must sit beside the secondary action */

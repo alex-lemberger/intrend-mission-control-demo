@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:63cd4e1088e8b940, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:bcdf5fccd47c8834, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry ac01-core <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -203,6 +203,8 @@ function summarize({ employees, events }) {
     const nameCounts = new Map();
     const issues = {};
     const missing = [];
+    const conflicts = [];
+    const conflict = (text) => { missing.push(text); conflicts.push(text); };
     const starts = [], ends = [];
     let unnamed = 0, assignmentCount = 0;
     employees.forEach((employee, employeeIndex) => {
@@ -234,7 +236,7 @@ function summarize({ employees, events }) {
             if (start !== null && end !== null) {
                 if (end <= start) {
                     notes.push('Das Ende liegt nicht nach dem Beginn.');
-                    missing.push(`${where}: Ende liegt nicht nach dem Beginn`);
+                    conflict(`${where}: Ende liegt nicht nach dem Beginn`);
                 }
                 else
                     spans.push({ id: assignment.id, start, end });
@@ -243,11 +245,11 @@ function summarize({ employees, events }) {
                 const pause = Number(assignment.breakMin);
                 if (!Number.isFinite(pause) || pause < 0 || pause > 480) {
                     notes.push('Die Pause muss zwischen 0 und 480 Minuten liegen.');
-                    missing.push(`${where}: Pause ungültig`);
+                    conflict(`${where}: Pause ungültig`);
                 }
                 else if (start !== null && end !== null && end > start && pause > end - start) {
                     notes.push('Die Pause ist länger als die Zeitspanne.');
-                    missing.push(`${where}: Pause länger als Zeitspanne`);
+                    conflict(`${where}: Pause länger als Zeitspanne`);
                 }
             }
             if (!assignment.work.trim() && !assignment.lv.trim())
@@ -266,12 +268,12 @@ function summarize({ employees, events }) {
                 const warning = 'Überschneidung mit einer anderen Arbeit derselben Person: Die Zeit könnte doppelt erfasst sein (Regel offen).';
                 [span.id, next.id].forEach(id => { if (!issues[id].includes(warning))
                     issues[id].push(warning); });
-                missing.push(`${label}: sich überschneidende Arbeitszeiten`);
+                conflict(`${label}: sich überschneidende Arbeitszeiten`);
             }
         });
     });
     const duplicates = [...nameCounts].filter(([, count]) => count > 1).map(([name]) => name);
-    duplicates.forEach(name => missing.push(`${name} ist mehrfach erfasst und zählt einmal; bitte zusammenführen`));
+    duplicates.forEach(name => conflict(`${name} ist mehrfach erfasst und zählt einmal; bitte zusammenführen`));
     const reasonCounts = {};
     events.forEach((event, index) => {
         const label = `Ereignis ${index + 1}`;
@@ -294,6 +296,7 @@ function summarize({ employees, events }) {
         latest: ends.length ? Math.max(...ends) : null,
         issues,
         missing: [...new Set(missing)],
+        conflicts: [...new Set(conflicts)],
         complete: assignmentCount > 0 && missing.length === 0
     };
 }
@@ -396,5 +399,5 @@ function applyBulk(employees, ids, patch, mode = 'fill') {
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:63cd4e1088e8b940" }));
+  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:bcdf5fccd47c8834" }));
 })();

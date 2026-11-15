@@ -196,7 +196,7 @@ async function renderDashboard(){
     ['Mitarbeitende', `${sum(x=>x.named)}${unnamed?` <em>+${unnamed} ohne Namen</em>`:''}`, 'benannt, je Tag einmal'],
     ['Arbeitszeilen', sum(x=>x.assignmentCount), 'keine Stundensumme (Regel offen)'],
     ['Ereignisse', sum(x=>x.eventCount), 'ohne Zeitangabe'],
-    ['Offene Hinweise', sum(x=>x.missing.length), 'fehlende oder zu prüfende Angaben']
+    ['Noch zu klären', sum(x=>x.missing.length), 'fehlende oder zu prüfende Angaben']
   ].map(([label,value,sub])=>`<div class="metric"><small>${label}</small><strong>${value}</strong><span>${sub}</span></div>`).join('');
   $('#wd-count').textContent = `${rows.length} ${rows.length===1?'Tag':'Tage'}`;
   // Compact card per saved day: figures, status and a short preview. Everything else is one click away: the day opens in AC-01.
@@ -211,11 +211,18 @@ async function renderDashboard(){
     const places = [...new Set(rowsAll.flatMap(a=>a.locations))].map(esc);
     const filled = [['Geräte',r.extras.equipment],['Material',r.extras.material],['Kontakte / Anordnungen',r.extras.contacts]].filter(([,v])=>v.trim()).map(([k])=>k);
     const dd = (cls,label,value) => `<div><dt>${label}</dt><dd class="${cls}">${value}</dd></div>`;
-    return `<article class="list-item wd-day" data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(project(r.projectId).name)}</strong><span class="badge">Erfasst · ungeprüft</span></div><div class="item-sub">${esc(dateText(r.date))} · <span class="wd-figures">${x.named} Mitarbeitende · ${x.assignmentCount} Arbeitszeilen · ${x.eventCount} Ereignisse</span>${win}</div><div class="item-meta">${x.complete?'<span class="badge">Keine fehlenden Angaben erkannt</span>':`<span class="badge orange">${x.missing.length} Hinweise offen</span>`}${reasons}</div><dl class="wd-preview">${dd('wd-preview-people','Mitarbeitende',people.length?top(people,5):'noch keine')}${dd('wd-preview-work','Arbeiten (Zeilen)',work.length?top(work,4):'noch keine')}${dd('wd-preview-places','Orte / Bauteile',places.length?top(places,4):'keine')}${dd('wd-preview-extras','Weitere Tagesangaben',filled.length?filled.join(', ')+' erfasst':'keine')}</dl><div class="wd-open-row"><button class="outline wd-open" type="button" data-wd-open>Alle Angaben im Baustellentag öffnen <span aria-hidden="true">→</span></button><button class="outline wd-timesheet" type="button" data-ts-open>Stundenzettel erstellen <span aria-hidden="true">→</span></button><span class="wd-open-hint">Bearbeiten nur im Baustellentag</span></div></article>`;
+    // Next action from known validation results only (no new state, no gate): open items -> editing is the primary action,
+    // otherwise the Stundenzettel. A Stundenzettel stays available either way; its own hints show what is missing there.
+    const open = x.missing.length, conflicts = x.conflicts.length;
+    const clarify = open ? `<span class="badge orange">Noch zu klären: ${open}</span>${conflicts?`<span class="badge red">${conflicts} ${conflicts===1?'Widerspruch':'Widersprüche'} prüfen</span>`:''}` : '<span class="badge">Keine fehlenden Angaben erkannt</span>';
+    const edit = (primary) => `<button class="${primary?'primary':'outline'} wd-open" type="button" data-wd-open>${open&&primary?'Angaben ergänzen':'Baustellentag bearbeiten'} <span aria-hidden="true">→</span></button>`;
+    const sheet = (primary) => `<button class="${primary?'primary':'outline'} wd-timesheet" type="button" data-ts-open>Stundenzettel erstellen <span aria-hidden="true">→</span></button>`;
+    const nextHint = open ? '<span class="wd-open-hint">Stundenzettel ist trotzdem möglich.</span>' : '';
+    return `<article class="list-item wd-day" data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(project(r.projectId).name)}</strong><span class="badge" title="Gespeichert heißt nur: so erfasst. Nicht geprüft oder freigegeben.">Gespeichert · ungeprüft</span></div><div class="item-sub">${esc(dateText(r.date))} · <span class="wd-figures">${x.named} Mitarbeitende · ${x.assignmentCount} Arbeitszeilen · ${x.eventCount} Ereignisse</span>${win}</div><div class="item-meta">${clarify}${reasons}</div><dl class="wd-preview">${dd('wd-preview-people','Mitarbeitende',people.length?top(people,5):'noch keine')}${dd('wd-preview-work','Arbeiten (Zeilen)',work.length?top(work,4):'noch keine')}${dd('wd-preview-places','Orte / Bauteile',places.length?top(places,4):'keine')}${dd('wd-preview-extras','Weitere Tagesangaben',filled.length?filled.join(', ')+' erfasst':'keine')}</dl><div class="wd-open-row">${open ? edit(true)+sheet(false) : sheet(true)+edit(false)}${nextHint}</div></article>`;
   }).join('') || '<div class="empty">Noch kein Tag gespeichert. In „Baustellentag erfassen“ einen Tag eintragen und „Speichern → Mission Control“ wählen.<div class="empty-action"><button class="primary" type="button" data-view="ac01">＋ Baustellentag erfassen</button></div></div>';
   const evAll = rows.flatMap(({report:r}) => r.events.map(v=>({v,r})));
   $('#wd-event-count').textContent = `${evAll.length} ${evAll.length===1?'Ereignis':'Ereignisse'}`;
-  $('#wd-events').innerHTML = evAll.map(({v,r})=>`<button class="list-item wd-event" type="button" data-wd-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(v.description.trim().slice(0,62)||'Beschreibung fehlt')}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(r.projectId).name)} · ${esc(dateText(r.date))} · Ort: ${esc(v.location.trim()||'fehlt')}</div><div class="item-meta">${v.reasons.map(k=>`<span class="badge ${k==='Baubehinderung'?'red':'orange'}">${esc(reasonShort[k]||k)}</span>`).join('')||'<span class="badge">Grund fehlt</span>'}<span class="badge">Erfasst · ungeprüft</span></div></button>`).join('') || '<div class="empty">Keine besonderen Ereignisse erfasst.</div>';
+  $('#wd-events').innerHTML = evAll.map(({v,r})=>`<button class="list-item wd-event" type="button" data-wd-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(v.description.trim().slice(0,62)||'Beschreibung fehlt')}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(r.projectId).name)} · ${esc(dateText(r.date))} · Ort: ${esc(v.location.trim()||'fehlt')}</div><div class="item-meta">${v.reasons.map(k=>`<span class="badge ${k==='Baubehinderung'?'red':'orange'}">${esc(reasonShort[k]||k)}</span>`).join('')||'<span class="badge">Grund fehlt</span>'}<span class="badge">Gespeichert · ungeprüft</span></div></button>`).join('') || '<div class="empty">Keine besonderen Ereignisse erfasst.</div>';
   // Legacy form reports (never the seed examples)
   const legacy=state.reports.filter(r=>!r.seed).sort((a,b)=>b.date.localeCompare(a.date)); const events=allEvents().filter(e=>!e.report.seed);
   $('#legacy-panel').hidden = !legacy.length;
@@ -228,7 +235,7 @@ async function renderDashboard(){
 function showSavedWorkday(report, summary, replaced){
   $('#open-notice').hidden=true;
   $('#save-confirmation').hidden=false;
-  $('#save-confirmation').textContent=`✓ Baustellentag für ${project(report.projectId).name} am ${dateText(report.date)} ${replaced?'aktualisiert':'gespeichert'} · ${summary.named} Mitarbeitende · ${summary.assignmentCount} Arbeitszeilen · ${summary.eventCount} Ereignisse. Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.`;
+  $('#save-confirmation').textContent=`✓ Baustellentag für ${project(report.projectId).name} am ${dateText(report.date)} ${replaced?'aktualisiert':'gespeichert'} · ${summary.named} Mitarbeitende · ${summary.assignmentCount} Arbeitszeilen · ${summary.eventCount} Ereignisse. ${summary.missing.length?`Noch zu klären: ${summary.missing.length}.`:'Nächster Schritt: Stundenzettel erstellen.'} Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.`;
   switchView('dashboard');
 }
 // Reopening replaces the day in AC-01; unsaved changes there need a second, explicit click.
@@ -237,7 +244,7 @@ async function openWorkday(key, force=false){
   const notice=$('#open-notice');
   if(!force && AC01Workday.isDirty()){
     notice.hidden=false;
-    notice.innerHTML=`In „Baustellentag erfassen“ gibt es ungespeicherte Änderungen. Beim Öffnen von ${esc(project(key.projectId).name)} (${esc(dateText(key.date))}) gehen sie verloren. <button class="outline" type="button" data-wd-force data-project="${esc(key.projectId)}" data-date="${esc(key.date)}">Verwerfen und öffnen</button>`;
+    notice.innerHTML=`In „Baustellentag erfassen“ gibt es ungespeicherte Änderungen. Beim Bearbeiten von ${esc(project(key.projectId).name)} (${esc(dateText(key.date))}) gehen sie verloren. <button class="outline" type="button" data-wd-force data-project="${esc(key.projectId)}" data-date="${esc(key.date)}">Verwerfen und bearbeiten</button>`;
     notice.scrollIntoView({block:'nearest'});
     return;
   }

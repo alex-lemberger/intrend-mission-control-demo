@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#11242c">
   <title>inTrend Mission Control · Field Operations</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="ac01.css">
-  <script src="vendor/ac01-core.bundle.js" defer></script>
-  <script src="workday-store.js" defer></script>
-  <script src="app.js" defer></script>
-  <script src="ac01.js" defer></script>
-  <script src="vendor/stundenzettel.bundle.js" defer></script>
-  <script src="timesheet-view.js" defer></script>
+  <!-- Static assets carry one release token (?v=). Change it in ALL eight references whenever an asset changes: a cached older file must never be combined with a newer one. -->
+  <link rel="stylesheet" href="styles.css?v=2026-11-15-s2">
+  <link rel="stylesheet" href="ac01.css?v=2026-11-15-s2">
+  <script src="vendor/ac01-core.bundle.js?v=2026-11-15-s2" defer></script>
+  <script src="workday-store.js?v=2026-11-15-s2" defer></script>
+  <script src="app.js?v=2026-11-15-s2" defer></script>
+  <script src="ac01.js?v=2026-11-15-s2" defer></script>
+  <script src="vendor/stundenzettel.bundle.js?v=2026-11-15-s2" defer></script>
+  <script src="timesheet-view.js?v=2026-11-15-s2" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -58,7 +59,7 @@
         </section>
         <section id="ac01-view" class="view" hidden aria-labelledby="ac01-title">
           <div class="page-head ac01-page-head">
-            <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Mitarbeitende, Zeiten, Arbeiten und Ereignisse in einer Ansicht eintragen. Oben steht der Überblick, der interne Bericht entsteht darunter.</p></div>
+            <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Mitarbeitende, Zeiten, Arbeiten und Ereignisse eines Tages eintragen und speichern.</p></div>
           </div>
           <nav class="ac01-jump" aria-label="Bereiche dieser Seite"><button type="button" data-jump="#ac01-crew-title">Mitarbeitende</button><button type="button" data-jump="#ac01-events-title">Ereignisse <span id="ac01-jump-events"></span></button><button type="button" data-jump="#ac01-draft-title">Tagesbericht</button></nav>
           <div class="ac01-savebar" id="ac01-savebar"><p id="ac01-save-status" role="status" aria-live="polite"></p><div class="ac01-savebar-actions"><button type="button" class="ac01-add" id="ac01-new-day">Neuer leerer Tag</button><button type="button" class="ac01-add" data-view="dashboard">Mission Control ansehen →</button></div></div>
@@ -66,12 +67,12 @@
           <div class="ac01-workspace">
             <div class="ac01-work-area">
               <section class="ac01-block" aria-labelledby="ac01-ctx-title">
-                <h2 id="ac01-ctx-title"><span class="ac01-letter" aria-hidden="true">A</span> Projekt und Datum</h2>
+                <h2 id="ac01-ctx-title">Projekt und Datum</h2>
                 <div class="ac01-fields"><div><label for="ac01-project">Bauprojekt</label><select id="ac01-project"></select></div><div><label for="ac01-date">Datum</label><input id="ac01-date" type="date"></div></div>
                 <p class="ac01-hint">Demoangaben; die Auswahl ändert keine Eingaben.</p>
               </section>
               <section class="ac01-block" aria-labelledby="ac01-crew-title">
-                <div class="ac01-heading-row"><h2 id="ac01-crew-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">B</span> Mitarbeitende, Arbeit und Ereignisse</h2><span id="ac01-crew-count" aria-live="polite"></span></div>
+                <div class="ac01-heading-row"><h2 id="ac01-crew-title" tabindex="-1">Mitarbeitende, Arbeit und Ereignisse</h2><span id="ac01-crew-count" aria-live="polite"></span></div>
                 <p class="ac01-hint" id="ac01-plan-note">Planmarkierung der Ausführungsstelle im Bauplan: folgt später und ist hier noch nicht erfassbar.</p>
                 <div class="ac01-prefill-bar">
                   <button class="ac01-add" id="ac01-prefill-yesterday" type="button">Personen von gestern übernehmen</button>
@@ -115,7 +116,7 @@
                 </div>
               </section>
               <section class="ac01-block" aria-labelledby="ac01-extra-title">
-                <h2 id="ac01-extra-title"><span class="ac01-letter" aria-hidden="true">C</span> Weitere Tagesangaben</h2>
+                <h2 id="ac01-extra-title">Weitere Tagesangaben</h2>
                 <label for="ac01-equipment">Geräte / Maschinen / Fahrzeuge</label><input id="ac01-equipment" placeholder="z. B. Gerüst, Hubwagen · Anzahl">
                 <label for="ac01-material">Materialanlieferung (kurze Notiz)</label><input id="ac01-material" placeholder="z. B. Gipskarton, Vormittag">
                 <label for="ac01-contacts">Kontakte / Anordnungen der Bauleitung oder des Auftraggebers</label><textarea id="ac01-contacts" rows="2" placeholder="Wer, wann, was wurde angeordnet?"></textarea>
@@ -131,9 +132,9 @@
               </details>
             </div>
             <aside class="ac01-report-area" aria-labelledby="ac01-draft-title">
-              <div class="ac01-heading-row"><h2 id="ac01-draft-title" tabindex="-1"><span class="ac01-letter" aria-hidden="true">D</span> Interner Tagesbericht</h2><span>Nur intern</span></div>
+              <div class="ac01-heading-row"><h2 id="ac01-draft-title" tabindex="-1">Interner Tagesbericht</h2><span>Nur intern</span></div>
               <div id="ac01-draft"></div>
-              <div class="ac01-save-end"><button type="button" class="primary ac01-action" id="ac01-save-bottom" data-action="save-day">Tag speichern → Mission Control</button><p class="ac01-hint">Speichert den ganzen Tag (Mitarbeitende, Zeiten, Arbeiten, Ereignisse). Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.</p></div>
+              <div class="ac01-save-end"><button type="button" class="primary ac01-action" id="ac01-save-bottom" data-action="save-day">Tag speichern → Mission Control</button><p class="ac01-hint">Speichert den ganzen Tag. Danach: Mission Control, dort Stundenzettel erstellen.</p></div>
               <details class="ac01-limitations"><summary>Hinweise zu dieser Demo</summary><p>Nur synthetische Daten im Arbeitsspeicher; beim Neuladen gehen Eingaben verloren. Gewählte Fotos werden nur als Dateiname gezeigt, nicht hochgeladen oder gespeichert. Dieser interne Entwurf ist weder ein externer Bautagesbericht noch ein Versand. Pausen-, Zeitzuordnungs- und Berichtseinheitsregeln sind offen.</p></details>
             </aside>
           </div>
