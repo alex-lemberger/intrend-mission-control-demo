@@ -46,3 +46,26 @@
   body:has(#timesheet-view:not([hidden])) :is(.skip,.rail,.topbar,.mobile-nav,.ts-head,#ts-source,#timesheet-view>.dashboard-foot){display:none!important}
   body:has(#timesheet-view:not([hidden])) main{padding:0;margin:0;max-width:none}
 }
+
+/* UX sprint 1: Mission Control as the landing view, unsaved-draft markers, legacy form labelling */
+.dashboard-head .primary{width:auto;min-width:0;padding:0 22px;white-space:nowrap}
+.empty-action{margin-top:14px}.empty-action .primary{width:auto;padding:0 20px}
+.nav-legacy{margin-top:14px;border-top:1px solid #2c4745;border-radius:0 0 11px 11px}
+.nav-label{display:grid;line-height:1.2}.nav-sub{font-size:11px;font-weight:600;color:#8fa6a1}
+.nav-item.active .nav-sub{color:#cfe2dc}
+.legacy-banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 18px;background:#fff6e5;border:1px solid #ecc88c;border-left:4px solid var(--orange);border-radius:13px;padding:13px 17px;margin:0 0 18px;color:#5b3d12;font-size:13px;line-height:1.5}
+.legacy-banner>div{flex:1 1 380px}.legacy-banner .outline{min-height:44px;flex:none}
+.draft-notice{background:#fff6e5;border:1px solid #ecc88c;border-left:4px solid var(--orange);border-radius:13px;padding:14px 18px;color:#5b3d12;font-size:13px;line-height:1.5;margin-bottom:19px}
+.draft-notice{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}.draft-notice-text{flex:1 1 340px}.draft-notice .outline{flex:none;margin:0;min-height:44px}
+.draft-notice[hidden],.legacy-banner[hidden]{display:none}
+.ac01-savebar p[data-dirty="true"]{color:#7a3a10;font-weight:700;background:#fff6e5;border:1px solid #ecc88c;border-left:4px solid var(--orange);border-radius:10px;padding:8px 12px}
+.ac01-savebar p[data-dirty="true"]::before{content:"● Ungespeichert · ";color:#b4600e}
+body[data-draft-dirty] .nav-item[data-view="ac01"]::after,body[data-draft-dirty] .mobile-nav [data-view="ac01"]::after{content:"●";color:var(--orange);font-size:14px;line-height:1;margin-left:auto}
+body[data-draft-dirty] .mobile-nav [data-view="ac01"]{position:relative}
+body[data-draft-dirty] .mobile-nav [data-view="ac01"]::after{position:absolute;top:4px;right:calc(50% - 22px);margin:0}
+.leave-dialog{border:0;border-radius:16px;padding:22px 24px;max-width:min(480px,calc(100vw - 32px));box-shadow:0 20px 60px #0b1d2455;color:var(--ink)}
+.leave-dialog::backdrop{background:#0b1d2480}
+.leave-dialog h2{margin:0 0 10px;font-size:18px}.leave-dialog p{margin:0 0 18px;font-size:14px;line-height:1.55;color:#33484f}
+.leave-actions{display:flex;flex-wrap:wrap;gap:10px}.leave-actions .primary,.leave-actions .outline{width:auto;flex:1 1 180px;min-height:46px}
+@media print{.draft-notice,.leave-dialog,.legacy-banner{display:none!important}}
+.nav-item .nav-label{font-size:inherit;line-height:1.2}

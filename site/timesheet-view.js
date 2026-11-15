@@ -40,7 +40,7 @@
     const report = current ? await WorkdayStore.store.load(current) : null;
     const days = await WorkdayStore.store.list();
     if (mine !== token) return;
-    if (!report) { current = null; host.hidden = true; renderChooser(days); return; }
+    if (!report) { current = null; host.hidden = true; renderChooser(days); renderDraftNotices(); return; }
 
     const reportJson = JSON.stringify(report);
     const cached = drafts.get(keyOf(current));
@@ -53,6 +53,7 @@
       <div class="ts-source-actions"><button class="outline" type="button" data-ts-reopen>Baustellentag öffnen</button>${days.length > 1 ? '<button class="text-action" type="button" data-ts-choose>Anderen Tag wählen</button>' : ''}</div>
       <p class="ts-note">${cached && !restore ? '<strong>Der Baustellentag wurde seit dem letzten Entwurf geändert; der Stundenzettel beginnt neu.</strong> ' : ''}Der Baustellentag wird hier nur gelesen; Änderungen im Stundenzettel bleiben im Stundenzettel. Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg.</p></section>`;
     host.hidden = false;
+    renderDraftNotices();
     mounted = {
       key: { ...current }, reportJson,
       api: root.StundenzettelApp.mountStundenzettel(shadow().querySelector('.ts-mount'), {
@@ -80,5 +81,5 @@
     if (reopen) { const h = holder(reopen); switchView('dashboard'); openWorkday({ projectId: h.dataset.project, date: h.dataset.date }); }
   });
 
-  root.TimesheetView = { render, open };
+  root.TimesheetView = { render, open, currentKey: () => (current ? { ...current } : null) };
 })(globalThis);

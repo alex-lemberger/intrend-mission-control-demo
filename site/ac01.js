@@ -604,6 +604,8 @@
     else text = dirty ? 'Neuer Tag · noch nicht gespeichert.' : 'Neuer, leerer Tag.';
     statusEl.textContent = `${text} Nur im Arbeitsspeicher dieser Demo: nach dem Neuladen der Seite ist alles weg.`;
     statusEl.classList.toggle('is-warning', replacePending || Boolean(existing && !sameKey(editingKey, key)));
+    statusEl.dataset.dirty = String(dirty);               // drives the visible "Ungespeichert" marker
+    document.dispatchEvent(new CustomEvent('ac01-dirtychange'));   // app.js: nav marker and notices on Mission Control / Stundenzettel
   }
 
   async function saveDay() {
@@ -671,7 +673,7 @@
   }
   $('#ac01-new-day').addEventListener('click', newDay);
   $('#ac01-view').addEventListener('click', event => { if (event.target.closest('[data-action="save-day"]')) saveDay(); });
-  root.AC01Workday = { open: openDay, isDirty, currentKey: () => (editingKey ? { ...editingKey } : null) };
+  root.AC01Workday = { open: openDay, isDirty, draftKey: () => ({ projectId: $('#ac01-project').value, date: $('#ac01-date').value }), currentKey: () => (editingKey ? { ...editingKey } : null) };
 
   renderEmployees();
   renderEvents();

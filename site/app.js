@@ -10,7 +10,7 @@ const seed = [
   { id: 'r2', seed: true, project: 'quartier', date: '2026-11-06', floor: 'EG · Eingangsbereich', responsible: 'Laura Beck · Vertretung', work: 'Unterkonstruktion für Deckenbekleidung montiert', crew:[{name:'Laura Beck',hours:8},{name:'Emre Kaya',hours:8}], lv:'', events:[{id:'e2',type:'Zusatzarbeit',title:'Zusätzliche Abkofferung dokumentiert',description:'Zusätzliche Abkofferung an der Installationszone aufgenommen; Umfang vor Ausführung zu klären.',hours:1.5,floor:'EG · Eingangsbereich',photos:[],obstacle:'',lv:''}] }
 ];
 /* `seed` reports exist only so the legacy form can demonstrate "existing report"; Mission Control never lists them. */
-const state = { reports: structuredClone(seed), selectedEvent:'e1', draftType:'Stundenzettel', draftRequested:false, draftEvent:null, view:'field' };
+const state = { reports: structuredClone(seed), selectedEvent:'e1', draftType:'Stundenzettel', draftRequested:false, draftEvent:null, view:'dashboard' };
 const photoPreviews = new Map();
 const defaultCrew = [{name:'Martin Seidel',hours:8},{name:'Jonas Krüger',hours:8},{name:'Mika Özdemir',hours:8}];
 let activeReportKey = `hafen|${today}`;
@@ -23,18 +23,66 @@ const hourText = n => Number(n).toLocaleString('de-DE',{maximumFractionDigits:1}
 const allEvents = () => state.reports.flatMap(r => r.events.map(e => ({...e, report:r})));
 const uid = () => 'demo-' + Math.random().toString(36).slice(2,9);
 
-function switchView(view) {
+/*
+ * Unsaved-changes protection for "Baustellentag erfassen" (AC-01). Source of truth for "dirty" is AC01Workday.isDirty():
+ * the serialized business data compared with the last load/save. Nothing here saves or discards anything.
+ * - Leaving the editor inside the app asks once (in-page dialog, no native confirm); the draft stays in the editor.
+ * - Closing/reloading the tab uses the browser's own beforeunload prompt (its text cannot be customised).
+ * - Mission Control and Stundenzettel show a notice while a draft exists; both only ever read saved days.
+ */
+const editorDirty = () => typeof AC01Workday !== 'undefined' && AC01Workday.isDirty();
+const draftLabel = () => { const k = AC01Workday.draftKey(); return k.projectId && k.date ? `${project(k.projectId).name} · ${dateText(k.date)}` : 'noch ohne Projekt/Datum'; };
+const leaveDialog = $('#leave-dialog');
+let leaveTarget = null;
+function askToLeaveEditor(view) {
+  if (leaveDialog.open) return;                              // one dialog at a time: repeated clicks do not stack
+  leaveTarget = view;
+  const saved = AC01Workday.currentKey();
+  $('#leave-text').textContent = `${saved ? `Der gespeicherte Tag ${project(saved.projectId).name} · ${dateText(saved.date)} wird bearbeitet.` : `Der Tag ${draftLabel()} ist noch nicht gespeichert.`} Mission Control und Stundenzettel zeigen nur den zuletzt gespeicherten Stand, Ihre Änderungen sind dort nicht enthalten. Wenn Sie jetzt wechseln, bleibt Ihr Entwurf im Baustellentag erhalten, ist aber weiterhin nicht gespeichert.`;
+  leaveDialog.showModal();
+  $('#leave-stay').focus();
+}
+$('#leave-stay').addEventListener('click', () => { leaveTarget = null; leaveDialog.close(); });
+$('#leave-go').addEventListener('click', () => { const view = leaveTarget; leaveTarget = null; leaveDialog.close(); if (view) switchView(view, { confirmed: true }); });
+leaveDialog.addEventListener('cancel', () => { leaveTarget = null; });   // Esc = stay
+window.addEventListener('beforeunload', e => { if (editorDirty() || formDirty) { e.preventDefault(); e.returnValue = ''; } });
+
+// Shown while the editor holds changes that are not in the saved day. relevant = the draft is the saved day this view works from.
+function renderDraftNotices() {
+  const dirty = editorDirty();
+  document.body.toggleAttribute('data-draft-dirty', dirty);
+  const back = '<button class="outline" type="button" data-view="ac01">Zum Entwurf im Baustellentag →</button>';
+  const box = text => `<span class="draft-notice-text">${text}</span>${back}`;
+  const dash = $('#draft-notice'), ts = $('#ts-draft-notice');
+  dash.hidden = !dirty || state.view !== 'dashboard';
+  if (!dash.hidden) dash.innerHTML = box(`<strong>Ungespeicherter Entwurf im Baustellentag (${esc(draftLabel())}).</strong> Mission Control und Stundenzettel zeigen nur gespeicherte Tage; der Entwurf ist darin nicht enthalten.`);
+  ts.hidden = !dirty || state.view !== 'timesheet';
+  if (!ts.hidden) {
+    const src = TimesheetView.currentKey(), saved = AC01Workday.currentKey();
+    const same = Boolean(src && saved && src.projectId === saved.projectId && src.date === saved.date);
+    ts.innerHTML = box(same
+      ? `<strong>Ungespeicherte Änderungen im Baustellentag.</strong> Dieser Stundenzettel verwendet den zuletzt gespeicherten Stand von ${esc(project(src.projectId).name)} · ${esc(dateText(src.date))}. Ihre aktuellen Änderungen sind darin nicht enthalten.`
+      : saved
+        ? `<strong>Ungespeicherte Änderungen im Baustellentag (${esc(draftLabel())}).</strong> Ein Stundenzettel verwendet den zuletzt gespeicherten Stand eines Tages; die Änderungen sind darin nicht enthalten.`
+        : `<strong>Ungespeicherter Entwurf im Baustellentag (${esc(draftLabel())}).</strong> Ein Stundenzettel entsteht nur aus gespeicherten Tagen; der Entwurf ist darin nicht enthalten.`);
+  }
+}
+document.addEventListener('ac01-dirtychange', renderDraftNotices);
+
+function switchView(view, { confirmed = false } = {}) {
+  if(state.view==='ac01' && view!=='ac01' && !confirmed && editorDirty()){ askToLeaveEditor(view); return; }
   if(state.view==='field' && view!=='field' && formDirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
   if(view!=='dashboard'){ $('#save-confirmation').hidden=true; $('#open-notice').hidden=true; }
   state.view = view;
   document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== `${view}-view`);
-  document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active',el.dataset.view===view));
-  $('#top-eyebrow').textContent = ['field', 'ac01'].includes(view) ? 'BAUSTELLE · LOKALE DEMO' : 'MISSION CONTROL · LOKALE DEMO';
-  $('#top-title').textContent = ({field:'Tagesbericht',ac01:'Baustellentag erfassen',dashboard:'Mission Control',timesheet:'Stundenzettel',detail:'Ereignis',draft:'Dokumententwurf'})[view];
+  document.querySelectorAll('[data-view]').forEach(el => { const on = el.dataset.view===view; el.classList.toggle('active',on); if(el.matches('.nav-item,.mobile-nav button')){ if(on) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); } });
+  $('#top-eyebrow').textContent = view==='field' ? 'BISHERIGES FORMULAR · LOKALE DEMO' : view==='ac01' ? 'BAUSTELLE · LOKALE DEMO' : 'MISSION CONTROL · LOKALE DEMO';
+  $('#top-title').textContent = ({field:'Tagesbericht · bisheriges Formular',ac01:'Baustellentag erfassen',dashboard:'Mission Control',timesheet:'Stundenzettel',detail:'Ereignis',draft:'Dokumententwurf'})[view];
   if(view==='dashboard') renderDashboard();
   if(view==='detail') renderDetail();
   if(view==='draft') renderDraft();
   if(view==='timesheet') TimesheetView.render();
+  renderDraftNotices();
   const route = view === 'ac01' ? '#ac01' : window.location.href.split('#')[0];
   if (view === 'ac01' ? window.location.hash !== '#ac01' : Boolean(window.location.hash)) {
     window.history.replaceState(null, '', route);
@@ -164,7 +212,7 @@ async function renderDashboard(){
     const filled = [['Geräte',r.extras.equipment],['Material',r.extras.material],['Kontakte / Anordnungen',r.extras.contacts]].filter(([,v])=>v.trim()).map(([k])=>k);
     const dd = (cls,label,value) => `<div><dt>${label}</dt><dd class="${cls}">${value}</dd></div>`;
     return `<article class="list-item wd-day" data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(project(r.projectId).name)}</strong><span class="badge">Erfasst · ungeprüft</span></div><div class="item-sub">${esc(dateText(r.date))} · <span class="wd-figures">${x.named} Mitarbeitende · ${x.assignmentCount} Arbeitszeilen · ${x.eventCount} Ereignisse</span>${win}</div><div class="item-meta">${x.complete?'<span class="badge">Keine fehlenden Angaben erkannt</span>':`<span class="badge orange">${x.missing.length} Hinweise offen</span>`}${reasons}</div><dl class="wd-preview">${dd('wd-preview-people','Mitarbeitende',people.length?top(people,5):'noch keine')}${dd('wd-preview-work','Arbeiten (Zeilen)',work.length?top(work,4):'noch keine')}${dd('wd-preview-places','Orte / Bauteile',places.length?top(places,4):'keine')}${dd('wd-preview-extras','Weitere Tagesangaben',filled.length?filled.join(', ')+' erfasst':'keine')}</dl><div class="wd-open-row"><button class="outline wd-open" type="button" data-wd-open>Alle Angaben im Baustellentag öffnen <span aria-hidden="true">→</span></button><button class="outline wd-timesheet" type="button" data-ts-open>Stundenzettel erstellen <span aria-hidden="true">→</span></button><span class="wd-open-hint">Bearbeiten nur im Baustellentag</span></div></article>`;
-  }).join('') || '<div class="empty">Noch kein Tag gespeichert. In „Baustellentag erfassen“ einen Tag eintragen und „Speichern → Mission Control“ wählen.</div>';
+  }).join('') || '<div class="empty">Noch kein Tag gespeichert. In „Baustellentag erfassen“ einen Tag eintragen und „Speichern → Mission Control“ wählen.<div class="empty-action"><button class="primary" type="button" data-view="ac01">＋ Baustellentag erfassen</button></div></div>';
   const evAll = rows.flatMap(({report:r}) => r.events.map(v=>({v,r})));
   $('#wd-event-count').textContent = `${evAll.length} ${evAll.length===1?'Ereignis':'Ereignisse'}`;
   $('#wd-events').innerHTML = evAll.map(({v,r})=>`<button class="list-item wd-event" type="button" data-wd-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(v.description.trim().slice(0,62)||'Beschreibung fehlt')}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(r.projectId).name)} · ${esc(dateText(r.date))} · Ort: ${esc(v.location.trim()||'fehlt')}</div><div class="item-meta">${v.reasons.map(k=>`<span class="badge ${k==='Baubehinderung'?'red':'orange'}">${esc(reasonShort[k]||k)}</span>`).join('')||'<span class="badge">Grund fehlt</span>'}<span class="badge">Erfasst · ungeprüft</span></div></button>`).join('') || '<div class="empty">Keine besonderen Ereignisse erfasst.</div>';
