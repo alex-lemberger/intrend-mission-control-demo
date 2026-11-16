@@ -36,7 +36,8 @@
 - [x] Kommentare in den veröffentlichten Quelldateien bereinigt: keine Personennamen, keine internen Kennungen (SC-/CB-/DEP-), keine Stakeholder-, Tenant- oder SharePoint-Bezüge. Der Workflow prüft das jetzt zusätzlich per Suchmuster und bricht bei Treffern ab.
 - [x] Nur synthetische Daten: erfundene Beispielgründe (18 Einträge, `ST-nnn`), Beispielprojekte, `Demo-Person NN`. Der Katalog ist **nicht** die Liste des Unternehmens. Keine Rechtsprüfung, keine Rechtsberatung; der Brief ist ein Beispiel und wird nicht versendet.
 - [x] Lokal geprüft: Workflow-Schritt „Enforce public site allowlist“ (inkl. neuer Suchmuster) besteht; `node --check` aller JS-Dateien; 33/33 Integrationsprüfungen gegen genau dieses Paket unter dem Pages-Pfad (inkl. Behinderungsanzeige-Dialog, Vorschläge, Druck).
-- [ ] Nicht geprüft: Pages-Auslieferung vor dem Push (wird nach dem Lauf per Abruf geprüft), echtes iPhone/Safari.
+- [x] Veröffentlicht am 2026-11-16 mit Commit `9a896ea`; Workflow-Lauf `43855300490` erfolgreich. Live geprüft: Inhalts-Hashes von `index.html`, `behinderung-view.js`, `vendor/ac01-core.bundle.js` und `app.js` stimmen mit dem lokalen Paket überein; im echten Browser öffnete sich der Behinderungsanzeige-Entwurf mit neutralem Wortlaut, ohne angekreuzte Umstände, mit sichtbarem Vorschlag und Entwurfsstempel; der Seitentext enthält keine Vorlagenformulierungen. Die Konsole wurde erst nach dem Laden beobachtet (kein belastbarer Fehlerbefund).
+- [ ] Nicht geprüft: echtes iPhone/Safari.
 
 ## Prüfbefehle vor jeder Veröffentlichung
 
