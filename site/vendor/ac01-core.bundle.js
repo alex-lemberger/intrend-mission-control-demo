@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:bcdf5fccd47c8834, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:a282e44452d2ba15, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry ac01-core <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -27,6 +27,7 @@ var ac01_demo_api_ts_1 = require("./ac01-demo-api.js");
 Object.defineProperty(exports, "createAC01Demo", { enumerable: true, get: function () { return ac01_demo_api_ts_1.createAC01Demo; } });
 var demo_data_ts_1 = require("../demo/demo-data.js");
 Object.defineProperty(exports, "createDemoData", { enumerable: true, get: function () { return demo_data_ts_1.createDemoData; } });
+__exportStar(require("../behinderung/behinderungsanzeige.js"), exports);
 
 },
 "src/core/index.js": function (require, exports, module) {
@@ -46,7 +47,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.applyBulk = exports.prefillEmployees = exports.isPristine = exports.summarize = exports.parseDemonstrationText = exports.newEvent = exports.newEmployee = exports.newAssignment = exports.employeeLabel = exports.normalizeName = exports.fromMinutes = exports.toMinutes = exports.nextId = void 0;
+exports.addDirectoryEntry = exports.applyBulk = exports.prefillEmployees = exports.isPristine = exports.summarize = exports.parseDemonstrationText = exports.newEvent = exports.newEmployee = exports.newAssignment = exports.employeeLabel = exports.normalizeName = exports.fromMinutes = exports.toMinutes = exports.nextId = void 0;
 __exportStar(require("./types.js"), exports);
 var ids_ts_1 = require("./ids.js");
 Object.defineProperty(exports, "nextId", { enumerable: true, get: function () { return ids_ts_1.nextId; } });
@@ -68,6 +69,9 @@ Object.defineProperty(exports, "isPristine", { enumerable: true, get: function (
 Object.defineProperty(exports, "prefillEmployees", { enumerable: true, get: function () { return prefill_ts_1.prefillEmployees; } });
 var bulk_ts_1 = require("./bulk.js");
 Object.defineProperty(exports, "applyBulk", { enumerable: true, get: function () { return bulk_ts_1.applyBulk; } });
+var directory_ts_1 = require("./directory.js");
+Object.defineProperty(exports, "addDirectoryEntry", { enumerable: true, get: function () { return directory_ts_1.addDirectoryEntry; } });
+__exportStar(require("./disruption.js"), exports);
 
 },
 "src/compat/ac01-demo-api.js": function (require, exports, module) {
@@ -90,6 +94,26 @@ function createAC01Demo(data) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createDemoData = createDemoData;
 const pad2 = (number) => String(number).padStart(2, '0');
+const DISRUPTION_CATALOG = [
+    { id: 'ST-001', group: 'Planung', label: 'Plan fehlt oder ist unvollständig', frequent: true, circumstances: [2] },
+    { id: 'ST-002', group: 'Planung', label: 'Planänderung nach Baubeginn', frequent: true, circumstances: [2] },
+    { id: 'ST-003', group: 'Planung', label: 'Koordination der Bauleitung fehlt', circumstances: [1] },
+    { id: 'ST-004', group: 'Vorgewerke', label: 'Vorgewerk nicht fertig', frequent: true, circumstances: [4] },
+    { id: 'ST-005', group: 'Vorgewerke', label: 'Fremdgewerk blockiert den Arbeitsbereich', frequent: true, circumstances: [0] },
+    { id: 'ST-006', group: 'Logistik', label: 'Zugang zur Arbeitsfläche nicht möglich', frequent: true, circumstances: [0] },
+    { id: 'ST-007', group: 'Logistik', label: 'Aufzug oder Transportweg nicht verfügbar', circumstances: [0] },
+    { id: 'ST-008', group: 'Material', label: 'Material nicht oder zu spät geliefert', frequent: true },
+    { id: 'ST-009', group: 'Material', label: 'Lagerfläche fehlt', circumstances: [0] },
+    { id: 'ST-010', group: 'Bauablauf', label: 'Unterbrechung durch den Auftraggeber', frequent: true, circumstances: [1] },
+    { id: 'ST-011', group: 'Bauablauf', label: 'Verschiebung des Terminplans', circumstances: [1] },
+    { id: 'ST-012', group: 'Leistungsänderung', label: 'Zusätzliche Leistung angeordnet', frequent: true },
+    { id: 'ST-013', group: 'Leistungsänderung', label: 'Geänderte Leistung angeordnet' },
+    { id: 'ST-014', group: 'Baustellenbedingungen', label: 'Witterung außergewöhnlich', circumstances: [6] },
+    { id: 'ST-015', group: 'Baustellenbedingungen', label: 'Baustelle nicht frei von Schmutz oder Wasser', circumstances: [0] },
+    { id: 'ST-016', group: 'Gerüst und Einrichtung', label: 'Gerüst nicht bereit', circumstances: [4] },
+    { id: 'ST-017', group: 'Zahlung und Abnahme', label: 'Abnahme verzögert', circumstances: [1] },
+    { id: 'ST-018', group: 'Zahlung und Abnahme', label: 'Vorleistung nicht abgenommen', circumstances: [4] },
+];
 function createDemoData() {
     const directory = [
         ...Array.from({ length: 25 }, (_, i) => ({ id: `own-${pad2(i + 1)}`, group: 'own', label: `Demo-Person ${pad2(i + 1)}`, role: i < 3 ? 'Vorarbeiter' : 'Monteur' })),
@@ -101,9 +125,108 @@ function createDemoData() {
         demoPeople: directory.filter(entry => entry.group === 'own').map(entry => entry.label),
         yesterdayEntries: directory.filter(entry => entry.group === 'own').slice(0, 22),
         eventReasons: ['Baubehinderung', 'Stundenzettel', 'Bedenken', 'Nachtrag / Nachtragsposition', 'Sonstiges'],
+        disruptionCatalog: DISRUPTION_CATALOG.map(entry => ({ ...entry })),
         categoryOptions: ['Wände', 'Decken', 'Spachteln', 'Deckenunterkonstruktion'],
         locationOptions: ['Erdgeschoss', 'Zweites Obergeschoss', 'Drittes Obergeschoss', 'Treppenhaus', 'Flur'],
     };
+}
+
+},
+"src/behinderung/behinderungsanzeige.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PERIOD_LABELS = exports.FIXED_TEXT = exports.CIRCUMSTANCES = void 0;
+exports.proposeDetails = proposeDetails;
+exports.suggestCircumstances = suggestCircumstances;
+exports.createBehinderungsanzeigeDraft = createBehinderungsanzeigeDraft;
+exports.buildBehinderungsanzeige = buildBehinderungsanzeige;
+exports.acceptSuggestions = acceptSuggestions;
+const disruption_ts_1 = require("../core/disruption.js");
+const wording_ts_1 = require("./wording.js");
+Object.defineProperty(exports, "CIRCUMSTANCES", { enumerable: true, get: function () { return wording_ts_1.CIRCUMSTANCES; } });
+Object.defineProperty(exports, "FIXED_TEXT", { enumerable: true, get: function () { return wording_ts_1.FIXED_TEXT; } });
+Object.defineProperty(exports, "PERIOD_LABELS", { enumerable: true, get: function () { return wording_ts_1.PERIOD_LABELS; } });
+const dateDe = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('.') : iso);
+function proposeDetails(report, eventId, catalog) {
+    const event = report.events.find(item => item.id === eventId);
+    if (!event)
+        return '';
+    const { disruptionIds } = (0, disruption_ts_1.splitReasons)(event.reasons);
+    const lines = [
+        event.location.trim() && `Ort / Bauteil: ${event.location.trim()}`,
+        event.description.trim() && `Sachverhalt: ${event.description.trim()}`,
+        disruptionIds.length && `Grund laut Erfassung: ${disruptionIds.map(id => (0, disruption_ts_1.disruptionLabel)(catalog, id)).join('; ')}`,
+        `Festgestellt am: ${dateDe(report.date)}`,
+    ];
+    return lines.filter(Boolean).join('\n');
+}
+function suggestCircumstances(report, eventId, catalog) {
+    const event = report.events.find(item => item.id === eventId);
+    const out = {};
+    if (!event)
+        return out;
+    for (const id of (0, disruption_ts_1.splitReasons)(event.reasons).disruptionIds) {
+        const entry = catalog.find(candidate => candidate.id === id);
+        for (const index of entry?.circumstances ?? [])
+            if (index >= 0 && index < wording_ts_1.CIRCUMSTANCES.length)
+                (out[index] ??= []).push(entry.label);
+    }
+    return out;
+}
+function createBehinderungsanzeigeDraft(report, eventId, project, catalog, today = '') {
+    if (!report.events.some(item => item.id === eventId))
+        return null;
+    return {
+        source: { projectId: report.projectId, date: report.date, eventId },
+        date: today.trim(),
+        project: project.name.trim(),
+        projectNo: (project.projectNo ?? '').trim(),
+        recipient: (project.client ?? '').trim(),
+        checked: wording_ts_1.CIRCUMSTANCES.map(() => false),
+        suggestions: suggestCircumstances(report, eventId, catalog),
+        details: proposeDetails(report, eventId, catalog),
+        durationDays: '', restartDays: '', relocationDays: '', newCompletion: '', confirmBy: '',
+    };
+}
+function buildBehinderungsanzeige(draft) {
+    const hints = [];
+    const need = (value, text) => { if (!value.trim())
+        hints.push(text); };
+    need(draft.date, 'Datum fehlt');
+    need(draft.project, 'Bauvorhaben fehlt');
+    need(draft.recipient, 'Empfänger / Adresse fehlt');
+    if (!draft.checked.some(Boolean))
+        hints.push('Kein Umstand angekreuzt');
+    need(draft.details, 'Einzelbegründung fehlt');
+    need(draft.durationDays, 'Voraussichtliche Dauer fehlt');
+    need(draft.newCompletion, 'Voraussichtlicher neuer Fertigstellungstermin fehlt');
+    need(draft.confirmBy, 'Bestätigungsfrist fehlt');
+    return {
+        title: wording_ts_1.FIXED_TEXT.title,
+        date: draft.date,
+        recipient: draft.recipient,
+        intro: wording_ts_1.FIXED_TEXT.intro(draft.project),
+        circumstances: wording_ts_1.CIRCUMSTANCES.map((text, index) => ({ text, checked: Boolean(draft.checked[index]), suggestedBy: draft.suggestions[index] ?? [] })),
+        details: draft.details,
+        periods: wording_ts_1.PERIOD_LABELS.map(([label, unit], index) => [label, [draft.durationDays, draft.restartDays, draft.relocationDays, draft.newCompletion][index], unit]),
+        confirmBy: draft.confirmBy,
+        hints,
+        notes: [
+            'ENTWURF: nicht rechtlich geprüft, nicht versendet, keine freigegebene Vorlage. Eine dokumentierte Behinderung begründet für sich keinen Anspruch.',
+            'Fristen werden nicht berechnet; sie sind frei einzutragen.',
+        ],
+    };
+}
+function acceptSuggestions(draft) {
+    let added = 0;
+    for (const key of Object.keys(draft.suggestions)) {
+        const index = Number(key);
+        if (!draft.checked[index]) {
+            draft.checked[index] = true;
+            added += 1;
+        }
+    }
+    return added;
 }
 
 },
@@ -165,7 +288,7 @@ const newEmployee = (data = {}) => ({
 });
 exports.newEmployee = newEmployee;
 const newEvent = (reasons = [], data = {}) => ({
-    id: (0, ids_ts_1.nextId)('v'), reasons: [].concat(reasons).filter(Boolean), location: '', description: '', people: [], ...data
+    id: (0, ids_ts_1.nextId)('v'), reasons: [].concat(reasons).filter(Boolean), location: '', description: '', people: [], photos: [], planRef: '', planMark: '', ...data
 });
 exports.newEvent = newEvent;
 
@@ -198,6 +321,7 @@ function parseDemonstrationText(input) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.summarize = summarize;
+const disruption_ts_1 = require("./disruption.js");
 const time_ts_1 = require("./time.js");
 function summarize({ employees, events }) {
     const nameCounts = new Map();
@@ -275,19 +399,23 @@ function summarize({ employees, events }) {
     const duplicates = [...nameCounts].filter(([, count]) => count > 1).map(([name]) => name);
     duplicates.forEach(name => conflict(`${name} ist mehrfach erfasst und zählt einmal; bitte zusammenführen`));
     const reasonCounts = {};
+    const disruptionCounts = {};
     events.forEach((event, index) => {
         const label = `Ereignis ${index + 1}`;
         if (!String(event.location || '').trim())
             missing.push(`${label}: Ort / Bauteil fehlt`);
         if (!String(event.description || '').trim())
             missing.push(`${label}: Beschreibung fehlt`);
-        if (!(event.reasons || []).length)
+        if (!(0, disruption_ts_1.splitReasons)(event.reasons || []).kinds.length)
             missing.push(`${label}: Ereignisgrund fehlt`);
-        (event.reasons || []).forEach(reason => { reasonCounts[reason] = (reasonCounts[reason] || 0) + 1; });
+        const { kinds, disruptionIds } = (0, disruption_ts_1.splitReasons)(event.reasons || []);
+        kinds.forEach(reason => { reasonCounts[reason] = (reasonCounts[reason] || 0) + 1; });
+        disruptionIds.forEach(id => { disruptionCounts[id] = (disruptionCounts[id] || 0) + 1; });
     });
     return {
         eventCount: events.length,
         reasonCounts,
+        disruptionCounts,
         named: nameCounts.size,
         unnamed,
         duplicates,
@@ -388,6 +516,91 @@ function applyBulk(employees, ids, patch, mode = 'fill') {
     return result;
 }
 
+},
+"src/core/directory.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.addDirectoryEntry = addDirectoryEntry;
+const time_ts_1 = require("./time.js");
+function addDirectoryEntry(directory, input) {
+    const label = input.label.trim();
+    if (!label)
+        return { ok: false, reason: 'empty' };
+    const firm = (input.firm ?? '').trim();
+    if (input.group === 'sub' && !firm)
+        return { ok: false, reason: 'firm-missing' };
+    const same = directory.some(entry => entry.group === input.group && (entry.firm ?? '') === (input.group === 'sub' ? firm : '') && (0, time_ts_1.normalizeName)(entry.label) === (0, time_ts_1.normalizeName)(label));
+    if (same)
+        return { ok: false, reason: 'duplicate' };
+    const prefix = input.group === 'sub' ? `sub-${(0, time_ts_1.normalizeName)(firm).replace(/\s+/g, '-')}` : 'own';
+    let n = directory.length + 1;
+    while (directory.some(entry => entry.id === `${prefix}-x${n}`))
+        n += 1;
+    const entry = { id: `${prefix}-x${n}`, group: input.group, label, role: (input.role ?? '').trim() || 'Monteur', ...(input.group === 'sub' ? { firm } : {}) };
+    directory.push(entry);
+    return { ok: true, entry };
+}
+
+},
+"src/core/disruption.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.disruptionLabel = exports.isDisruptionId = void 0;
+exports.splitReasons = splitReasons;
+exports.toggleDisruptionId = toggleDisruptionId;
+const CODE = /^ST-\d{3}$/;
+const isDisruptionId = (value) => CODE.test(value);
+exports.isDisruptionId = isDisruptionId;
+function splitReasons(reasons = []) {
+    return { kinds: reasons.filter(reason => !(0, exports.isDisruptionId)(reason)), disruptionIds: reasons.filter(exports.isDisruptionId) };
+}
+function toggleDisruptionId(reasons, id, on) {
+    if (!(0, exports.isDisruptionId)(id))
+        return [...reasons];
+    const { kinds, disruptionIds } = splitReasons(reasons);
+    const next = new Set(disruptionIds);
+    if (on)
+        next.add(id);
+    else
+        next.delete(id);
+    return [...kinds, ...[...next].sort()];
+}
+const disruptionLabel = (catalog, id) => catalog.find(entry => entry.id === id)?.label ?? id;
+exports.disruptionLabel = disruptionLabel;
+
+},
+"src/behinderung/wording.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PERIOD_LABELS = exports.FIXED_TEXT = exports.CIRCUMSTANCES = void 0;
+exports.CIRCUMSTANCES = [
+    'Die Baustelle ist nicht frei zugänglich bzw. nicht freigegeben.',
+    'Der Auftraggeber hat erforderliche Mitwirkungen nicht rechtzeitig erbracht.',
+    'Planungsunterlagen wurden nicht vollständig übergeben.',
+    'Planungsunterlagen enthalten Fehler.',
+    'Vorarbeiten anderer Beteiligter sind nicht abgeschlossen.',
+    'Höhere Gewalt.',
+    'Außergewöhnliche Witterungseinflüsse.',
+];
+exports.FIXED_TEXT = {
+    title: 'Anzeige einer Behinderung (Beispieltext)',
+    salutation: 'Sehr geehrte Damen und Herren,',
+    intro: (project) => `zum Bauvorhaben ${project || '________'} teilen wir mit, dass die vereinbarte Leistungsausführung derzeit behindert ist oder behindert werden kann. Als Gründe nennen wir:`,
+    detailsHead: 'Nähere Erläuterung:',
+    periodsIntro: 'Die genannten Gründe liegen nicht in unserem Einflussbereich. Wir gehen daher davon aus, dass sich die Ausführungsfristen um die Dauer der Behinderung verlängern. Voraussichtliche Angaben:',
+    claims: 'Aus der Behinderung können sich weitere vertragliche Folgen ergeben; diese werden gesondert geprüft.',
+    confirmBy: (date) => `Wir bitten um Ihre Bestätigung bis ${date || '________'}.`,
+    closing: 'Mit freundlichen Grüßen',
+    signature: '(Unterschrift Auftragnehmer)',
+    confirmation: '(Bestätigung des Auftraggebers)',
+};
+exports.PERIOD_LABELS = [
+    ['Voraussichtliche Dauer der Behinderung', 'Arbeitstage'],
+    ['Zeit bis zur Wiederaufnahme der Arbeiten', 'Arbeitstage'],
+    ['Zusätzlicher Zeitbedarf durch verschobene Ausführung', 'Arbeitstage'],
+    ['Voraussichtlicher neuer Fertigstellungstermin', ''],
+];
+
 }
 };
   const cache = {};
@@ -399,5 +612,5 @@ function applyBulk(employees, ids, patch, mode = 'fill') {
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:bcdf5fccd47c8834" }));
+  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:a282e44452d2ba15" }));
 })();

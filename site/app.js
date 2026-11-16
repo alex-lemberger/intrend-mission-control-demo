@@ -1,8 +1,8 @@
 /* Local, synthetic UI state only. No network calls or persistence. */
 const projects = [
-  { id: 'hafen', name: 'Hafenbogen · Bauteil B', place: 'Hamburg · HafenCity' },
-  { id: 'allee', name: 'Allee 17 · Innenausbau', place: 'Hamburg · Altona' },
-  { id: 'quartier', name: 'Quartier West · Haus 3', place: 'Norderstedt' }
+  { id: 'hafen', name: 'Hafenbogen · Bauteil B', place: 'Hamburg · HafenCity', no: 'DEMO-001', client: 'Muster-Auftraggeber A' },
+  { id: 'allee', name: 'Allee 17 · Innenausbau', place: 'Hamburg · Altona', no: 'DEMO-002', client: 'Muster-Auftraggeber B' },
+  { id: 'quartier', name: 'Quartier West · Haus 3', place: 'Norderstedt', no: 'DEMO-003', client: 'Muster-Auftraggeber C' }
 ];
 const today = '2026-11-07';
 const seed = [
@@ -222,7 +222,7 @@ async function renderDashboard(){
   }).join('') || '<div class="empty">Noch kein Tag gespeichert. In „Baustellentag erfassen“ einen Tag eintragen und „Speichern → Mission Control“ wählen.<div class="empty-action"><button class="primary" type="button" data-view="ac01">＋ Baustellentag erfassen</button></div></div>';
   const evAll = rows.flatMap(({report:r}) => r.events.map(v=>({v,r})));
   $('#wd-event-count').textContent = `${evAll.length} ${evAll.length===1?'Ereignis':'Ereignisse'}`;
-  $('#wd-events').innerHTML = evAll.map(({v,r})=>`<button class="list-item wd-event" type="button" data-wd-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(v.description.trim().slice(0,62)||'Beschreibung fehlt')}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(r.projectId).name)} · ${esc(dateText(r.date))} · Ort: ${esc(v.location.trim()||'fehlt')}</div><div class="item-meta">${v.reasons.map(k=>`<span class="badge ${k==='Baubehinderung'?'red':'orange'}">${esc(reasonShort[k]||k)}</span>`).join('')||'<span class="badge">Grund fehlt</span>'}<span class="badge">Gespeichert · ungeprüft</span></div></button>`).join('') || '<div class="empty">Keine besonderen Ereignisse erfasst.</div>';
+  $('#wd-events').innerHTML = evAll.map(({v,r})=>`<div class="wd-event-row"><button class="list-item wd-event" type="button" data-wd-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(v.description.trim().slice(0,62)||'Beschreibung fehlt')}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(r.projectId).name)} · ${esc(dateText(r.date))} · Ort: ${esc(v.location.trim()||'fehlt')}</div><div class="item-meta">${v.reasons.map(k=>`<span class="badge ${k==='Baubehinderung'?'red':'orange'}">${esc(reasonShort[k]||(globalThis.DisruptionCatalog?globalThis.DisruptionCatalog.label(k):k))}</span>`).join('')||'<span class="badge">Grund fehlt</span>'}<span class="badge">Gespeichert · ungeprüft</span></div></button>${v.reasons.includes('Baubehinderung')?`<button class="outline wd-doc" type="button" title="Behinderungsanzeige als Entwurf" aria-label="Behinderungsanzeige als Entwurf" data-bh-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}" data-event="${esc(v.id)}">Anzeige-Entwurf</button>`:''}</div>`).join('') || '<div class="empty">Keine besonderen Ereignisse erfasst.</div>';
   // Legacy form reports (never the seed examples)
   const legacy=state.reports.filter(r=>!r.seed).sort((a,b)=>b.date.localeCompare(a.date)); const events=allEvents().filter(e=>!e.report.seed);
   $('#legacy-panel').hidden = !legacy.length;

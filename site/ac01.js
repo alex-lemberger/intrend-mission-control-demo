@@ -24,13 +24,17 @@
     root.document.body.prepend(banner);
     throw new Error('Mixed asset versions: ac01-core.bundle.js is older than ac01.js');
   }
-  const { newAssignment, newEmployee, newEvent, parseDemonstrationText, fromMinutes, normalizeName, employeeLabel, summarize, isPristine, prefillEmployees, applyBulk } = core;
+  const { splitReasons, toggleDisruptionId, isDisruptionId, disruptionLabel, newAssignment, newEmployee, newEvent, parseDemonstrationText, fromMinutes, normalizeName, employeeLabel, summarize, isPristine, prefillEmployees, applyBulk, addDirectoryEntry } = core;
   const demo = core.createDemoData();
   const { directory, yesterdayEntries, categoryOptions, locationOptions, eventReasons } = demo;
   const peopleOptions = demo.demoPeople;
+  // Behinderungsgründe (Störungsgründe): master data; the chosen codes (ST-nnn) live in the same `reasons` list as the event types.
+  const disruptionCatalog = demo.disruptionCatalog || [];
+  const disruptionText = id => disruptionLabel(disruptionCatalog, id);
+  globalThis.DisruptionCatalog = { label: disruptionText };
   // Short labels are display only.
   const reasonShort = { 'Baubehinderung': 'Behinderung', 'Nachtrag / Nachtragsposition': 'Nachtrag' };
-  const reasonLabel = reason => reasonShort[reason] || reason;
+  const reasonLabel = reason => isDisruptionId(reason) ? disruptionText(reason) : (reasonShort[reason] || reason);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[char]);
@@ -127,7 +131,27 @@
     refresh();
   }
 
+  const evidenceCount = event => event.photos.length + (event.planRef.trim() ? 1 : 0) + (event.planMark.trim() ? 1 : 0);
+
   // Compact event row: Ort, Beschreibung and a multi-select of reasons; no time input. Affected people are an optional fold-out.
+  // Behinderungsgrund: only for a Baubehinderung, and inside the existing "Foto / Plan" fold-out so the compact event row keeps
+  // its height. Quick picks (frequent reasons) first, then the full, grouped and searchable list; wording comes from the catalog.
+  const hasDisruption = event => disruptionCatalog.length > 0 && event.reasons.includes('Baubehinderung');
+  const evidenceLabel = event => hasDisruption(event) ? shortLong('Grund, Foto, Plan', 'Grund / Foto') : shortLong('Foto, Planbezug, Markierung', 'Foto / Plan');
+  function disruptionBlock(event) {
+    if (!hasDisruption(event)) return '';
+    const chosen = new Set(splitReasons(event.reasons).disruptionIds);
+    const box = entry => `<label class="ac01-pill"><input type="checkbox" data-event-disruption="${entry.id}"${chosen.has(entry.id) ? ' checked' : ''}><span title="${escapeHtml(`${entry.group} · ${entry.id}`)}">${escapeHtml(entry.label)}</span></label>`;
+    const rest = disruptionCatalog.filter(entry => !entry.frequent);
+    const groups = [...new Set(rest.map(entry => entry.group))];
+    return `<fieldset class="ac01-disruption" data-disruption><legend>Behinderungsgrund <small data-disruption-count>${chosen.size ? `(${chosen.size} gewählt)` : '(aus der Störungsgründe-Liste, mehrere möglich)'}</small></legend>
+      <div class="ac01-pills">${disruptionCatalog.filter(entry => entry.frequent).map(box).join('')}</div>
+      ${rest.length ? `<details class="ac01-disruption-all"${rest.some(entry => chosen.has(entry.id)) ? ' open' : ''}><summary>Weitere Gründe (${rest.length})</summary>
+        <input type="search" class="ac01-disruption-filter" data-disruption-filter placeholder="Grund suchen …" aria-label="Behinderungsgrund suchen">
+        ${groups.map(group => `<div class="ac01-disruption-group" data-disruption-group><h4>${escapeHtml(group)}</h4><div class="ac01-pills">${rest.filter(entry => entry.group === group).map(box).join('')}</div></div>`).join('')}</details>` : ''}
+    </fieldset>`;
+  }
+
   function renderEvents() {
     eventsEl.innerHTML = events.length ? events.map((event, index) => {
       const affected = event.people.filter(id => employees.some(employee => employee.id === id)).length;
@@ -137,7 +161,12 @@
       <div class="ac01-event-desc"><label for="${event.id}-description">Beschreibung</label><textarea id="${event.id}-description" data-event-field="description" rows="1" placeholder="Was ist passiert, welche Arbeiten waren betroffen?">${escapeHtml(event.description)}</textarea></div>
       <button class="ac01-remove ac01-event-remove" type="button" data-action="remove-event" aria-label="Ereignis ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button>
       <fieldset class="ac01-reasons"><legend>Ereignisgründe <small>(mehrere möglich)</small></legend><div class="ac01-pills">${eventReasons.map(reason => `<label class="ac01-pill"><input type="checkbox" data-event-reason="${escapeHtml(reason)}"${event.reasons.includes(reason) ? ' checked' : ''}><span title="${escapeHtml(reason)}">${escapeHtml(reasonLabel(reason))}</span></label>`).join('')}</div></fieldset>
-      <details class="ac01-affected"><summary>${shortLong('Betroffene Mitarbeiter', 'Betroffene')} <span data-affected-count>${affected ? `(${affected})` : '(optional)'}</span></summary><div class="ac01-affected-list">${employees.map((employee, employeeIndex) => `<label class="ac01-check"><input type="checkbox" data-event-person="${employee.id}" ${event.people.includes(employee.id) ? 'checked' : ''}> ${escapeHtml(employeeLabel(employee, employeeIndex))}</label>`).join('') || '<span class="ac01-hint">Zuerst Mitarbeitende erfassen.</span>'}</div></details>
+      <div class="ac01-event-more"><details class="ac01-evidence"${event.photos.length || event.planRef || event.planMark ? ' open' : ''}><summary>${evidenceLabel(event)} <span data-evidence-count>${evidenceCount(event) ? `(${evidenceCount(event)})` : '(optional)'}</span></summary><div class="ac01-evidence-body">${disruptionBlock(event)}
+        <div class="ac01-photo"><input class="ac01-file" id="${event.id}-photos" data-event-photos type="file" accept="image/*" multiple><label class="ac01-photo-btn" for="${event.id}-photos" title="Lokale Demoauswahl: nur Dateinamen, kein Upload">${shortLong('Fotos wählen', 'Fotos')}</label><span class="ac01-photo-names" data-event-photo-names>${event.photos.length ? escapeHtml(`${event.photos.join(', ')} · nur lokale Auswahl, kein Upload`) : ''}</span></div>
+        <div><label for="${event.id}-planref">Planbezug (Planname / Stand)</label><input id="${event.id}-planref" data-event-field="planRef" value="${escapeHtml(event.planRef)}" placeholder="z. B. Plan EG, Stand B"></div>
+        <div><label for="${event.id}-planmark">Markierung im Plan</label><input id="${event.id}-planmark" data-event-field="planMark" value="${escapeHtml(event.planMark)}" placeholder="z. B. Achse 4 / Feld C"></div>
+        <p class="ac01-hint">Frei eingetragene Hinweise: kein Planupload, keine Markierung auf einem Plan-Bild, keine Planversionsprüfung.</p></div></details>
+      <details class="ac01-affected"><summary>${shortLong('Betroffene Mitarbeiter', 'Betroffene')} <span data-affected-count>${affected ? `(${affected})` : '(optional)'}</span></summary><div class="ac01-affected-list">${employees.map((employee, employeeIndex) => `<label class="ac01-check"><input type="checkbox" data-event-person="${employee.id}" ${event.people.includes(employee.id) ? 'checked' : ''}> ${escapeHtml(employeeLabel(employee, employeeIndex))}</label>`).join('') || '<span class="ac01-hint">Zuerst Mitarbeitende erfassen.</span>'}</div></details></div>
     </article>`;
     }).join('') : '<p class="ac01-empty">Noch keine Ereignisse erfasst.</p>';
     renderReport();
@@ -223,7 +252,7 @@
       </li>`).join('') || '<li><span>Keine Arbeit erfasst</span></li>'}</ul></section>`).join('');
     const eventMarkup = events.length ? events.map(event => {
       const affected = event.people.map(id => names.get(id)).filter(Boolean);
-      return `<li><strong>${escapeHtml(event.reasons.length ? event.reasons.join(' · ') : 'Grund fehlt')}</strong> <span>Ort: ${escapeHtml(event.location.trim() || 'fehlt')}</span><span>${escapeHtml(event.description.trim() || 'Beschreibung fehlt')}</span>${affected.length ? `<span>Betroffen: ${escapeHtml(affected.join(', '))} · Personenzeit steht nur in den Arbeitszeilen</span>` : ''}</li>`;
+      return `<li><strong>${escapeHtml(event.reasons.length ? event.reasons.map(reason => isDisruptionId(reason) ? disruptionText(reason) : reason).join(' · ') : 'Grund fehlt')}</strong> <span>Ort: ${escapeHtml(event.location.trim() || 'fehlt')}</span><span>${escapeHtml(event.description.trim() || 'Beschreibung fehlt')}</span>${evidenceCount(event) ? `<span>Nachweis: ${escapeHtml([event.photos.length ? `${event.photos.length} ${event.photos.length === 1 ? 'Foto' : 'Fotos'} (${event.photos.join(', ')})` : '', event.planRef.trim() ? `Plan: ${event.planRef.trim()}` : '', event.planMark.trim() ? `Markierung: ${event.planMark.trim()}` : ''].filter(Boolean).join(' · '))} · nur Hinweise, keine Dateien</span>` : ''}${affected.length ? `<span>Betroffen: ${escapeHtml(affected.join(', '))} · Personenzeit steht nur in den Arbeitszeilen</span>` : ''}</li>`;
     }).join('') : '<li><span>Keine außergewöhnlichen Ereignisse erfasst.</span></li>';
     const note = value => value.trim() ? escapeHtml(value.trim()) : 'nicht angegeben';
     const incomplete = !summary.complete;
@@ -413,19 +442,53 @@
   eventsEl.addEventListener('input', event => {
     const item = findEvent(event.target);
     const field = event.target.dataset.eventField;
-    if (item && field) { item[field] = event.target.value; renderReport(); }
+    if (item && field) {
+      item[field] = event.target.value;
+      const count = event.target.closest('[data-event]').querySelector('[data-evidence-count]');
+      if (count && (field === 'planRef' || field === 'planMark')) count.textContent = evidenceCount(item) ? `(${evidenceCount(item)})` : '(optional)';
+      renderReport();
+    }
+  });
+  eventsEl.addEventListener('input', event => {
+    const filter = event.target.closest('[data-disruption-filter]');
+    if (!filter) return;
+    const query = filter.value.trim().toLowerCase();
+    const holder = filter.closest('.ac01-disruption-all');
+    holder.querySelectorAll('.ac01-pill').forEach(pill => { pill.hidden = Boolean(query) && !pill.textContent.toLowerCase().includes(query); });
+    holder.querySelectorAll('[data-disruption-group]').forEach(group => { group.hidden = ![...group.querySelectorAll('.ac01-pill')].some(pill => !pill.hidden); });
   });
   eventsEl.addEventListener('change', event => {
     const item = findEvent(event.target);
     if (!item) return;
+    if (event.target.matches('[data-event-photos]')) {
+      item.photos = [...event.target.files].map(file => file.name);
+      const holder = event.target.closest('[data-event]');
+      holder.querySelector('[data-event-photo-names]').textContent = item.photos.length ? `${item.photos.join(', ')} · nur lokale Auswahl, kein Upload` : '';
+      holder.querySelector('[data-evidence-count]').textContent = evidenceCount(item) ? `(${evidenceCount(item)})` : '(optional)';
+      renderReport();
+      return;
+    }
     const personId = event.target.dataset.eventPerson;
     const reason = event.target.dataset.eventReason;
     if (personId) {
       item.people = event.target.checked ? [...new Set([...item.people, personId])] : item.people.filter(id => id !== personId);
       const count = event.target.closest('[data-event]').querySelector('[data-affected-count]');
       if (count) count.textContent = item.people.length ? `(${item.people.length})` : '(optional)';
+    } else if (event.target.dataset.eventDisruption) {
+      item.reasons = toggleDisruptionId(item.reasons, event.target.dataset.eventDisruption, event.target.checked);
+      const counter = event.target.closest('[data-event]').querySelector('[data-disruption-count]');
+      const count = splitReasons(item.reasons).disruptionIds.length;
+      if (counter) counter.textContent = count ? `(${count} gewählt)` : '(aus der Störungsgründe-Liste, mehrere möglich)';
     } else if (reason) {
-      item.reasons = event.target.checked ? eventReasons.filter(known => known === reason || item.reasons.includes(known)) : item.reasons.filter(known => known !== reason);
+      // Event types keep their order; disruption codes are kept only while the event is a Baubehinderung.
+      const kinds = event.target.checked ? eventReasons.filter(known => known === reason || item.reasons.includes(known)) : splitReasons(item.reasons).kinds.filter(known => known !== reason);
+      item.reasons = [...kinds, ...(kinds.includes('Baubehinderung') ? splitReasons(item.reasons).disruptionIds : [])];
+      const holder = event.target.closest('[data-event]');
+      holder.querySelector('[data-disruption]')?.remove();
+      const fold = holder.querySelector('.ac01-evidence');
+      fold.querySelector('.ac01-evidence-body').insertAdjacentHTML('afterbegin', disruptionBlock(item));
+      fold.querySelector(':scope > summary').innerHTML = `${evidenceLabel(item)} <span data-evidence-count>${evidenceCount(item) ? `(${evidenceCount(item)})` : '(optional)'}</span>`;
+      if (hasDisruption(item) && event.target.checked) fold.open = true;
     }
     renderReport();
   });
@@ -545,6 +608,23 @@
       event.target.checked ? pickerSelection.add(item.dataset.pick) : pickerSelection.delete(item.dataset.pick);
     });
     syncPicker();
+  });
+  // Maintain the synthetic list: add a person or a subcontractor entry. Memory only; no real names, nothing is stored.
+  const dirMessage = $('#ac01-dir-message');
+  const dirGroup = $('#ac01-dir-group'), dirFirm = $('#ac01-dir-firm'), dirLabel = $('#ac01-dir-label');
+  const syncDirForm = () => { dirFirm.closest('div').hidden = dirGroup.value !== 'sub'; };
+  dirGroup.addEventListener('change', syncDirForm);
+  syncDirForm();
+  $('#ac01-dir-add').addEventListener('click', () => {
+    const result = addDirectoryEntry(directory, { group: dirGroup.value, label: dirLabel.value, firm: dirFirm.value });
+    dirMessage.textContent = result.ok
+      ? `„${result.entry.label}“ zur Demo-Liste hinzugefügt${result.entry.firm ? ` (Firma ${result.entry.firm})` : ''}. Nur im Arbeitsspeicher; bitte nur synthetische Namen oder Kennungen eintragen.`
+      : { empty: 'Bitte einen Namen bzw. eine Kennung eintragen.', duplicate: 'Dieser Eintrag existiert in der Liste bereits.', 'firm-missing': 'Bitte die Firma des Subunternehmers angeben.' }[result.reason];
+    if (!result.ok) return;
+    dirLabel.value = '';
+    if (result.entry.group === 'own') document.getElementById('ac01-people')?.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(result.entry.label)}">`);
+    renderPicker();
+    dirLabel.focus();
   });
   $('#ac01-picker-office').addEventListener('change', event => {
     pickerOffice = event.target.checked;

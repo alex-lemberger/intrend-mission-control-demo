@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:c9d8160efb5e2623, preview/stundenzettel-app.js, src/timesheet/timesheet.js, src/demo/demo-timesheet.js, src/core/time.js, src/core/factories.js, src/state/day-report.js, src/core/ids.js, src/core/prefill.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:241c4a7494d9a451, preview/stundenzettel-app.js, src/timesheet/timesheet.js, src/demo/demo-timesheet.js, src/core/time.js, src/core/factories.js, src/state/day-report.js, src/core/ids.js, src/core/prefill.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry stundenzettel <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -7,12 +7,14 @@
 "preview/stundenzettel-app.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.suggestTimesheetMeta = void 0;
 exports.mountStundenzettel = mountStundenzettel;
 const timesheet_ts_1 = require("../src/timesheet/timesheet.js");
 const demo_timesheet_ts_1 = require("../src/demo/demo-timesheet.js");
 const timesheet_ts_2 = require("../src/timesheet/timesheet.js");
+var timesheet_ts_3 = require("../src/timesheet/timesheet.js");
+Object.defineProperty(exports, "suggestTimesheetMeta", { enumerable: true, get: function () { return timesheet_ts_3.suggestTimesheetMeta; } });
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const key = (s) => `${s.employeeId}|${s.assignmentId}`;
 const pl = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const LINE_FIELDS = ['name', 'workDate', 'location', 'work', 'start', 'end', 'breakMin'];
 const SHELL = `<div class="sz-app" data-view="edit">
@@ -38,17 +40,21 @@ const SHELL = `<div class="sz-app" data-view="edit">
 </div>`;
 function mountStundenzettel(container, options) {
     const { report } = options;
+    const days = [report, ...(options.moreReports ?? []).filter(r => r.projectId === report.projectId && r.date !== report.date)].sort((a, b) => a.date.localeCompare(b.date));
+    const multi = days.length > 1;
+    const key = (s) => multi ? `${s.date ?? report.date}|${s.employeeId}|${s.assignmentId}` : `${s.employeeId}|${s.assignmentId}`;
+    const dayDe = (iso) => iso.split('-').reverse().join('.');
     const sourceName = options.sourceName ?? 'Tagesbericht';
     container.innerHTML = SHELL;
     const app = container.querySelector('.sz-app');
     const $ = (id) => container.querySelector(`#${id}`);
     const restored = options.restore ? structuredClone(options.restore) : null;
     let selection = restored?.selection ?? [];
-    let draft = restored?.draft ?? (0, timesheet_ts_2.createTimesheetDraft)(report, selection, options.initialMeta).draft;
+    let draft = restored?.draft ?? (0, timesheet_ts_2.createTimesheetDraft)(days, selection, options.initialMeta).draft;
     let photoCount = restored?.photoCount ?? 0, planCount = restored?.planCount ?? 0;
     const openLines = new Set();
-    const available = report.employees.reduce((n, e) => n + e.assignments.length, 0);
-    const original = (line) => (0, timesheet_ts_2.createTimesheetDraft)(report, [{ employeeId: line.source.employeeId, assignmentId: line.source.assignmentId }]).draft.lines[0];
+    const available = days.reduce((total, day) => total + day.employees.reduce((n, e) => n + e.assignments.length, 0), 0);
+    const original = (line) => (0, timesheet_ts_2.createTimesheetDraft)(days, [{ employeeId: line.source.employeeId, assignmentId: line.source.assignmentId, date: line.source.date }]).draft.lines[0];
     const changedFields = (line) => { const o = original(line); return o ? LINE_FIELDS.filter(f => o[f] !== line[f]) : []; };
     const META_INPUTS = [
         ['project', 'Bauvorhaben / Projekt', 'span2', 'text'],
@@ -59,12 +65,16 @@ function mountStundenzettel(container, options) {
     ];
     function renderEditorFrame() {
         const meta = META_INPUTS.map(([k, label, cls, type]) => `<div class="${cls}"><label for="m-${k}">${label}</label><input id="m-${k}" type="${type}" data-meta="${k}" value="${esc(draft.meta[k])}"></div>`).join('');
+        const labels = Object.fromEntries(META_INPUTS.map(([k, label]) => [k, label]));
+        labels.description = 'Beschreibung der Arbeiten';
+        const shown = (options.prefilled ?? []).filter(k => draft.meta[k] === options.initialMeta?.[k] && String(draft.meta[k]).trim());
+        const prefillNote = shown.length ? `<p class="hint" id="prefill-note" data-prefill>Vorschlag aus vorhandenen Angaben übernommen, bitte prüfen: ${shown.map(k => esc(labels[k] ?? k)).join(', ')}. Alle Felder bleiben änderbar; die Nummer ist ein Vorschlag, keine freigegebene Nummerierung.</p>` : '';
         $('editor').innerHTML = `
     <div class="block" id="block-a"><div class="heading-row"><h2>Einträge auswählen</h2><span id="pick-count" role="status" aria-live="polite"></span></div>
       <p class="hint">Nur ausdrücklich gewählte Einträge kommen in den Stundenzettel. Der ${esc(sourceName)} bleibt unverändert.</p>
       <div class="actions"><button type="button" class="btn-outline" id="select-all">Alle auswählen</button><button type="button" class="btn-link" id="clear-sel">Auswahl aufheben</button></div>
       <div class="pickers" id="pickers"></div></div>
-    <div class="block" id="block-b"><h2>Angaben ergänzen</h2>
+    <div class="block" id="block-b"><h2>Angaben ergänzen</h2>${prefillNote}
       <div class="grid2">${meta}
         <div><label for="m-materialAmount">Materialkosten (Pauschale, €)</label><input id="m-materialAmount" data-meta="materialAmount" inputmode="decimal" placeholder="z. B. 250,00" value="${esc(draft.meta.materialAmount)}"></div>
         <div class="span2"><label for="m-description">Beschreibung der Arbeiten</label><textarea id="m-description" data-meta="description" rows="3">${esc(draft.meta.description)}</textarea></div></div>
@@ -77,14 +87,18 @@ function mountStundenzettel(container, options) {
       <div class="actions"><button type="button" class="btn-outline" id="add-photo">+ Demo-Foto</button><button type="button" class="btn-outline" id="add-plan">+ Demo-Planausschnitt</button></div></div>`;
     }
     function renderPickers() {
-        $('pickers').innerHTML = report.employees.flatMap(employee => employee.assignments.map(a => {
-            const sel = { employeeId: employee.id, assignmentId: a.id };
+        const pickRow = (day, employee, a) => {
+            const sel = { employeeId: employee.id, assignmentId: a.id, date: day.date };
             const on = selection.some(s => key(s) === key(sel));
             const problem = (0, timesheet_ts_1.lineMinutes)({ start: a.start, end: a.end, breakMin: a.breakMin }).issues[0];
             return `<label class="pick${on ? ' is-on' : ''}"><input type="checkbox" data-pick="${esc(key(sel))}" ${on ? 'checked' : ''}>
         <span class="pick-main"><b>${esc(employee.name || 'ohne Namen')}</b><small>${esc(a.work || a.lv || 'ohne Tätigkeit')} · ${esc(a.locations.join(', ') || 'ohne Ort')}</small></span>
         <span class="pick-time">${esc(a.start || '?')}–${esc(a.end || '?')} · P ${esc(a.breakMin || '–')}${problem ? `<em>${esc(problem)}</em>` : ''}</span></label>`;
-        })).join('') || `<p class="empty">Dieser ${esc(sourceName)} enthält keine Arbeitszeilen.</p>`;
+        };
+        $('pickers').innerHTML = days.map(day => {
+            const rows = day.employees.flatMap(employee => employee.assignments.map(a => pickRow(day, employee, a))).join('');
+            return multi && rows ? `<h3 class="subhead" data-day="${esc(day.date)}">Arbeitstag ${esc(dayDe(day.date))}</h3>${rows}` : rows;
+        }).join('') || `<p class="empty">Dieser ${esc(sourceName)} enthält keine Arbeitszeilen.</p>`;
         const p = (0, timesheet_ts_2.buildPreview)(draft);
         const hours = selection.length ? ` · ${p.totalHoursText}${p.totalComplete && !p.assumptions.length ? '' : ' (vorläufig)'}` : '';
         $('pick-count').textContent = `${selection.length} von ${available} gewählt${hours}`;
@@ -149,7 +163,7 @@ function mountStundenzettel(container, options) {
         $('side').innerHTML = `
     <details class="panel"><summary>Hinweise zu dieser Vorschau</summary><ul>${p.provisionalNotes.map(x => `<li>${esc(x)}</li>`).join('')}</ul></details>
     <details class="panel"><summary>Herkunft der Zeilen (intern)</summary>${p.sources.length
-            ? `<p class="hint">Tag ${esc(draft.sourceKey.projectId)} / ${esc(draft.sourceKey.date)}; der ${esc(sourceName)} bleibt unverändert.</p><table><tr><th>Zeile</th><th>Mitarbeiter-ID</th><th>Eintrags-ID</th><th>Personenreferenz</th></tr>${p.sources.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.employeeId)}</td><td>${esc(s.assignmentId)}</td><td>${esc(s.personRef)}</td></tr>`).join('')}</table>`
+            ? `<p class="hint">Projekt ${esc(draft.sourceKey.projectId)} / ${esc([...new Set(p.sources.map(x => x.date))].join(', '))}; der ${esc(sourceName)} bleibt unverändert.</p><table><tr><th>Zeile</th><th>Mitarbeiter-ID</th><th>Eintrags-ID</th><th>Personenreferenz</th></tr>${p.sources.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.employeeId)}</td><td>${esc(s.assignmentId)}</td><td>${esc(s.personRef)}</td></tr>`).join('')}</table>`
             : '<p class="hint">Keine Zeilen.</p>'}</details>
     <details class="panel"><summary>Nächste Schritte (nicht umgesetzt)</summary><ul>
       <li>E-Mail-Vorbereitung: Versand an den Auftraggeber zur Unterschrift (laut bisherigem Stand per E-Mail mit Anlage). Keine Outlook-Anbindung, kein Versand.</li>
@@ -185,7 +199,7 @@ function mountStundenzettel(container, options) {
     }
     function setSelection(next) {
         selection = next;
-        draft = (0, timesheet_ts_2.reselectDraft)(report, draft, selection).draft;
+        draft = (0, timesheet_ts_2.reselectDraft)(days, draft, selection).draft;
         renderPickers();
         renderLines();
         renderPreview();
@@ -194,8 +208,9 @@ function mountStundenzettel(container, options) {
     $('editor').addEventListener('change', event => {
         const t = event.target;
         if (t.dataset.pick) {
-            const [employeeId, assignmentId] = t.dataset.pick.split('|');
-            setSelection(t.checked ? [...selection, { employeeId, assignmentId }] : selection.filter(s => key(s) !== t.dataset.pick));
+            const parts = t.dataset.pick.split('|');
+            const [date, employeeId, assignmentId] = multi ? parts : [report.date, parts[0], parts[1]];
+            setSelection(t.checked ? [...selection, { employeeId, assignmentId, date }] : selection.filter(s => key(s) !== t.dataset.pick));
             container.querySelector(`[data-pick="${CSS.escape(t.dataset.pick)}"]`)?.focus();
         }
     });
@@ -234,7 +249,7 @@ function mountStundenzettel(container, options) {
             $('select-all').focus();
         }
         else if (t.id === 'select-all') {
-            setSelection(report.employees.flatMap(e => e.assignments.map(a => ({ employeeId: e.id, assignmentId: a.id }))));
+            setSelection(days.flatMap(day => day.employees.flatMap(e => e.assignments.map(a => ({ employeeId: e.id, assignmentId: a.id, date: day.date })))));
             $('clear-sel').focus();
         }
         else if (t.id === 'demo-meta' && options.demoMeta) {
@@ -296,6 +311,7 @@ function mountStundenzettel(container, options) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PROVISIONAL_NOTES = exports.emptyMeta = void 0;
+exports.suggestTimesheetMeta = suggestTimesheetMeta;
 exports.createTimesheetDraft = createTimesheetDraft;
 exports.reselectDraft = reselectDraft;
 exports.lineMinutes = lineMinutes;
@@ -306,40 +322,65 @@ exports.buildPreview = buildPreview;
 const time_ts_1 = require("../core/time.js");
 const emptyMeta = () => ({ project: '', projectNo: '', client: '', number: '', createdOn: '', materialAmount: '', description: '' });
 exports.emptyMeta = emptyMeta;
+function suggestTimesheetMeta(report, project, sequence, today = '') {
+    const projectNo = (project.projectNo ?? '').trim();
+    const description = report.events.map(event => event.description.trim()).filter(Boolean).join('\n');
+    const number = projectNo && Number.isInteger(sequence) && sequence > 0 ? `${projectNo}-${String(sequence).padStart(3, '0')}` : '';
+    const candidates = [
+        ['project', project.name.trim()], ['projectNo', projectNo], ['client', (project.client ?? '').trim()],
+        ['number', number], ['createdOn', today.trim()], ['description', description],
+    ];
+    const meta = {};
+    const prefilled = [];
+    for (const [field, value] of candidates)
+        if (value) {
+            meta[field] = value;
+            prefilled.push(field);
+        }
+    return { meta, prefilled };
+}
 function createTimesheetDraft(report, selection, meta = {}) {
-    const keyOf = (employeeId, assignmentId) => JSON.stringify([employeeId, assignmentId]);
-    const wanted = new Map(selection.map(item => [keyOf(item.employeeId, item.assignmentId), item]));
+    const given = Array.isArray(report) ? report : [report];
+    const first = given[0];
+    const reports = given.filter(r => r.projectId === first.projectId)
+        .filter((r, i, all) => all.findIndex(o => o.date === r.date) === i)
+        .sort((a, b) => a.date.localeCompare(b.date));
+    const keyOf = (date, employeeId, assignmentId) => JSON.stringify([date, employeeId, assignmentId]);
+    const wanted = new Map(selection.map(item => [keyOf(item.date ?? first.date, item.employeeId, item.assignmentId), item]));
     const lines = [];
-    for (const employee of report.employees) {
-        for (const assignment of employee.assignments) {
-            if (!wanted.delete(keyOf(employee.id, assignment.id)))
-                continue;
-            lines.push({
-                source: { projectId: report.projectId, date: report.date, employeeId: employee.id, assignmentId: assignment.id, personRef: employee.personRef },
-                workDate: report.date,
-                name: employee.name,
-                start: assignment.start,
-                end: assignment.end,
-                breakMin: assignment.breakMin,
-                location: assignment.locations.join(', '),
-                work: assignment.work.trim() || assignment.lv.trim(),
-            });
+    for (const day of reports) {
+        for (const employee of day.employees) {
+            for (const assignment of employee.assignments) {
+                if (!wanted.delete(keyOf(day.date, employee.id, assignment.id)))
+                    continue;
+                lines.push({
+                    source: { projectId: day.projectId, date: day.date, employeeId: employee.id, assignmentId: assignment.id, personRef: employee.personRef },
+                    workDate: day.date,
+                    name: employee.name,
+                    start: assignment.start,
+                    end: assignment.end,
+                    breakMin: assignment.breakMin,
+                    location: assignment.locations.join(', '),
+                    work: assignment.work.trim() || assignment.lv.trim(),
+                });
+            }
         }
     }
     const draft = {
-        sourceKey: { projectId: report.projectId, date: report.date },
+        sourceKey: { projectId: first.projectId, date: reports[0].date },
         meta: { ...(0, exports.emptyMeta)(), ...meta },
         lines,
         attachments: [],
     };
-    const unresolved = [...wanted.values()].map(({ employeeId, assignmentId }) => ({ employeeId, assignmentId }));
+    const unresolved = [...wanted.values()].map(({ employeeId, assignmentId, date }) => (date ? { employeeId, assignmentId, date } : { employeeId, assignmentId }));
     return { draft, unresolved };
 }
 function reselectDraft(report, draft, selection) {
     const { draft: fresh, unresolved } = createTimesheetDraft(report, selection, draft.meta);
-    const edited = new Map(draft.lines.map(line => [JSON.stringify([line.source.employeeId, line.source.assignmentId]), line]));
+    const lineKey = (line) => JSON.stringify([line.source.date, line.source.employeeId, line.source.assignmentId]);
+    const edited = new Map(draft.lines.map(line => [lineKey(line), line]));
     fresh.lines = fresh.lines.map(line => {
-        const kept = edited.get(JSON.stringify([line.source.employeeId, line.source.assignmentId]));
+        const kept = edited.get(lineKey(line));
         return kept ? { ...kept, source: { ...kept.source } } : line;
     });
     fresh.attachments = draft.attachments.map(attachment => ({ ...attachment }));
@@ -583,7 +624,7 @@ const newEmployee = (data = {}) => ({
 });
 exports.newEmployee = newEmployee;
 const newEvent = (reasons = [], data = {}) => ({
-    id: (0, ids_ts_1.nextId)('v'), reasons: [].concat(reasons).filter(Boolean), location: '', description: '', people: [], ...data
+    id: (0, ids_ts_1.nextId)('v'), reasons: [].concat(reasons).filter(Boolean), location: '', description: '', people: [], photos: [], planRef: '', planMark: '', ...data
 });
 exports.newEvent = newEvent;
 
@@ -688,5 +729,5 @@ function prefillEmployees(employees, entries, source) {
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.StundenzettelApp = Object.freeze(Object.assign({}, load("preview/stundenzettel-app.js"), { css: ":root,:host{--ink:#14252c;--muted:#40594e;--line:#c8d7cc;--line-strong:#9eafa3;--paper:#f5f7f4;--teal:#0a665e;--teal-d:#084f47;--teal-b:#0b5d4d;--lime:#d5f28a;--rail:#11242c;\n  --chip:#e5f3e9;--chip-ink:#1c573a;--note-bg:#fff6e8;--note-ink:#63380d;--note-line:#c88736;--ok-bg:#edf7ee;--ok-ink:#1e5837;--red:#8a2418;--focus:#73b99b;\n  color-scheme:light;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;color:var(--ink);background:var(--paper)}\n*{box-sizing:border-box}\nbody{margin:0;font-size:14px;line-height:1.45;background:var(--paper)}\n:host{display:block;font-size:14px;line-height:1.45;background:var(--paper)}\nbutton,input,select,textarea{font:inherit}\nbutton{cursor:pointer}\n:is(input,textarea,select,button,summary):focus-visible{outline:3px solid var(--focus);outline-offset:2px}\nh1,h2,h3,p{margin-top:0}\n[hidden]{display:none!important}\n.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--rail);color:#eef4ee;padding:10px 24px}\n.brand{display:flex;align-items:center;gap:11px}\n.brand-mark{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:11px;background:var(--lime);color:#15352e;font-size:22px;font-weight:900;letter-spacing:-3px}\n.brand-mark span{color:#e56d36}\n.brand strong{display:block;font-size:19px;letter-spacing:-1px;line-height:1.1}\n.brand small{display:block;white-space:nowrap;font-size:9px;letter-spacing:2.2px;color:#afc0bc;font-weight:800}\n.demo-chip{white-space:nowrap;border:1px solid #3b5560;border-radius:99px;padding:6px 11px;font-size:10px;font-weight:800;letter-spacing:.8px;color:#cfe0da}\n.page{max-width:1480px;margin:0 auto;padding:22px 24px 40px}\n.page-head{margin-bottom:16px}\n.eyebrow{color:#345c4d;font-size:11px;font-weight:800;letter-spacing:2px;margin:0 0 6px}\n.page-head h1{font-size:clamp(28px,3.2vw,42px);letter-spacing:-1.2px;line-height:1.1;margin:0 0 8px}\n.page-head h1 span{color:var(--teal)}\n.page-head p:last-child{color:var(--muted);font-size:14px;max-width:760px;margin:0}\n.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 16px}\n.step{display:grid;gap:2px;text-align:left;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px 12px;color:var(--ink);min-height:62px}\n.step small{font-size:10px;font-weight:800;letter-spacing:.8px;color:var(--muted)}\n.step strong{font-size:15px;line-height:1.25}\n.step span{font-size:12px;color:var(--muted)}\n.step.is-done{border-color:#7fae92;background:var(--ok-bg)}\n.step.is-warn{border-color:var(--note-line);background:var(--note-bg)}\n.step.is-warn span{color:var(--note-ink)}\n.step.is-now{box-shadow:inset 0 -3px 0 var(--teal)}\n.tabs,.nextbar{display:none}\n.layout{display:grid;grid-template-columns:minmax(340px,430px) minmax(0,1fr);gap:20px;align-items:start}\n.editor{display:grid;gap:12px;min-width:0}\n.preview{min-width:0;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;padding-right:2px}\n.block{min-width:0;border:1px solid var(--line);border-radius:12px;background:#fff;padding:14px 16px}\nh2{display:flex;align-items:center;gap:9px;font-size:17px;letter-spacing:-.3px;margin:0 0 10px}\n.letter{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;background:#c9e4d3;color:#0c4a38;font-size:12px;font-weight:900;flex:none}\n.heading-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}\n.heading-row>span{color:var(--muted);font-size:12px;white-space:nowrap}\n.hint{margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.45}\nlabel{display:block;color:#263e34;font-size:13px;font-weight:700;margin:10px 0 4px}\ninput,textarea,select{width:100%;min-width:0;border:1px solid var(--line-strong);border-radius:10px;background:#fff;color:var(--ink);padding:8px 10px;min-height:42px}\ntextarea{min-height:72px;line-height:1.45;resize:vertical}\ninput::placeholder,textarea::placeholder{color:#53685c;opacity:1}\n.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}\n.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}\n.grid2>div,.grid3>div{min-width:0}\n.span2{grid-column:1/-1}\n.btn-primary{min-height:44px;border:0;border-radius:12px;background:var(--teal);color:#fff;font-weight:800;padding:0 18px;box-shadow:0 6px 15px #0b665c25}\n.btn-primary:hover{background:var(--teal-d)}\n.btn-outline{min-height:40px;border:1.5px solid var(--teal-b);border-radius:10px;background:#fff;color:#064a3e;font-weight:800;padding:0 12px;font-size:13px}\n.btn-outline:hover{background:#eff8f0}\n.btn-link{border:0;background:transparent;color:var(--teal-b);font-weight:800;font-size:13px;min-height:36px;padding:0 4px}\n.btn-link.danger{color:var(--red)}\n.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}\n.pickers{border-top:1px solid var(--line)}\n.pick{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:4px 10px;align-items:center;margin:0;padding:7px 4px;border-bottom:1px solid #e2eae4;font-weight:400;cursor:pointer;min-height:48px}\n.pick:hover{background:#f4f9f5}\n.pick.is-on{background:#edf7ee}\n.pick input{width:20px;height:20px;min-height:0;margin:0;accent-color:var(--teal)}\n.pick-main{min-width:0;display:grid}\n.pick-main b{font-size:13px;color:var(--ink)}\n.pick-main small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.pick-time{font-size:12px;color:#263e34;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}\n.pick-time em{display:block;font-style:normal;color:#7a3f00;font-weight:800;font-size:11px}\n.line{border:1px solid var(--line);border-radius:10px;background:#fafcfa;margin-top:8px}\n.line summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:4px 12px;cursor:pointer;font-weight:700;font-size:13px;list-style:none}\n.line summary::-webkit-details-marker{display:none}\n.line summary::after{content:'▾';color:var(--teal);font-size:14px}\n.line[open] summary::after{content:'▴'}\n.line summary small{color:var(--muted);font-weight:400;margin-left:6px}\n.line .body{padding:0 12px 12px}\n.warn{color:#7a3f00;font-weight:800;font-size:12px}\n.line summary small.changed{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:99px;background:#fff0d8;color:#704113;font-weight:800;font-size:11px}\n.att{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:8px}\n.att img{width:56px;height:40px;object-fit:cover;border:1px solid var(--line);border-radius:6px;background:#eef3ef}\n.empty{margin:0;padding:12px;color:var(--muted);background:#eef3ef;border-radius:10px;font-size:13px}\n.note{margin:0 0 10px;padding:10px 12px;border-left:3px solid var(--note-line);background:var(--note-bg);color:var(--note-ink);font-size:13px;border-radius:0 8px 8px 0}\n.note strong{display:block;margin-bottom:2px}\n.note ul{margin:4px 0 0;padding-left:18px}\n.note.ok{border-left-color:#4c9a6a;background:var(--ok-bg);color:var(--ok-ink)}\n.preview-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}\n.preview-head h2{margin:0;margin-right:auto}\n.status{display:inline-block;padding:6px 10px;border-radius:20px;background:#e9f3ed;color:var(--chip-ink);font-size:12px;font-weight:850}\n.status.is-incomplete{background:#fff0d8;color:#704113}\n.badge{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:10px;background:var(--note-line);color:#fff;font-size:11px;font-weight:800;padding:0 6px}\n.panel{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:2px 14px;color:var(--muted);background:#fff;font-size:13px}\n.panel summary{cursor:pointer;min-height:40px;padding-top:10px;font-weight:800;color:var(--ink)}\n.panel ul{margin:0 0 10px;padding-left:18px}.panel li{margin:3px 0}\n.panel table{border-collapse:collapse;width:100%;font-size:12px;margin-bottom:10px}\n.panel td,.panel th{border:1px solid var(--line);padding:3px 6px;text-align:left}\n#docwrap{--doc-zoom:1;min-width:0}\n.sheet{background:#fff;color:#111;width:794px;zoom:var(--doc-zoom);margin:0 0 14px;padding:36px 40px;border:1px solid #b9c2bd;box-shadow:0 2px 8px #0002;position:relative;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.4}\n.sheet h1{font-size:26px;letter-spacing:0;margin:0}.sheet .an{color:#444;margin:0 0 14px}\n.sheet .stamp{position:absolute;top:14px;right:16px;border:2px solid #b3261e;color:#b3261e;padding:2px 8px;font-weight:700;font-size:11px;transform:rotate(3deg)}\n.sheet dl{display:grid;grid-template-columns:150px 1fr;gap:3px 12px;margin:0 0 12px}.sheet dt{color:#555}.sheet dd{margin:0}\n.sheet h3{font-size:13px;letter-spacing:.06em;background:#e6e9ee;padding:3px 8px;margin:14px 0 6px;border:0}\n.sheet table{width:100%;border-collapse:collapse;font-size:12.5px}\n.sheet th,.sheet td{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top}\n.sheet td.num,.sheet th.num{text-align:right;white-space:nowrap}\n.sheet .missing{color:#b3261e;font-style:italic}\n.sheet .sum{display:flex;justify-content:space-between;margin-top:6px;font-weight:700}\n.sheet .small{font-size:11px;color:#555;margin:2px 0}\n.sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:46px}\n.sign div{border-top:1px solid #111;padding-top:3px;font-size:12px;color:#444}\n.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n.photos figure,.plans figure{margin:0;break-inside:avoid}.photos img,.plans img{width:100%;border:1px solid #999;display:block}\n.sheet figcaption{font-size:11px;color:#555}\n.sheet.att-page{break-before:page}\n.screen-only{display:inline}\n@media screen and (max-width:1180px){.layout{grid-template-columns:minmax(320px,380px) minmax(0,1fr);gap:16px}.page{padding:18px 16px 32px}.topbar{padding:10px 16px}}\n@media screen and (max-width:900px){\n  .page{padding:14px 12px 96px}\n  .steps{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;position:sticky;top:0;z-index:5;background:var(--paper);padding:6px 0;margin-bottom:10px}\n  .tabs button{min-height:44px;border:1.5px solid var(--teal-b);border-radius:10px;background:#fff;color:#064a3e;font-weight:800}\n  .tabs button[aria-selected=true]{background:var(--teal);color:#fff;border-color:var(--teal)}\n  .layout{display:block}\n  .layout[data-view=edit] .preview,.layout[data-view=preview] .editor{display:none}\n  .preview{position:static;max-height:none;overflow:visible}\n  .nextbar{display:flex;position:fixed;left:0;right:0;bottom:var(--sz-bottom,0px);z-index:6;gap:10px;align-items:center;justify-content:space-between;background:#fff;border-top:1px solid var(--line);padding:10px 12px;box-shadow:0 -4px 14px #0001}\n  .sz-app[data-view=preview] .nextbar{display:none}\n  .nextbar span{font-size:12px;color:var(--muted);min-width:0}\n}\n@media screen and (max-width:760px){\n  .topbar .demo-chip{font-size:9px;padding:5px 8px;letter-spacing:.2px}\n  input,textarea,select{font-size:16px;min-height:44px}\n  .btn-outline,.btn-link{min-height:44px}\n  .preview-head .btn-primary{width:100%;order:3}\n  .grid2.keep{grid-template-columns:1fr 1fr}\n  \n  .sheet{width:auto;zoom:1;padding:20px 16px}\n  .sheet .stamp{position:static;display:inline-block;transform:none;margin-bottom:8px}\n  .sheet dl{grid-template-columns:1fr;gap:0}.sheet dt{margin-top:6px;font-size:11px}\n  .sheet table,.sheet tbody,.sheet tr,.sheet td{display:block;width:100%}\n  .sheet thead{display:none}\n  .sheet tr{border:1px solid #999;margin-bottom:8px;padding:2px 0}\n  .sheet td{border:0;padding:2px 8px;display:flex;justify-content:space-between;gap:12px;text-align:right}\n  .sheet td::before{content:attr(data-label);color:#555;text-align:left;flex:none}\n  .sheet td.num,.sheet td{white-space:normal}\n  .photos{grid-template-columns:1fr}.sign{gap:20px}\n}\n@media screen and (max-width:420px){.steps{gap:8px}.step strong{font-size:14px}.grid3{grid-template-columns:1fr 1fr}.grid3>div:nth-child(3){grid-column:1/-1}}\n@media print{\n  @page{size:A4;margin:12mm}\n  :root,:host,html,body{background:#fff!important}\n  .topbar,.page-head,.steps,.tabs,.nextbar,.editor,.preview-head,#hints,#side,.screen-only{display:none!important}\n  .page{max-width:none;padding:0}.layout{display:block}.preview{position:static;max-height:none;overflow:visible;padding:0;display:block!important}\n  .sheet{zoom:1!important;width:auto;margin:0 0 0;border:0;box-shadow:none;padding:0}\n  .sheet .missing{color:#111;font-style:normal}\n}\n.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}\n.subhead{font-size:13px;margin:16px 0 0;padding-top:12px;border-top:1px solid var(--line)}" }, { build: "sha256:c9d8160efb5e2623" }));
+  globalThis.StundenzettelApp = Object.freeze(Object.assign({}, load("preview/stundenzettel-app.js"), { css: ":root,:host{--ink:#14252c;--muted:#40594e;--line:#c8d7cc;--line-strong:#9eafa3;--paper:#f5f7f4;--teal:#0a665e;--teal-d:#084f47;--teal-b:#0b5d4d;--lime:#d5f28a;--rail:#11242c;\n  --chip:#e5f3e9;--chip-ink:#1c573a;--note-bg:#fff6e8;--note-ink:#63380d;--note-line:#c88736;--ok-bg:#edf7ee;--ok-ink:#1e5837;--red:#8a2418;--focus:#73b99b;\n  color-scheme:light;font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;color:var(--ink);background:var(--paper)}\n*{box-sizing:border-box}\nbody{margin:0;font-size:14px;line-height:1.45;background:var(--paper)}\n:host{display:block;font-size:14px;line-height:1.45;background:var(--paper)}\nbutton,input,select,textarea{font:inherit}\nbutton{cursor:pointer}\n:is(input,textarea,select,button,summary):focus-visible{outline:3px solid var(--focus);outline-offset:2px}\nh1,h2,h3,p{margin-top:0}\n[hidden]{display:none!important}\n.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--rail);color:#eef4ee;padding:10px 24px}\n.brand{display:flex;align-items:center;gap:11px}\n.brand-mark{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:11px;background:var(--lime);color:#15352e;font-size:22px;font-weight:900;letter-spacing:-3px}\n.brand-mark span{color:#e56d36}\n.brand strong{display:block;font-size:19px;letter-spacing:-1px;line-height:1.1}\n.brand small{display:block;white-space:nowrap;font-size:9px;letter-spacing:2.2px;color:#afc0bc;font-weight:800}\n.demo-chip{white-space:nowrap;border:1px solid #3b5560;border-radius:99px;padding:6px 11px;font-size:10px;font-weight:800;letter-spacing:.8px;color:#cfe0da}\n.page{max-width:1480px;margin:0 auto;padding:22px 24px 40px}\n.page-head{margin-bottom:16px}\n.eyebrow{color:#345c4d;font-size:11px;font-weight:800;letter-spacing:2px;margin:0 0 6px}\n.page-head h1{font-size:clamp(28px,3.2vw,42px);letter-spacing:-1.2px;line-height:1.1;margin:0 0 8px}\n.page-head h1 span{color:var(--teal)}\n.page-head p:last-child{color:var(--muted);font-size:14px;max-width:760px;margin:0}\n.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 16px}\n.step{display:grid;gap:2px;text-align:left;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px 12px;color:var(--ink);min-height:62px}\n.step small{font-size:10px;font-weight:800;letter-spacing:.8px;color:var(--muted)}\n.step strong{font-size:15px;line-height:1.25}\n.step span{font-size:12px;color:var(--muted)}\n.step.is-done{border-color:#7fae92;background:var(--ok-bg)}\n.step.is-warn{border-color:var(--note-line);background:var(--note-bg)}\n.step.is-warn span{color:var(--note-ink)}\n.step.is-now{box-shadow:inset 0 -3px 0 var(--teal)}\n.tabs,.nextbar{display:none}\n.layout{display:grid;grid-template-columns:minmax(340px,430px) minmax(0,1fr);gap:20px;align-items:start}\n.editor{display:grid;gap:12px;min-width:0}\n.preview{min-width:0;position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;padding-right:2px}\n.block{min-width:0;border:1px solid var(--line);border-radius:12px;background:#fff;padding:14px 16px}\nh2{display:flex;align-items:center;gap:9px;font-size:17px;letter-spacing:-.3px;margin:0 0 10px}\n.letter{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:7px;background:#c9e4d3;color:#0c4a38;font-size:12px;font-weight:900;flex:none}\n.heading-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}\n.heading-row>span{color:var(--muted);font-size:12px;white-space:nowrap}\n.hint{margin:0 0 8px;color:var(--muted);font-size:12px;line-height:1.45}\nlabel{display:block;color:#263e34;font-size:13px;font-weight:700;margin:10px 0 4px}\ninput,textarea,select{width:100%;min-width:0;border:1px solid var(--line-strong);border-radius:10px;background:#fff;color:var(--ink);padding:8px 10px;min-height:42px}\ntextarea{min-height:72px;line-height:1.45;resize:vertical}\ninput::placeholder,textarea::placeholder{color:#53685c;opacity:1}\n.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}\n.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}\n.grid2>div,.grid3>div{min-width:0}\n.span2{grid-column:1/-1}\n.btn-primary{min-height:44px;border:0;border-radius:12px;background:var(--teal);color:#fff;font-weight:800;padding:0 18px;box-shadow:0 6px 15px #0b665c25}\n.btn-primary:hover{background:var(--teal-d)}\n.btn-outline{min-height:40px;border:1.5px solid var(--teal-b);border-radius:10px;background:#fff;color:#064a3e;font-weight:800;padding:0 12px;font-size:13px}\n.btn-outline:hover{background:#eff8f0}\n.btn-link{border:0;background:transparent;color:var(--teal-b);font-weight:800;font-size:13px;min-height:36px;padding:0 4px}\n.btn-link.danger{color:var(--red)}\n.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}\n.pickers{border-top:1px solid var(--line)}\n.pick{display:grid;grid-template-columns:26px minmax(0,1fr) auto;gap:4px 10px;align-items:center;margin:0;padding:7px 4px;border-bottom:1px solid #e2eae4;font-weight:400;cursor:pointer;min-height:48px}\n.pick:hover{background:#f4f9f5}\n.pick.is-on{background:#edf7ee}\n.pick input{width:20px;height:20px;min-height:0;margin:0;accent-color:var(--teal)}\n.pick-main{min-width:0;display:grid}\n.pick-main b{font-size:13px;color:var(--ink)}\n.pick-main small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n.pick-time{font-size:12px;color:#263e34;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}\n.pick-time em{display:block;font-style:normal;color:#7a3f00;font-weight:800;font-size:11px}\n.line{border:1px solid var(--line);border-radius:10px;background:#fafcfa;margin-top:8px}\n.line summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:4px 12px;cursor:pointer;font-weight:700;font-size:13px;list-style:none}\n.line summary::-webkit-details-marker{display:none}\n.line summary::after{content:'▾';color:var(--teal);font-size:14px}\n.line[open] summary::after{content:'▴'}\n.line summary small{color:var(--muted);font-weight:400;margin-left:6px}\n.line .body{padding:0 12px 12px}\n.warn{color:#7a3f00;font-weight:800;font-size:12px}\n.line summary small.changed{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:99px;background:#fff0d8;color:#704113;font-weight:800;font-size:11px}\n.att{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:8px;align-items:center;margin-top:8px}\n.att img{width:56px;height:40px;object-fit:cover;border:1px solid var(--line);border-radius:6px;background:#eef3ef}\n.empty{margin:0;padding:12px;color:var(--muted);background:#eef3ef;border-radius:10px;font-size:13px}\n.note{margin:0 0 10px;padding:10px 12px;border-left:3px solid var(--note-line);background:var(--note-bg);color:var(--note-ink);font-size:13px;border-radius:0 8px 8px 0}\n.note strong{display:block;margin-bottom:2px}\n.note ul{margin:4px 0 0;padding-left:18px}\n.note.ok{border-left-color:#4c9a6a;background:var(--ok-bg);color:var(--ok-ink)}\n.preview-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}\n.preview-head h2{margin:0;margin-right:auto}\n.status{display:inline-block;padding:6px 10px;border-radius:20px;background:#e9f3ed;color:var(--chip-ink);font-size:12px;font-weight:850}\n.status.is-incomplete{background:#fff0d8;color:#704113}\n.badge{display:inline-grid;place-items:center;min-width:20px;height:20px;border-radius:10px;background:var(--note-line);color:#fff;font-size:11px;font-weight:800;padding:0 6px}\n.panel{margin-top:10px;border:1px dashed var(--line);border-radius:12px;padding:2px 14px;color:var(--muted);background:#fff;font-size:13px}\n.panel summary{cursor:pointer;min-height:40px;padding-top:10px;font-weight:800;color:var(--ink)}\n.panel ul{margin:0 0 10px;padding-left:18px}.panel li{margin:3px 0}\n.panel table{border-collapse:collapse;width:100%;font-size:12px;margin-bottom:10px}\n.panel td,.panel th{border:1px solid var(--line);padding:3px 6px;text-align:left}\n#docwrap{--doc-zoom:1;min-width:0}\n.sheet{background:#fff;color:#111;width:794px;zoom:var(--doc-zoom);margin:0 0 14px;padding:36px 40px;border:1px solid #b9c2bd;box-shadow:0 2px 8px #0002;position:relative;font-family:Helvetica,Arial,sans-serif;font-size:13px;line-height:1.4}\n.sheet h1{font-size:26px;letter-spacing:0;margin:0}.sheet .an{color:#444;margin:0 0 14px}\n.sheet .stamp{position:absolute;top:14px;right:16px;border:2px solid #b3261e;color:#b3261e;padding:2px 8px;font-weight:700;font-size:11px;transform:rotate(3deg)}\n.sheet dl{display:grid;grid-template-columns:150px 1fr;gap:3px 12px;margin:0 0 12px}.sheet dt{color:#555}.sheet dd{margin:0}\n.sheet h3{font-size:13px;letter-spacing:.06em;background:#e6e9ee;padding:3px 8px;margin:14px 0 6px;border:0}\n.sheet table{width:100%;border-collapse:collapse;font-size:12.5px}\n.sheet th,.sheet td{border:1px solid #999;padding:4px 6px;text-align:left;vertical-align:top}\n.sheet td.num,.sheet th.num{text-align:right;white-space:nowrap}\n.sheet .missing{color:#b3261e;font-style:italic}\n.sheet .sum{display:flex;justify-content:space-between;margin-top:6px;font-weight:700}\n.sheet .small{font-size:11px;color:#555;margin:2px 0}\n.sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:46px}\n.sign div{border-top:1px solid #111;padding-top:3px;font-size:12px;color:#444}\n.photos{display:grid;grid-template-columns:1fr 1fr;gap:10px}\n.photos figure,.plans figure{margin:0;break-inside:avoid}.photos img,.plans img{width:100%;border:1px solid #999;display:block}\n.sheet figcaption{font-size:11px;color:#555}\n.sheet.att-page{break-before:page}\n.screen-only{display:inline}\n@media screen and (max-width:1180px){.layout{grid-template-columns:minmax(320px,380px) minmax(0,1fr);gap:16px}.page{padding:18px 16px 32px}.topbar{padding:10px 16px}}\n@media screen and (max-width:900px){\n  .page{padding:14px 12px 96px}\n  .steps{grid-template-columns:repeat(2,minmax(0,1fr))}\n  .tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;position:sticky;top:0;z-index:5;background:var(--paper);padding:6px 0;margin-bottom:10px}\n  .tabs button{min-height:44px;border:1.5px solid var(--teal-b);border-radius:10px;background:#fff;color:#064a3e;font-weight:800}\n  .tabs button[aria-selected=true]{background:var(--teal);color:#fff;border-color:var(--teal)}\n  .layout{display:block}\n  .layout[data-view=edit] .preview,.layout[data-view=preview] .editor{display:none}\n  .preview{position:static;max-height:none;overflow:visible}\n  .nextbar{display:flex;position:fixed;left:0;right:0;bottom:var(--sz-bottom,0px);z-index:6;gap:10px;align-items:center;justify-content:space-between;background:#fff;border-top:1px solid var(--line);padding:10px 12px;box-shadow:0 -4px 14px #0001}\n  .sz-app[data-view=preview] .nextbar{display:none}\n  .nextbar span{font-size:12px;color:var(--muted);min-width:0}\n}\n@media screen and (max-width:760px){\n  .topbar .demo-chip{font-size:9px;padding:5px 8px;letter-spacing:.2px}\n  input,textarea,select{font-size:16px;min-height:44px}\n  .btn-outline,.btn-link{min-height:44px}\n  .preview-head .btn-primary{width:100%;order:3}\n  .grid2.keep{grid-template-columns:1fr 1fr}\n  \n  .sheet{width:auto;zoom:1;padding:20px 16px}\n  .sheet .stamp{position:static;display:inline-block;transform:none;margin-bottom:8px}\n  .sheet dl{grid-template-columns:1fr;gap:0}.sheet dt{margin-top:6px;font-size:11px}\n  .sheet table,.sheet tbody,.sheet tr,.sheet td{display:block;width:100%}\n  .sheet thead{display:none}\n  .sheet tr{border:1px solid #999;margin-bottom:8px;padding:2px 0}\n  .sheet td{border:0;padding:2px 8px;display:flex;justify-content:space-between;gap:12px;text-align:right}\n  .sheet td::before{content:attr(data-label);color:#555;text-align:left;flex:none}\n  .sheet td.num,.sheet td{white-space:normal}\n  .photos{grid-template-columns:1fr}.sign{gap:20px}\n}\n@media screen and (max-width:420px){.steps{gap:8px}.step strong{font-size:14px}.grid3{grid-template-columns:1fr 1fr}.grid3>div:nth-child(3){grid-column:1/-1}}\n@media print{\n  @page{size:A4;margin:12mm}\n  :root,:host,html,body{background:#fff!important}\n  .topbar,.page-head,.steps,.tabs,.nextbar,.editor,.preview-head,#hints,#side,.screen-only{display:none!important}\n  .page{max-width:none;padding:0}.layout{display:block}.preview{position:static;max-height:none;overflow:visible;padding:0;display:block!important}\n  .sheet{zoom:1!important;width:auto;margin:0 0 0;border:0;box-shadow:none;padding:0}\n  .sheet .missing{color:#111;font-style:normal}\n}\n.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}\n.subhead{font-size:13px;margin:16px 0 0;padding-top:12px;border-top:1px solid var(--line)}" }, { build: "sha256:241c4a7494d9a451" }));
 })();

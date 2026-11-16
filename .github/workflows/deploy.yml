@@ -32,6 +32,7 @@ jobs:
             site/ac01.css \
             site/ac01.js \
             site/app.js \
+            site/behinderung-view.js \
             site/index.html \
             site/stundenzettel.html \
             site/styles.css \
@@ -45,6 +46,8 @@ jobs:
           if grep -rEn 'fetch\(|XMLHttpRequest|WebSocket|sendBeacon|importScripts|serviceWorker|localStorage|sessionStorage|indexedDB|document\.cookie|eval\(|new Function' site; then exit 1; fi
           # the only absolute URL allowed is the SVG namespace inside the synthetic placeholder images
           if grep -rhoE 'https?://[^"'"'"' )<>\\]+' site | grep -vx 'http://www.w3.org/2000/svg'; then exit 1; fi
+          # no stakeholder names, internal identifiers, tenant references or template-specific legal wording in any published file
+          if grep -rEin 'peter|merlin|sharepoint|transkript|whatsapp|stakeholder|\bSC-[0-9]+|\bCB-[0-9]+|\bDEP-[0-9]+|\bSEC-[0-9]+|VOB' site; then exit 1; fi
           # visible demo labels and the memory-only warning must stay
           grep -q 'DEMO / SYNTHETISCHE DATEN' site/index.html
           grep -q 'nach dem Neuladen der Seite ist alles weg' site/index.html

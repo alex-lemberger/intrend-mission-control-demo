@@ -73,3 +73,28 @@ body[data-draft-dirty] .mobile-nav [data-view="ac01"]::after{position:absolute;t
 /* Cognitive UX Sprint 2: one primary action per saved day */
 .wd-open-row .primary,.wd-open-row .outline{min-height:44px;padding:0 17px}
 .wd-open-row .primary{width:auto}   /* the global .primary is full-width; inside the card it must sit beside the secondary action */
+
+/* Behinderungsanzeige draft dialog (demo, memory only) */
+.wd-event-row{display:flex;gap:6px;align-items:stretch}.wd-event-row .wd-event{flex:1 1 auto;min-width:0}.wd-doc{flex:0 0 auto;align-self:stretch;padding:6px 10px;font-size:12px;line-height:1.2;white-space:normal;max-width:112px}
+#bh-dialog{width:min(1180px,96vw);max-height:94vh;padding:0;border:1px solid #9dc2ad;border-radius:14px;background:#fff;color:#1b2b24}
+#bh-dialog::backdrop{background:#0b1f1855}
+.bh-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #d8e6dc;position:sticky;top:0;background:#fff;z-index:2}.bh-head h2{margin:0;font-size:18px}.bh-actions{display:flex;gap:8px;flex-wrap:wrap}
+.bh-body{display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:18px;padding:16px 18px;overflow:auto}
+@media(max-width:900px){.bh-body{grid-template-columns:1fr}}
+.bh-form label{display:block;font-size:13px;font-weight:800;margin:8px 0 3px}.bh-form input:not([type=checkbox]),.bh-form textarea{width:100%;font-size:16px;min-height:44px;box-sizing:border-box}
+.bh-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}.bh-span2{grid-column:1/-1}.bh-note{font-size:13px;color:#4a5d54}
+.bh-circ{border:0;padding:0;margin:10px 0}.bh-circ legend{font-size:13px;font-weight:800;padding:0}.bh-check{display:flex;gap:8px;align-items:flex-start;min-height:44px;font-weight:600!important}.bh-check input{margin-top:4px}
+.bh-hints{border:1px solid #e5c98a;background:#fff8e6;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px}.bh-hints ul{margin:6px 0 0 18px;padding:0}.bh-hints.bh-ok{border-color:#9dc2ad;background:#eef6f1}
+.bh-sheet{position:relative;border:1px solid #cfd8d2;border-radius:6px;padding:28px 32px;background:#fff;font:14px/1.5 Arial,Helvetica,sans-serif;max-width:794px}
+.bh-stamp{display:block;font-size:11px;font-weight:800;color:#a34000;letter-spacing:.04em;margin-bottom:12px}.bh-sheet h1{font-size:17px;margin:14px 0 10px}
+.bh-address{min-height:90px;border:1px solid #b9c6be;padding:8px 10px;max-width:320px}.bh-date{text-align:right;margin:14px 0}
+.bh-circlist{list-style:none;padding:0;margin:8px 0 8px 22px}.bh-circlist li{margin:2px 0}.bh-circlist .is-on{font-weight:700}
+.bh-periods{border-collapse:collapse;margin:8px 0}.bh-periods td{padding:2px 14px 2px 0;vertical-align:top}
+.bh-missing{color:#a34000;background:#fff3e0}.bh-sign{display:flex;justify-content:space-between;gap:20px;margin-top:40px;font-size:12px}
+  .bh-suggest{display:block;color:#a34000;font-size:12px;font-style:normal;font-weight:700}.bh-suggest-bar{font-size:13px;background:#fff8e6;border:1px solid #e5c98a;border-radius:10px;padding:8px 10px;margin:4px 0 8px}.bh-suggest-bar .outline{margin-top:6px;padding:8px 12px}
+@media print{
+  body:has(#bh-dialog[open])>*:not(#bh-dialog){display:none!important}
+  #bh-dialog{display:block!important;position:static!important;width:auto;max-height:none;border:0;box-shadow:none;overflow:visible}
+  #bh-dialog::backdrop{display:none}.bh-head,.bh-form,#bh-hints{display:none!important}
+  .bh-body{display:block;padding:0}.bh-sheet{border:0;padding:0;max-width:none}
+}

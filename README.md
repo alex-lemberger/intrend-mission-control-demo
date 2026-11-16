@@ -1,6 +1,6 @@
 # inTrend Mission Control — öffentliche Demo
 
-**Nur synthetische Daten.** Diese eigenständige Git-Historie enthält die öffentlichen statischen Dateien unter `site/` (zehn Dateien, siehe unten), den Pages-Workflow und diese Dokumentation. Die private Architekturablage und deren Git-Historie gehören **nicht** in dieses Repository. GitHub Pages ist öffentlich erreichbar, auch wenn das Repository privat sein sollte.
+**Nur synthetische Daten.** Diese eigenständige Git-Historie enthält die öffentlichen statischen Dateien unter `site/` (elf Dateien, siehe unten), den Pages-Workflow und diese Dokumentation. Die private Architekturablage und deren Git-Historie gehören **nicht** in dieses Repository. GitHub Pages ist öffentlich erreichbar, auch wenn das Repository privat sein sollte.
 
 **Ziel:** `https://github.com/alex-lemberger/intrend-mission-control-demo`  
 **Erwartete Pages-Adresse:** `https://alex-lemberger.github.io/intrend-mission-control-demo/`

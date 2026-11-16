@@ -7,7 +7,7 @@
  *   - the key is project + date; save() replaces the whole report stored for that key; load() returns null when unknown;
  *   - callers and the store never share mutable state: save() and load() copy.
  * list() is an addition the contract deliberately leaves undefined; Mission Control needs it to show the saved days.
- * Not a domain model, a SharePoint schema or an approved business rule. Everything is lost when the page reloads.
+ * Not a domain model, a storage schema or an approved business rule. Everything is lost when the page reloads.
  */
 (function (root) {
   'use strict';

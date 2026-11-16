@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#11242c">
   <title>inTrend Mission Control · Field Operations</title>
-  <!-- Static assets carry one release token (?v=). Change it in ALL eight references whenever an asset changes: a cached older file must never be combined with a newer one. -->
-  <link rel="stylesheet" href="styles.css?v=2026-11-15-s2">
-  <link rel="stylesheet" href="ac01.css?v=2026-11-15-s2">
-  <script src="vendor/ac01-core.bundle.js?v=2026-11-15-s2" defer></script>
-  <script src="workday-store.js?v=2026-11-15-s2" defer></script>
-  <script src="app.js?v=2026-11-15-s2" defer></script>
-  <script src="ac01.js?v=2026-11-15-s2" defer></script>
-  <script src="vendor/stundenzettel.bundle.js?v=2026-11-15-s2" defer></script>
-  <script src="timesheet-view.js?v=2026-11-15-s2" defer></script>
+  <!-- Static assets carry one release token (?v=). Change it in ALL nine references whenever an asset changes: a cached older file must never be combined with a newer one. -->
+  <link rel="stylesheet" href="styles.css?v=2026-11-16-s6">
+  <link rel="stylesheet" href="ac01.css?v=2026-11-16-s6">
+  <script src="vendor/ac01-core.bundle.js?v=2026-11-16-s6" defer></script>
+  <script src="workday-store.js?v=2026-11-16-s6" defer></script>
+  <script src="app.js?v=2026-11-16-s6" defer></script>
+  <script src="ac01.js?v=2026-11-16-s6" defer></script>
+  <script src="vendor/stundenzettel.bundle.js?v=2026-11-16-s6" defer></script>
+  <script src="timesheet-view.js?v=2026-11-16-s6" defer></script>
+  <script src="behinderung-view.js?v=2026-11-16-s6" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -88,6 +89,15 @@
                   <div id="ac01-picker-groups"></div>
                   <div class="ac01-picker-actions"><button class="primary ac01-action" id="ac01-picker-add" type="button" disabled><span>Auswahl in Tagestabelle übernehmen (<span id="ac01-picker-count">0</span>)</span></button></div>
                   <p class="ac01-hint" id="ac01-picker-message" role="status" aria-live="polite">Nur gewählte Personen werden als Zeilen angelegt; ohne Zeiten.</p>
+                  <details class="ac01-directory-edit" id="ac01-directory-edit"><summary>Demo-Liste ergänzen (Mitarbeitende / Subunternehmer)</summary>
+                    <div class="ac01-dir-form">
+                      <div><label for="ac01-dir-group">Gruppe</label><select id="ac01-dir-group"><option value="own">Eigene Mitarbeitende</option><option value="sub">Subunternehmer</option></select></div>
+                      <div hidden><label for="ac01-dir-firm">Firma</label><input id="ac01-dir-firm" placeholder="z. B. Delta"></div>
+                      <div><label for="ac01-dir-label">Name bzw. Kennung</label><input id="ac01-dir-label" placeholder="synthetisch, z. B. Delta Monteur-1"></div>
+                      <button class="outline" id="ac01-dir-add" type="button">Zur Liste hinzufügen</button>
+                    </div>
+                    <p class="ac01-hint" id="ac01-dir-message" role="status" aria-live="polite">Nur synthetische Namen oder Kennungen. Echte Mitarbeiter- und Subunternehmerdaten sind nicht freigegeben; nichts wird gespeichert.</p>
+                  </details>
                 </details>
                 <details class="ac01-bulk" id="ac01-bulk" open>
                   <summary>Sammelaktion für <span id="ac01-selected-count">0</span> ausgewählte Mitarbeitende</summary>

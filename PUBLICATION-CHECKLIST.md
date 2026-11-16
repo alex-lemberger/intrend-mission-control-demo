@@ -29,6 +29,15 @@
 - [x] Lokal geprüft: Workflow-Prüfungen (gleichwertig, lokal ausgeführt), `node --check` aller JS-Dateien, 32/32 Integrationsprüfungen gegen genau dieses Paket unter `/intrend-mission-control-demo/`, Bundle-Aktualitätsprüfungen, Browser-Rauchtest unter dem Pages-Pfad, Übergang von zwischengespeicherten Sprint-1-Dateien (Server mit `max-age=600`).
 - [ ] Nicht geprüft: tatsächliche Pages-Auslieferung nach dem Push, echtes iPhone/Safari. **Freigabe zum Push steht aus.**
 
+## Aktualisierung 2026-11-16: mehrtägiger Stundenzettel, Behinderungsgründe, Behinderungsanzeige-Entwurf (neutrale Fassung)
+
+- [x] Neue/geänderte Dateien aus dem lokalen Integrationsstand (Token `2026-11-16-s6`): `site/index.html`, `site/styles.css`, `site/ac01.css`, `site/app.js`, `site/ac01.js`, `site/timesheet-view.js`, `site/workday-store.js`, **neu `site/behinderung-view.js`**, `site/vendor/stundenzettel.bundle.js` (byteidentisch), `site/vendor/ac01-core.bundle.js` (**eigens mit neutralem Wortlaut gebaut**, nicht byteidentisch zum privaten Bündel). Das Artefakt umfasst jetzt **elf** Dateien; der Workflow wurde angepasst.
+- [x] **Neutraler Briefwortlaut:** Der Behinderungsanzeige-Entwurf der öffentlichen Demo verwendet eigene, unabhängig formulierte Sätze (`Beispieltext`), nicht den Wortlaut einer Vorlage. Die Bedeutungen der sieben Umstände bleiben gleich. Kein Bündel enthält die privaten Vorlagenformulierungen (Stichproben: kein „Baufreiheit“, keine VOB-Paragrafen).
+- [x] Kommentare in den veröffentlichten Quelldateien bereinigt: keine Personennamen, keine internen Kennungen (SC-/CB-/DEP-), keine Stakeholder-, Tenant- oder SharePoint-Bezüge. Der Workflow prüft das jetzt zusätzlich per Suchmuster und bricht bei Treffern ab.
+- [x] Nur synthetische Daten: erfundene Beispielgründe (18 Einträge, `ST-nnn`), Beispielprojekte, `Demo-Person NN`. Der Katalog ist **nicht** die Liste des Unternehmens. Keine Rechtsprüfung, keine Rechtsberatung; der Brief ist ein Beispiel und wird nicht versendet.
+- [x] Lokal geprüft: Workflow-Schritt „Enforce public site allowlist“ (inkl. neuer Suchmuster) besteht; `node --check` aller JS-Dateien; 33/33 Integrationsprüfungen gegen genau dieses Paket unter dem Pages-Pfad (inkl. Behinderungsanzeige-Dialog, Vorschläge, Druck).
+- [ ] Nicht geprüft: Pages-Auslieferung vor dem Push (wird nach dem Lauf per Abruf geprüft), echtes iPhone/Safari.
+
 ## Prüfbefehle vor jeder Veröffentlichung
 
 Im lokalen Demo-Repository:

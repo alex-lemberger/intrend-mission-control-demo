@@ -358,13 +358,18 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 @media(min-width:1024px){
 .ac01-overview{position:sticky;top:0;z-index:5;box-shadow:0 3px 10px #1b403014;grid-template-columns:repeat(5,minmax(0,1fr)) minmax(0,.9fr)}
 .ac01-table-head{top:var(--ac-strip-h,72px)}
-#ac01-view{--ac-ev-cols:142px minmax(120px,1fr) minmax(0,2.4fr) 132px 30px}
+#ac01-view{--ac-ev-cols:142px minmax(120px,1fr) minmax(0,2.2fr) 236px 30px}
 .ac01-event{grid-template-columns:var(--ac-ev-cols);gap:2px 6px;align-items:center;border:0;border-bottom:1px solid #eadfcb;border-left:0;border-radius:0;background:transparent;margin:0;padding:3px 0;box-shadow:inset 4px 0 #b9791f;padding-left:10px}
 .ac01-event:nth-child(even){background:#fbf6ec}
 .ac01-event-label{grid-column:1;grid-row:1}
 .ac01-event-where{grid-column:2;grid-row:1}
 .ac01-event-desc{grid-column:3;grid-row:1}
-.ac01-affected{grid-column:4;grid-row:1;margin:0}
+.ac01-event .ac01-event-more{grid-column:4;grid-row:1;flex-wrap:nowrap;gap:6px;align-items:center}
+.ac01-event .ac01-event-more>details{flex:0 0 auto}
+.ac01-affected{margin:0}
+.ac01-event .ac01-evidence{position:relative}
+.ac01-event .ac01-evidence>summary{min-height:36px;font-size:12px;white-space:nowrap}
+.ac01-event .ac01-evidence-body{position:absolute;right:0;top:100%;z-index:6;width:300px;padding:8px 10px;border:1px solid #9dc2ad;border-radius:10px;background:#fff;box-shadow:0 8px 24px #1b403030}
 .ac01-event-remove{grid-column:5;grid-row:1;min-height:34px;width:28px;padding:0;text-align:center;font-size:17px}
 .ac01-reasons{grid-column:2/-1;grid-row:2;display:flex;align-items:center;gap:8px;margin:0 0 2px}
 .ac01-reasons legend{float:left;margin:0 8px 0 0;padding:0;font-size:12px;line-height:34px}
@@ -381,7 +386,7 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 }
 @media(min-width:1024px) and (max-width:1239px){
 .ac01-overview{top:0;padding:6px}
-#ac01-view{--ac-ev-cols:142px minmax(110px,1fr) minmax(0,2fr) 118px 28px}
+#ac01-view{--ac-ev-cols:142px minmax(110px,1fr) minmax(0,1.8fr) 224px 28px}
 }
 @media(min-width:1024px){.ac01-event-remove{margin-left:8px}}
 
@@ -389,3 +394,25 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 .ac01-missing.is-calm{border-left-color:#7da58f;background:#f1f7f3;color:#24473a}
 .ac01-missing.is-calm summary{color:#1b5a47}
 .ac01-stat-open:not(.has-open) strong{color:var(--ac-ink)}
+
+/* Event evidence (photo / plan reference / marking) and the demo directory editor */
+.ac01-event-more{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:0 16px;align-items:flex-start}
+.ac01-event-more>details{flex:1 1 220px;min-width:0}
+.ac01-evidence>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;color:#345c4d;font-size:13px;font-weight:800}
+.ac01-directory-edit{margin-top:4px}
+.ac01-evidence-body{display:grid;gap:6px;padding:6px 0 2px}
+.ac01-dir-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;align-items:end;padding:8px 0}
+.ac01-evidence summary,.ac01-directory-edit summary{cursor:pointer;font-weight:700}
+
+/* Behinderungsgrund (list of disruption reasons) inside the Foto / Plan fold-out of an event */
+@media(min-width:1024px){.ac01-event .ac01-evidence-body:has(.ac01-disruption){width:380px;max-height:380px;overflow:auto}}
+.ac01-disruption{border:0;margin:0 0 10px;padding:0;min-width:0}
+.ac01-disruption legend{padding:0;margin:0 0 4px;color:#263e34;font-size:13px;font-weight:800}
+.ac01-disruption legend small{color:var(--ac-muted);font-weight:600}
+.ac01-disruption-all{margin-top:8px}
+.ac01-disruption-all>summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:#0c4a38;font-size:13px;font-weight:800}
+.ac01-disruption-filter{width:100%;min-height:44px;margin:4px 0 8px;font-size:16px}
+.ac01-disruption-group{margin:8px 0}
+.ac01-disruption-group h4{margin:0 0 4px;color:var(--ac-muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.ac01-disruption-group[hidden],.ac01-pill[hidden]{display:none}
+.ac01-disruption .ac01-pill span{white-space:normal;min-height:44px;padding:6px 13px}

@@ -14,6 +14,15 @@
   let mounted = null;                // { key, reportJson, api }
   let token = 0;
   const keyOf = k => JSON.stringify([k.projectId, k.date]);
+  // Running number within a project, for this page session only: the first Stundenzettel started for a project is 1, the next 2 ...
+  // A day keeps its number when reopened. It is a proposal (no numbering rule is approved) and is lost on reload like everything else.
+  const sequences = new Map();   // projectId -> Map(day key -> sequence)
+  function sequenceFor(k) {
+    const perProject = sequences.get(k.projectId) ?? sequences.set(k.projectId, new Map()).get(k.projectId);
+    if (!perProject.has(keyOf(k))) perProject.set(keyOf(k), perProject.size + 1);
+    return perProject.get(keyOf(k));
+  }
+  const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const lines = r => r.employees.reduce((n, e) => n + e.assignments.length, 0);
 
   function shadow() {
@@ -42,11 +51,13 @@
     if (mine !== token) return;
     if (!report) { current = null; host.hidden = true; renderChooser(days); renderDraftNotices(); return; }
 
-    const reportJson = JSON.stringify(report);
+    // Other saved days of the same project may go into the same Stundenzettel (several worked days in one document). A change to any of them restarts the draft.
+    const moreReports = days.filter(d => d.projectId === report.projectId && d.date !== report.date);
+    const reportJson = JSON.stringify([report, ...moreReports]);
     const cached = drafts.get(keyOf(current));
     const restore = cached && cached.reportJson === reportJson ? cached.state : undefined;
     if (cached && !restore) drafts.delete(keyOf(current));
-    const available = lines(report);
+    const available = lines(report) + moreReports.reduce((n, d) => n + lines(d), 0);
     $('#ts-source').innerHTML = `<section class="ts-source" data-project="${esc(report.projectId)}" data-date="${esc(report.date)}" aria-label="Quelle des Stundenzettels">
       <div class="ts-source-main"><span class="eyebrow">QUELLE · GESPEICHERTER BAUSTELLENTAG</span><strong id="ts-src-project">${esc(project(report.projectId).name)}</strong><span id="ts-src-date">${esc(dateText(report.date))}</span></div>
       <dl class="ts-figures"><div><dt>Einträge verfügbar</dt><dd id="ts-available">${available}</dd></div><div><dt>Ausgewählt</dt><dd id="ts-selected">0</dd></div></dl>
@@ -54,10 +65,12 @@
       <p class="ts-note">${cached && !restore ? '<strong>Der Baustellentag wurde seit dem letzten Entwurf geändert; der Stundenzettel beginnt neu.</strong> ' : ''}Der Baustellentag wird hier nur gelesen; Änderungen im Stundenzettel bleiben im Stundenzettel. Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg.</p></section>`;
     host.hidden = false;
     renderDraftNotices();
+    const info = project(report.projectId);
+    const suggestion = root.StundenzettelApp.suggestTimesheetMeta(report, { name: info.name, projectNo: info.no, client: info.client }, sequenceFor(current), localToday());
     mounted = {
       key: { ...current }, reportJson,
       api: root.StundenzettelApp.mountStundenzettel(shadow().querySelector('.ts-mount'), {
-        report, sourceName: 'Baustellentag', initialMeta: { project: project(report.projectId).name }, restore,
+        report, moreReports, sourceName: 'Baustellentag', initialMeta: suggestion.meta, prefilled: suggestion.prefilled, restore,
         onChange: info => { const el = document.getElementById('ts-selected'); if (el) el.textContent = String(info.selected); },
       }),
     };
