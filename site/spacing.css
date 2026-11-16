@@ -124,7 +124,7 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #2f8f78;outline-offset:2px}
 .rail a:focus-visible,.rail button:focus-visible,.mobile-nav button:focus-visible{outline-color:#d5f28a}
 .skip:focus-visible{outline-offset:0}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important;scroll-behavior:auto!important}}
 
 /* ---- Foto / Plan / Grund fold-out: explicit confirmation ---- */
 .ac01-evidence-foot{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-top:var(--sp-3);padding:var(--sp-3) 0 0;background:#fff;border-top:1px solid var(--line-soft)}
