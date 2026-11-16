@@ -1,14 +1,14 @@
 # Sicherheits- und Publikationscheckliste
 
-## Bestätigte Veröffentlichung UX-01…UX-05 — 2026-11-16, Release-Token `2026-11-16-s34`
+## Bestätigte Veröffentlichung UX-01…UX-05 + Ereignis-Editor — 2026-11-16, Release-Token `2026-11-16-s35`
 
-- [x] Public static release committed as `fadbb20` and pushed normally to `origin/main`; no history rewrite.
-- [x] GitHub Pages workflow [`43923392112`](https://github.com/alex-lemberger/intrend-mission-control-demo/actions/runs/43923392112) completed successfully: `prepare` enforced the exact allowlist and `deploy` completed.
+- [x] Public static release committed as `9ce1050` and pushed normally to `origin/main`; no history rewrite. It follows the UX-01…UX-05 release `fadbb20` and changes only the legacy event editor presentation.
+- [x] GitHub Pages workflow [`43935655888`](https://github.com/alex-lemberger/intrend-mission-control-demo/actions/runs/43935655888) completed successfully: `prepare` enforced the exact allowlist and `deploy` completed.
 - [x] Pages artifact is exactly 13 files: `site/index.html`, `site/styles.css`, `site/ac01.css`, `site/spacing.css`, `site/app.js`, `site/ac01.js`, `site/behinderung-view.js`, `site/icons.js`, `site/workday-store.js`, `site/timesheet-view.js`, `site/stundenzettel.html`, `site/vendor/ac01-core.bundle.js`, `site/vendor/stundenzettel.bundle.js`; no symlinks.
 - [x] `vendor/ac01-core.bundle.js` is reproducibly generated with `--neutral-wording` (core build `sha256:a282e44452d2ba15`), never copied from the private bundle. The public wording scan found no VOB/template wording or private/tenant/project identifiers; generated bundle and static-code security scans passed.
-- [x] Version and reference gate: all eleven referenced app assets use `?v=2026-11-16-s34`; JavaScript parses; all live referenced assets returned HTTP 200 after a no-cache Chrome reload.
-- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` exited successfully, including UX-01…UX-05, Stundenzettel, Behinderungsanzeige and print isolation (a closed letter does not appear in a subsequent Stundenzettel PDF).
-- [x] Live proof: SHA-256 of every downloaded Pages file matches the approved local release package. DevTools smoke: Mission Control → Baustellentag → empty Stundenzettel worked; live Chrome loaded `s34`, not `s25`; the rendered public text contains neutral Behinderungsanzeige wording only.
+- [x] Version and reference gate: all eleven referenced app assets use `?v=2026-11-16-s35`; JavaScript parses; all live referenced assets returned HTTP 200 after a no-cache Chrome reload.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` exited successfully, including UX-01…UX-05, Stundenzettel, Behinderungsanzeige, print isolation, and the unchanged legacy Tagesbericht flow.
+- [x] Live proof: SHA-256 of every downloaded Pages file matches the approved local release package. DevTools smoke opened the public legacy editor, added an event, and confirmed that `Zusatzarbeit` hides the empty Hindernis detail while retaining description, effort, location, and photo controls.
 - [ ] Not a release blocker, still unverified: real iPhone/Safari, dark mode, and screen-reader review. The prototype remains synthetic and memory-only; this publication grants no SharePoint or operational approval.
 
 **Status:** Aktualisierung vom 2026-11-14 (integrierter Ablauf Baustellentag → Mission Control → Stundenzettel) vorbereitet und lokal geprüft; **Freigabe vor dem Push steht aus.** Pages-Inhalt sind genau die zehn unten genannten `site/`-Dateien.
