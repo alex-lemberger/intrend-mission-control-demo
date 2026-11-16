@@ -61,7 +61,7 @@
     $('#ts-source').innerHTML = `<section class="ts-source" data-project="${esc(report.projectId)}" data-date="${esc(report.date)}" aria-label="Quelle des Stundenzettels">
       <div class="ts-source-main"><span class="eyebrow">QUELLE · GESPEICHERTER BAUSTELLENTAG</span><strong id="ts-src-project">${esc(project(report.projectId).name)}</strong><span id="ts-src-date">${esc(dateText(report.date))}</span></div>
       <dl class="ts-figures"><div><dt>Einträge verfügbar</dt><dd id="ts-available">${available}</dd></div><div><dt>Ausgewählt</dt><dd id="ts-selected">0</dd></div></dl>
-      <div class="ts-source-actions"><button class="outline" type="button" data-ts-reopen>Baustellentag bearbeiten</button>${days.length > 1 ? '<button class="text-action" type="button" data-ts-choose>Anderen Tag wählen</button>' : ''}</div>
+      <div class="ts-source-actions"><button class="outline" type="button" data-ts-reopen><i class="ic-wrap" data-icon="pencil"></i>Baustellentag bearbeiten</button>${days.length > 1 ? '<button class="text-action" type="button" data-ts-choose>Anderen Tag wählen</button>' : ''}</div>
       <p class="ts-note">${cached && !restore ? '<strong>Der Baustellentag wurde seit dem letzten Entwurf geändert; der Stundenzettel beginnt neu.</strong> ' : ''}Der Baustellentag wird hier nur gelesen; Änderungen im Stundenzettel bleiben im Stundenzettel.</p></section>`;
     host.hidden = false;
     renderDraftNotices();

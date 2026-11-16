@@ -151,3 +151,21 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* ---- the save action reads as a button, not as another figure in the strip ---- */
 #ac01-overview .ac01-save{box-shadow:0 4px 10px #0b665c30}
+
+/* ---- legacy Tagesbericht form: a normal responsive page at every width (no phone mock-up) ---- */
+.field-layout{display:block;max-width:900px;margin:0}
+.phone-shell{background:transparent;border-radius:0;box-shadow:none;padding:0}
+.phone-top,.phone-home,.field-side,.mobile-header{display:none}
+.phone-screen{padding:0;background:transparent;border-radius:0;overflow:visible}
+.field-layout .date-card{padding:14px 18px;margin-bottom:12px}
+.field-layout .form-section{padding:20px 22px;margin-bottom:12px}
+.field-layout .two-col{grid-template-columns:1fr 1fr;padding:0 0 4px}
+@media(max-width:760px){.field-layout .form-section{padding:17px}.field-layout .two-col{grid-template-columns:1fr}}
+
+/* ---- icons (see icons.js): inline SVG in front of the main function buttons ---- */
+.ic-wrap{display:inline-flex;align-items:center;flex:none;margin-right:.45em;vertical-align:-.2em;line-height:0}
+.ic{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-ic{margin-right:0}.nav-ic .ic{width:20px;height:20px}
+.mobile-nav .ic-wrap{margin:0}.mobile-nav .ic{width:22px;height:22px}
+strong .ic-wrap{margin-right:.3em}
+@media print{.ic-wrap{display:none}}

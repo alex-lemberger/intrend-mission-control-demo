@@ -317,7 +317,7 @@
   // window are shown; no hours are summed and events carry no time, so nothing can be counted twice.
   const overviewEl = $('#ac01-overview');
   function renderOverview() {
-    $('#ac01-save-bottom').textContent = replacePending ? 'Ja, vorhandenen Tag ersetzen' : 'Tag speichern → Mission Control';
+    $('#ac01-save-bottom').innerHTML = replacePending ? 'Ja, vorhandenen Tag ersetzen' : '<i class="ic-wrap" data-icon="save"></i>Tag speichern → Mission Control';
     $('#ac01-save-bottom').classList.toggle('is-replace', replacePending);
     const summary = summarize(current());
     const window_ = summary.earliest === null && summary.latest === null ? '–' : `${summary.earliest === null ? '?' : fromMinutes(summary.earliest)}–${summary.latest === null ? '?' : fromMinutes(summary.latest)}`;
@@ -333,7 +333,7 @@
       + stat('Arbeitszeilen', String(summary.assignmentCount))
       + stat('Ereignisse', String(summary.eventCount), reasons || 'ohne Zeit')
       + `<button type="button" class="ac01-stat ac01-stat-open${alarm ? ' has-open' : ''}" data-review data-jump="#ac01-draft-title"><small>Noch zu klären</small><strong>${empty ? '–' : open}</strong><span>${clarifySub}</span></button>`
-      + `<button type="button" class="ac01-stat ac01-save${replacePending ? ' is-replace' : ''}" data-action="save-day"><small>${replacePending ? 'Vorhandenen Tag ersetzen' : 'Tag speichern'}</small><strong>${replacePending ? 'Ja, ersetzen' : 'Speichern'}</strong><span>${replacePending ? 'zweiter Klick nötig' : '→ Mission Control'}</span></button>`;
+      + `<button type="button" class="ac01-stat ac01-save${replacePending ? ' is-replace' : ''}" data-action="save-day"><small>${replacePending ? 'Vorhandenen Tag ersetzen' : 'Tag speichern'}</small><strong>${replacePending ? 'Ja, ersetzen' : '<i class="ic-wrap" data-icon="save"></i>Speichern'}</strong><span>${replacePending ? 'zweiter Klick nötig' : '→ Mission Control'}</span></button>`;
   }
   // The sticky column header must sit below the sticky strip, whatever height the strip has at the current width.
   if (root.ResizeObserver) new ResizeObserver(() => { const h = overviewEl.offsetHeight; if (h) document.documentElement.style.setProperty('--ac-strip-h', `${h}px`); }).observe(overviewEl);

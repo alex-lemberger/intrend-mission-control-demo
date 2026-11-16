@@ -18,7 +18,7 @@
     dialog = document.createElement('dialog');
     dialog.id = 'bh-dialog';
     dialog.setAttribute('aria-labelledby', 'bh-title');
-    dialog.innerHTML = `<div class="bh-head"><h2 id="bh-title">Behinderungsanzeige · Entwurf</h2><div class="bh-actions"><button type="button" class="primary" data-bh-print>Drucken / als PDF sichern</button><button type="button" class="outline" data-bh-close>Schließen</button></div></div>
+    dialog.innerHTML = `<div class="bh-head"><h2 id="bh-title">Behinderungsanzeige · Entwurf</h2><div class="bh-actions"><button type="button" class="primary" data-bh-print><i class="ic-wrap" data-icon="printer"></i>Drucken / als PDF sichern</button><button type="button" class="outline" data-bh-close>Schließen</button></div></div>
       <div class="bh-body"><form class="bh-form" id="bh-form" aria-label="Angaben zur Behinderungsanzeige" onsubmit="return false"></form><div class="bh-preview"><div id="bh-hints"></div><article class="bh-sheet" id="bh-sheet" aria-label="Vorschau der Behinderungsanzeige"></article></div></div>`;
     document.body.append(dialog);
     dialog.addEventListener('input', onInput);

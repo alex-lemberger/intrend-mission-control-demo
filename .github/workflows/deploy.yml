@@ -33,6 +33,7 @@ jobs:
             site/ac01.js \
             site/app.js \
             site/behinderung-view.js \
+            site/icons.js \
             site/index.html \
             site/spacing.css \
             site/stundenzettel.html \
