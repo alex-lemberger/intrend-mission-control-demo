@@ -139,6 +139,19 @@
   const hasDisruption = event => disruptionCatalog.length > 0 && event.reasons.includes('Baubehinderung');
   const evidenceLabel = event => hasDisruption(event) ? shortLong('Grund, Foto, Plan', 'Grund/Foto') : shortLong('Foto, Planbezug, Markierung', 'Foto / Plan');
   // Counter in the fold-out summary. For a Baubehinderung it counts the chosen reasons too and stays empty instead of "(optional)" to keep the compact row short.
+  const evidenceStatus = event => {
+    if (!hasDisruption(event)) return '';
+    const n = splitReasons(event.reasons).disruptionIds.length;
+    return n ? `${n} ${n === 1 ? 'Grund' : 'Gründe'} gewählt` : 'Noch kein Grund gewählt';
+  };
+  // One place that refreshes everything that reflects the chosen reasons: summary badge, footer status, "Alle abwählen", legend text.
+  function syncEvidence(holder, item) {
+    const n = splitReasons(item.reasons).disruptionIds.length;
+    const badge = holder.querySelector('[data-evidence-count]'); if (badge) badge.textContent = evidenceBadge(item);
+    const status = holder.querySelector('[data-evidence-status]'); if (status) status.textContent = evidenceStatus(item);
+    const clear = holder.querySelector('[data-disruption-clear]'); if (clear) clear.hidden = n === 0;
+    const legend = holder.querySelector('[data-disruption-count]'); if (legend) legend.textContent = n ? `(${n} gewählt)` : '(aus der Störungsgründe-Liste, mehrere möglich)';
+  }
   const evidenceBadge = event => {
     const n = evidenceCount(event) + (hasDisruption(event) ? splitReasons(event.reasons).disruptionIds.length : 0);
     return n ? `(${n})` : (hasDisruption(event) ? '' : '(optional)');
@@ -150,6 +163,7 @@
     const rest = disruptionCatalog.filter(entry => !entry.frequent);
     const groups = [...new Set(rest.map(entry => entry.group))];
     return `<fieldset class="ac01-disruption" data-disruption><legend>Behinderungsgrund <small data-disruption-count>${chosen.size ? `(${chosen.size} gewählt)` : '(aus der Störungsgründe-Liste, mehrere möglich)'}</small></legend>
+      <button type="button" class="text-action ac01-disruption-clear" data-disruption-clear${chosen.size ? '' : ' hidden'}>Alle abwählen</button>
       <div class="ac01-pills">${disruptionCatalog.filter(entry => entry.frequent).map(box).join('')}</div>
       ${rest.length ? `<details class="ac01-disruption-all"${rest.some(entry => chosen.has(entry.id)) ? ' open' : ''}><summary>Weitere Gründe (${rest.length})</summary>
         <input type="search" class="ac01-disruption-filter" data-disruption-filter placeholder="Grund suchen …" aria-label="Behinderungsgrund suchen">
@@ -170,7 +184,8 @@
         <div class="ac01-photo"><input class="ac01-file" id="${event.id}-photos" data-event-photos type="file" accept="image/*" multiple><label class="ac01-photo-btn" for="${event.id}-photos" title="Lokale Demoauswahl: nur Dateinamen, kein Upload">${shortLong('Fotos wählen', 'Fotos')}</label><span class="ac01-photo-names" data-event-photo-names>${event.photos.length ? escapeHtml(`${event.photos.join(', ')} · nur lokale Auswahl, kein Upload`) : ''}</span></div>
         <div><label for="${event.id}-planref">Planbezug (Planname / Stand)</label><input id="${event.id}-planref" data-event-field="planRef" value="${escapeHtml(event.planRef)}" placeholder="z. B. Plan EG, Stand B"></div>
         <div><label for="${event.id}-planmark">Markierung im Plan</label><input id="${event.id}-planmark" data-event-field="planMark" value="${escapeHtml(event.planMark)}" placeholder="z. B. Achse 4 / Feld C"></div>
-        <p class="ac01-hint">Frei eingetragene Hinweise: kein Planupload, keine Markierung auf einem Plan-Bild, keine Planversionsprüfung.</p></div></details>
+        <p class="ac01-hint">Frei eingetragene Hinweise: kein Planupload, keine Markierung auf einem Plan-Bild, keine Planversionsprüfung.</p>
+        <div class="ac01-evidence-foot"><span class="ac01-evidence-status" data-evidence-status aria-live="polite">${evidenceStatus(event)}</span><button class="primary" type="button" data-evidence-done>Fertig</button></div></div></details>
       <details class="ac01-affected"><summary>${shortLong('Betroffene Mitarbeiter', 'Betroffene')} <span data-affected-count>${affected ? `(${affected})` : '(optional)'}</span></summary><div class="ac01-affected-list">${employees.map((employee, employeeIndex) => `<label class="ac01-check"><input type="checkbox" data-event-person="${employee.id}" ${event.people.includes(employee.id) ? 'checked' : ''}> ${escapeHtml(employeeLabel(employee, employeeIndex))}</label>`).join('') || '<span class="ac01-hint">Zuerst Mitarbeitende erfassen.</span>'}</div></details></div>
     </article>`;
     }).join('') : '<p class="ac01-empty">Noch keine Ereignisse erfasst.</p>';
@@ -454,6 +469,11 @@
       renderReport();
     }
   });
+  eventsEl.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    const fold = event.target.closest('.ac01-evidence[open]');
+    if (fold) { fold.open = false; fold.querySelector(':scope > summary').focus(); event.stopPropagation(); }
+  });
   eventsEl.addEventListener('input', event => {
     const filter = event.target.closest('[data-disruption-filter]');
     if (!filter) return;
@@ -481,11 +501,7 @@
       if (count) count.textContent = item.people.length ? `(${item.people.length})` : '(optional)';
     } else if (event.target.dataset.eventDisruption) {
       item.reasons = toggleDisruptionId(item.reasons, event.target.dataset.eventDisruption, event.target.checked);
-      const counter = event.target.closest('[data-event]').querySelector('[data-disruption-count]');
-      const count = splitReasons(item.reasons).disruptionIds.length;
-      if (counter) counter.textContent = count ? `(${count} gewählt)` : '(aus der Störungsgründe-Liste, mehrere möglich)';
-      const badge = event.target.closest('[data-event]').querySelector('[data-evidence-count]');
-      if (badge) badge.textContent = evidenceBadge(item);
+      syncEvidence(event.target.closest('[data-event]'), item);
     } else if (reason) {
       // Event types keep their order; disruption codes are kept only while the event is a Baubehinderung.
       const kinds = event.target.checked ? eventReasons.filter(known => known === reason || item.reasons.includes(known)) : splitReasons(item.reasons).kinds.filter(known => known !== reason);
@@ -495,11 +511,23 @@
       const fold = holder.querySelector('.ac01-evidence');
       fold.querySelector('.ac01-evidence-body').insertAdjacentHTML('afterbegin', disruptionBlock(item));
       fold.querySelector(':scope > summary').innerHTML = `${evidenceLabel(item)} <span data-evidence-count>${evidenceBadge(item)}</span>`;
+      syncEvidence(holder, item);
       if (hasDisruption(item) && event.target.checked) fold.open = true;
     }
     renderReport();
   });
   eventsEl.addEventListener('click', event => {
+    const done = event.target.closest('[data-evidence-done]');
+    if (done) { const fold = done.closest('.ac01-evidence'); fold.open = false; fold.querySelector(':scope > summary').focus(); return; }
+    const clear = event.target.closest('[data-disruption-clear]');
+    if (clear) {
+      const holder = clear.closest('[data-event]'), item = findEvent(clear);
+      item.reasons = splitReasons(item.reasons).kinds;
+      holder.querySelector('[data-disruption]')?.remove();
+      holder.querySelector('.ac01-evidence-body').insertAdjacentHTML('afterbegin', disruptionBlock(item));
+      syncEvidence(holder, item); renderReport();
+      return;
+    }
     const button = event.target.closest('[data-action="remove-event"]');
     if (!button) return;
     events = events.filter(item => item !== findEvent(button));

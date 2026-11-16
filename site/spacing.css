@@ -116,3 +116,9 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .rail a:focus-visible,.rail button:focus-visible,.mobile-nav button:focus-visible{outline-color:#d5f28a}
 .skip:focus-visible{outline-offset:0}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* ---- Foto / Plan / Grund fold-out: explicit confirmation ---- */
+.ac01-evidence-foot{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-top:var(--sp-3);padding:var(--sp-3) 0 0;background:#fff;border-top:1px solid var(--line-soft)}
+.ac01-evidence-foot .primary{min-height:44px;padding:0 var(--sp-5)}
+.ac01-evidence-status{font-size:12px;font-weight:700;color:var(--muted)}
+.ac01-disruption-clear{margin:0 0 var(--sp-2);padding:0;min-height:32px}
