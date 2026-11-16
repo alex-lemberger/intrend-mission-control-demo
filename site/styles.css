@@ -11,6 +11,9 @@
 @media(max-width:390px){.demo-chip{font-size:8px;letter-spacing:0;padding:6px 7px}}
 @media(max-width:760px){.mobile-nav button{min-height:44px;min-width:0}.mobile-nav button span{white-space:nowrap;font-size:9.5px}}
 
+/* Legacy Tagesbericht: compact, contextual event editor. */
+.event-editor{padding:16px}.event-editor .event-type-field{max-width:360px}.event-editor>label,.event-editor .two-col label{margin-top:10px;margin-bottom:5px}.event-editor .event-description{min-height:70px}.event-editor .two-col{margin-top:10px}.event-editor .two-col label{margin-top:0}.event-editor .event-obstacle-field[hidden]{display:none}
+
 /* AC-01 -> Mission Control integration (local working copy) */
 .ac01-savebar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin:0 0 12px}
 .ac01-savebar p{margin:0;flex:1 1 320px;font-size:.92rem;color:var(--muted)}

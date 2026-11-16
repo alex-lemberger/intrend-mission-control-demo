@@ -123,19 +123,25 @@ function addEvent(data={}) {
   eventNo++;
   const card=document.createElement('div'); card.className='event-editor'; card.dataset.eventId=data.id||uid();
   card.innerHTML=`<div class="event-editor-head"><strong>Besonderheit ${eventNo}</strong><button type="button" class="remove-event">Entfernen</button></div>
-    <label>Ereignistyp<select class="event-type"><option>Hindernis</option><option>Zusatzarbeit</option><option>Abweichung</option><option>Sonstiges</option></select></label>
-    <label>Was ist passiert?<textarea class="event-description" rows="2" placeholder="Kurz beschreiben, was anders war"></textarea></label>
+    <label class="event-type-field">Ereignistyp<select class="event-type"><option>Hindernis</option><option>Zusatzarbeit</option><option>Abweichung</option><option>Sonstiges</option></select></label>
+    <label class="event-description-field">Was ist passiert?<textarea class="event-description" rows="2" placeholder="Kurz beschreiben, was anders war"></textarea></label>
     <div class="two-col"><div><label>Zusatzaufwand (h)<input class="event-hours" type="number" min="0" max="24" step="0.5" value="0"></label></div><div><label>Ort / Etage<input class="event-floor" placeholder="Wie oben" value="${esc(data.floor||'')}"></label></div></div><p class="field-hint">Nur Ereignishinweis; möglicherweise bereits in Personalstunden enthalten. Keine automatische Addition.</p>
-    <label>Hindernis (falls vorhanden)<input class="event-obstacle" placeholder="z. B. Fläche nicht zugänglich" value="${esc(data.obstacle||'')}"></label>
-    <label>Fotos (lokale Demoauswahl)<input class="event-photos" type="file" accept="image/*" multiple></label><div class="photo-names" aria-live="polite"></div>`;
+    <label class="event-obstacle-field">Hindernis (falls vorhanden)<input class="event-obstacle" placeholder="z. B. Fläche nicht zugänglich" value="${esc(data.obstacle||'')}"></label>
+    <label class="event-photos-field">Fotos (lokale Demoauswahl)<input class="event-photos" type="file" accept="image/*" multiple></label><div class="photo-names" aria-live="polite"></div>`;
   $('.event-type',card).value=data.type||'Hindernis'; $('.event-description',card).value=data.description||''; $('.event-hours',card).value=data.hours??0;
   card.dataset.photos=JSON.stringify(data.photos||[]);
   $('.photo-names',card).textContent=(data.photos||[]).join(', ');
+  syncEventFields(card);
   $('#event-list').append(card); updateEventSummary(); if(!data.id) $('.event-description',card).focus();
+}
+function syncEventFields(card) {
+  const obstacle=$('.event-obstacle',card);
+  $('.event-obstacle-field',card).hidden=$('.event-type',card).value!=='Hindernis' && !obstacle.value.trim();
 }
 function updateEventSummary(){ const n=document.querySelectorAll('.event-editor').length; $('#event-summary').textContent=n ? `${n} Ereignis${n===1?'':'se'} erfasst` : 'Keine Ereignisse. Ganz normaler Tag.'; }
 $('#add-event').addEventListener('click',()=>{addEvent();formDirty=true;});
 $('#event-list').addEventListener('click',e=>{if(e.target.closest('.remove-event')){e.target.closest('.event-editor').remove();updateEventSummary();formDirty=true;}});
+$('#event-list').addEventListener('change',e=>{if(e.target.matches('.event-type')) syncEventFields(e.target.closest('.event-editor'));});
 $('#event-list').addEventListener('change',e=>{if(e.target.matches('.event-photos')){const card=e.target.closest('.event-editor');const files=[...e.target.files];card.dataset.photos=JSON.stringify(files.map(f=>f.name));$('.photo-names',card).textContent=files.map(f=>f.name).join(', ')||'';photoPreviews.set(card.dataset.eventId,files.map(f=>URL.createObjectURL(f)));}});
 $('#project').innerHTML=projects.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
 $('#date').value=today; $('#date-display').textContent=dateText(today);
