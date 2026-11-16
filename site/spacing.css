@@ -134,3 +134,20 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 
 /* ---- checkbox focus: one thin ring on the box itself (no stacked rings, no heavy 3px outline) ---- */
 #ac01-view input[type=checkbox]:focus-visible,input[type=checkbox]:focus-visible{outline:2px solid #2f8f78;outline-offset:1px;border-radius:4px;box-shadow:none}
+
+/* ---- folded tool blocks (employee picker, bulk action): show that they unfold ---- */
+#ac01-view :is(.ac01-picker,.ac01-bulk)>summary{position:relative;padding-right:28px}
+#ac01-view :is(.ac01-picker,.ac01-bulk)>summary::after{content:"";position:absolute;right:6px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:2px solid #0c4a38;border-bottom:2px solid #0c4a38;transform:rotate(45deg);transition:transform .15s}
+#ac01-view :is(.ac01-picker,.ac01-bulk)[open]>summary::after{transform:rotate(-135deg);margin-top:-2px}
+@media(prefers-reduced-motion:reduce){#ac01-view :is(.ac01-picker,.ac01-bulk)>summary::after{transition:none}}
+
+/* ---- Mission Control before the first saved day: one call to action, no row of zeros ---- */
+#metrics.is-empty{display:none}
+#wd-list .empty .empty-action{display:none}
+
+/* ---- navigation: the legacy form is visibly secondary ---- */
+.rail .nav-legacy{opacity:.72;font-size:13px}
+.rail .nav-legacy:hover,.rail .nav-legacy.active,.rail .nav-legacy[aria-current]{opacity:1}
+
+/* ---- the save action reads as a button, not as another figure in the strip ---- */
+#ac01-overview .ac01-save{box-shadow:0 4px 10px #0b665c30}

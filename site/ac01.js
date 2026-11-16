@@ -197,6 +197,7 @@
   const cloneEmployees = () => JSON.parse(JSON.stringify(employees));
   function setUndo(snapshot) { undoSnapshot = snapshot; $('#ac01-bulk-undo').disabled = !snapshot; }
 
+  let bulkHadSelection = false;
   function updateSelection() {
     const picked = employees.filter(employee => employee.selected);
     $('#ac01-selected-count').textContent = String(picked.length);
@@ -204,6 +205,8 @@
     all.checked = employees.length > 0 && picked.length === employees.length;
     all.indeterminate = picked.length > 0 && picked.length < employees.length;
     $('#ac01-bulk-apply').disabled = picked.length === 0;
+    // The bulk tools only make sense with a selection: folded while nobody is selected, unfolded on the first selection.
+    if ((picked.length > 0) !== bulkHadSelection) { bulkHadSelection = picked.length > 0; bulkEl.open = bulkHadSelection; }
     employeesEl.querySelectorAll('[data-employee]').forEach(element => {
       element.classList.toggle('is-selected', Boolean(employees.find(employee => employee.id === element.dataset.employee)?.selected));
     });
@@ -264,7 +267,12 @@
     const people = (summary.named || summary.unnamed) && !isEmptyDay()
       ? `${summary.named} benannt${summary.unnamed ? ` · ${summary.unnamed} ohne Namen` : ''}${summary.duplicates.length ? ' · Doppelnamen zählen einmal' : ''}`
       : 'Noch keine';
-    const crewMarkup = employees.every(isPristine) ? '<p class="ac01-subtotal">Noch keine Mitarbeitenden erfasst.</p>' : employees.filter(employee => !isPristine(employee)).map(employee => [employee, employees.indexOf(employee)]).map(([employee, index]) => `<section class="ac01-draft-employee"><h4>${escapeHtml(employeeLabel(employee, index))}</h4><ul>${employee.assignments.map(assignment => `<li>
+    // Many names without any entry yet (e.g. right after "Personen von gestern übernehmen") collapse into ONE line instead of a wall of "fehlt".
+    const isBare = employee => employee.assignments.every(a => !a.start && !a.end && a.breakMin === '' && !a.work.trim() && !a.lv.trim() && !a.locations.length && !a.photos.length);
+    const crewShown = employees.filter(employee => !isPristine(employee));
+    const bareCrew = crewShown.filter(isBare).length >= 3 ? crewShown.filter(isBare) : [];
+    const bareMarkup = bareCrew.length ? `<section class="ac01-draft-employee"><h4>${bareCrew.length} Personen ohne Angaben</h4><ul><li><span>Zeit, Pause, Tätigkeit und Ort stehen noch aus.</span></li><li><span>${escapeHtml(bareCrew.map(employee => employeeLabel(employee, employees.indexOf(employee))).join(', '))}</span></li></ul></section>` : '';
+    const crewMarkup = employees.every(isPristine) ? '<p class="ac01-subtotal">Noch keine Mitarbeitenden erfasst.</p>' : bareMarkup + crewShown.filter(employee => !bareCrew.includes(employee)).map(employee => [employee, employees.indexOf(employee)]).map(([employee, index]) => `<section class="ac01-draft-employee"><h4>${escapeHtml(employeeLabel(employee, index))}</h4><ul>${employee.assignments.map(assignment => `<li>
         <strong>${escapeHtml(assignment.start || '?')}–${escapeHtml(assignment.end || '?')}</strong> <span>${assignment.breakMin !== '' ? `Pause ${escapeHtml(assignment.breakMin)} Min.` : 'Pause nicht angegeben'}</span>
         <span>${escapeHtml([assignment.work, assignment.lv].filter(value => value.trim()).join(' · ') || 'Tätigkeit fehlt')}</span>
         <span>Ort: ${escapeHtml(assignment.locations.join(', ') || 'fehlt')}</span>
@@ -341,7 +349,7 @@
 
   // Context and additional information
   $('#ac01-project').innerHTML = projectList.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('');
-  $('#ac01-date').value = '2026-11-09';
+  { const now = new Date(); $('#ac01-date').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; }  // today, local time
   ['#ac01-project', '#ac01-date'].forEach(selector => $(selector).addEventListener('input', renderReport));
   [['#ac01-equipment', 'equipment'], ['#ac01-material', 'material'], ['#ac01-contacts', 'contacts']].forEach(([selector, key]) => {
     $(selector).addEventListener('input', event => { extras[key] = event.target.value; renderReport(); });
@@ -604,8 +612,8 @@
     renderEvents();
     bulkMessage.textContent = 'Letzte Sammelaktion bzw. Übernahme rückgängig gemacht.';
   });
-  // Phones start with the bulk tools folded away; wider screens show them.
-  if (root.matchMedia?.('(max-width:760px)').matches) bulkEl.open = false;
+  // The bulk tools start folded; selecting people unfolds them (see updateSelection).
+  bulkEl.open = false;
 
   // Employee picker: own staff and subcontractors by firm. Entries are matched by stable demo id, never by display text.
   // Office staff are available but only listed on request and never preselected. Nothing here is persisted.
