@@ -471,8 +471,17 @@
   });
   eventsEl.addEventListener('keydown', event => {
     if (event.key !== 'Escape') return;
-    const fold = event.target.closest('.ac01-evidence[open]');
+    const fold = event.target.closest('.ac01-evidence[open], .ac01-affected[open]');
     if (fold) { fold.open = false; fold.querySelector(':scope > summary').focus(); event.stopPropagation(); }
+  });
+  // Only one fold-out per event is open at a time; a click outside closes an open "Betroffene" list.
+  eventsEl.addEventListener('toggle', event => {
+    const opened = event.target;
+    if (!opened.open || !opened.matches?.('.ac01-evidence, .ac01-affected')) return;
+    opened.closest('.ac01-event')?.querySelectorAll('.ac01-evidence[open], .ac01-affected[open]').forEach(other => { if (other !== opened) other.open = false; });
+  }, true);
+  document.addEventListener('click', event => {
+    eventsEl.querySelectorAll('.ac01-affected[open]').forEach(fold => { if (!fold.contains(event.target)) fold.open = false; });
   });
   eventsEl.addEventListener('input', event => {
     const filter = event.target.closest('[data-disruption-filter]');
