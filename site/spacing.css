@@ -58,7 +58,8 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
   #ac01-view .ac01-event :is(input:not([type=checkbox]),textarea){min-height:40px}
   .ac01-event-desc textarea{height:40px;min-height:40px}
   .ac01-pills{gap:var(--sp-2)}
-  .ac01-reasons{gap:var(--sp-2) var(--sp-3);margin:0}
+  .ac01-reasons{gap:var(--sp-2) var(--sp-3);margin:0;flex-wrap:wrap;min-width:0}
+  .ac01-reasons .ac01-pills{flex-wrap:wrap;min-width:0}
   .ac01-event .ac01-event-more{gap:var(--sp-3)}
   .ac01-event-remove{margin-left:var(--sp-3)}
   .ac01-event .ac01-evidence>summary{min-height:40px;padding:0 var(--sp-1)}

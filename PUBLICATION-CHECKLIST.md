@@ -46,6 +46,11 @@
 - [x] Lokal geprüft: Workflow-Schritt (Allowlist, Namens- und Kennungssuche) besteht; `node --check` aller JS-Dateien; 33/33 Integrationsprüfungen gegen genau dieses Paket unter dem Pages-Pfad; keine Vorlagenformulierungen in den Bündeln.
 - [ ] Nicht geprüft: echtes iPhone/Safari, Dunkelmodus (die Demo ist nur hell).
 
+## Aktualisierung 2026-11-16 (Nachtrag): kleine Korrekturen
+
+- [x] Geänderte Dateien (Token `2026-11-16-s17`): `site/index.html`, `site/ac01.js` (kürzerer Platzhalter im Beschreibungsfeld der Ereignisse), `site/spacing.css` (Zeilenumbruch der Gründe-Pillen). Elf weitere Dateien unverändert; Workflow-Allowlist unverändert (zwölf Dateien).
+- [x] Lokal geprüft: Workflow-Schritt besteht, `node --check` aller JS-Dateien, Integrationsprüfungen gegen das Paket unter dem Pages-Pfad (33/33; der bekannte, seltene 1024-px-Messfehler ist in `UI-AUDIT-2026-11-16.md` der privaten Ablage vermerkt).
+
 ## Prüfbefehle vor jeder Veröffentlichung
 
 Im lokalen Demo-Repository:
