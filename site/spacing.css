@@ -1,0 +1,117 @@
+/*
+ * Spacing and legibility layer (UI audit 2026-11-16). Loaded LAST so it only refines the existing styles.
+ * Scale (4/8 rhythm): 4 · 8 · 12 · 16 · 24 · 32 · 48. Rules of thumb used below:
+ *   inside a component 8-16 · between components 16-24 · between sections 32+ · gap between touch targets >= 8
+ *   text >= 12px (uppercase micro-labels >= 11px) · desktop inputs 40px, touch inputs 44px
+ */
+:root{--muted:#56656b;--eyebrow:#4a6a60;--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--line-soft:#edf0ed}
+
+/* ---- legibility floor: nothing below 12px (micro-labels 11px) ---- */
+small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard-foot,.ac01-demo-line,.metric small,.metric span{font-size:12px}
+.eyebrow,.topbar-title .eyebrow{font-size:11px;letter-spacing:.12em}
+.brand small{font-size:11px;letter-spacing:.1em;white-space:nowrap}
+.ac01-stat small,.ac01-draft-meta small,.ts-figures dt{font-size:11px}
+.mobile-nav span{font-size:11px}
+.metric small{margin-bottom:var(--sp-3)}
+@media(max-width:760px){.metric small{font-size:11px}.badge{font-size:11px}}
+
+/* ---- page rhythm ---- */
+.page-head{margin-bottom:var(--sp-6);gap:var(--sp-5)}
+.page-head h1{margin-bottom:var(--sp-3)}
+.dashboard-head{margin-bottom:var(--sp-6)}
+#ac01-view .ac01-page-head{margin-bottom:var(--sp-6)}
+
+/* ---- Mission Control ---- */
+.metrics{gap:var(--sp-4);margin-bottom:var(--sp-5)}
+.metric{padding:var(--sp-5)}
+.dashboard-grid{gap:var(--sp-5)}
+.panel-head{padding:var(--sp-5) var(--sp-5) var(--sp-4)}
+.list-item{padding:var(--sp-4) var(--sp-5)}
+.item-top{gap:var(--sp-3)}
+.item-sub{margin-top:var(--sp-2);line-height:1.5}
+.item-meta{gap:var(--sp-2);margin-top:var(--sp-3)}
+.badge{padding:4px 10px}
+.wd-preview{gap:var(--sp-2);margin:var(--sp-4) 0 var(--sp-2)}
+.wd-preview>div{gap:var(--sp-1) var(--sp-4)}
+.wd-open-row{gap:var(--sp-3);margin-top:var(--sp-4)}
+.wd-open-row .primary,.wd-open-row .outline{width:auto}
+/* event rows: the optional draft action sits under the card text, not beside it */
+.wd-event-row{display:block;border-top:1px solid var(--line-soft)}
+.wd-event-row .list-item{border-top:0}
+.wd-doc-row{padding:0 var(--sp-5) var(--sp-4);background:#fff}
+.wd-doc{padding:8px 14px;min-height:40px;font-size:13px;line-height:1.2;max-width:none;width:auto}
+
+/* ---- Baustellentag erfassen ---- */
+.ac01-workspace{gap:var(--sp-5)}
+.ac01-block{padding:var(--sp-5)}
+#ac01-view .ac01-block{padding:var(--sp-5)}
+.ac01-overview{gap:var(--sp-3);padding:var(--sp-3);margin-bottom:var(--sp-5)}
+.ac01-savebar{margin:0 0 var(--sp-4)}
+.ac01-event-add{margin-top:var(--sp-4)}
+@media(min-width:1024px){
+  .ac01-workspace{gap:var(--sp-6)}
+  .ac01-table-head{padding:var(--sp-2) 0}
+  .ac01-employee{padding:6px 0}
+  .ac01-assignment{row-gap:var(--sp-1);padding:var(--sp-1) 0}
+  #ac01-view .ac01-assignment :is(input:not([type=file]):not([type=checkbox]),select){min-height:40px}
+  .ac01-event{gap:var(--sp-2) var(--sp-3);padding:var(--sp-3) 0 var(--sp-3) var(--sp-3);margin:0 0 var(--sp-1)}
+  #ac01-view .ac01-event :is(input:not([type=checkbox]),textarea){min-height:40px}
+  .ac01-event-desc textarea{height:40px;min-height:40px}
+  .ac01-pills{gap:var(--sp-2)}
+  .ac01-reasons{gap:var(--sp-2) var(--sp-3);margin:0}
+  .ac01-event .ac01-event-more{gap:var(--sp-3)}
+  .ac01-event-remove{margin-left:var(--sp-3)}
+  .ac01-event .ac01-evidence>summary{min-height:40px;padding:0 var(--sp-1)}
+}
+@media(min-width:1024px) and (max-width:1239px){
+  /* the 25-person table has no spare width here: air above and below, normal side padding */
+  .ac01-block,#ac01-view .ac01-block{padding:var(--sp-5) var(--sp-4)}
+}
+@media(max-width:1023px){
+  .ac01-employee,.ac01-event{padding:var(--sp-3) var(--sp-3);margin-bottom:var(--sp-3)}
+  .ac01-pills{gap:var(--sp-2)}
+  .ac01-jump{gap:var(--sp-2);margin:0 0 var(--sp-4)}
+}
+@media(max-width:760px){
+  .ac01-workspace{gap:var(--sp-5)}
+  .ac01-block,#ac01-view .ac01-block{padding:var(--sp-4)}
+  #ac01-view :is(input:not([type=checkbox]),select,textarea){min-height:44px}
+  .ac01-overview{gap:var(--sp-2);padding:var(--sp-3)}
+  .metrics{gap:var(--sp-2)}
+  .metric{padding:var(--sp-4) var(--sp-3)}
+  .panel-head{padding:var(--sp-4)}
+  .list-item{padding:var(--sp-4)}
+  .wd-doc-row{padding:0 var(--sp-4) var(--sp-4)}
+}
+
+/* ---- touch targets: pointer devices on desktop get 40px; phones keep the existing 44px rules ---- */
+@media(min-width:1024px) and (pointer:fine){
+  .ac01-remove,.ac01-add,.ac01-event-remove,.text-action,.ac01-add-inline,.ac01-chip-add .ac01-add{min-height:40px}
+  summary{min-height:40px}
+}
+
+/* ---- Behinderungsanzeige dialog ---- */
+.bh-head{padding:var(--sp-4) var(--sp-5)}
+.bh-body{gap:var(--sp-5);padding:var(--sp-5)}
+.bh-form label{margin:var(--sp-3) 0 var(--sp-1)}
+.bh-grid{gap:0 var(--sp-3)}
+.bh-circ{margin:var(--sp-4) 0}
+.bh-form .bh-check{display:flex;padding:var(--sp-1) 0;gap:var(--sp-3);align-items:flex-start;font-weight:600;margin:0}
+.bh-form .bh-check input[type=checkbox]{width:22px;height:22px;min-height:0;flex:0 0 22px;margin:2px 0 0;accent-color:var(--teal,#0a665e)}
+.bh-actions{flex-wrap:nowrap}.bh-actions button{white-space:nowrap;min-height:44px}
+@media(max-width:560px){.bh-actions{flex-wrap:wrap;width:100%}}
+.bh-hints{padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-4)}
+.bh-sheet{padding:var(--sp-6) 40px}
+.bh-sheet p{margin:0 0 var(--sp-3)}
+@media print{.bh-sheet{padding:0}}
+
+/* ---- contrast: secondary text >= 4.5:1 on white and on the page background ---- */
+.metric small,.metric span,.item-sub,.wd-figures,.dashboard-foot,.wd-preview dt,.ts-figures dt,.count-pill,.mobile-nav span,.ac01-stat small,.ac01-draft-meta small{color:var(--muted)}
+.eyebrow,.topbar-title .eyebrow{color:var(--eyebrow)}
+.mobile-nav .active span{color:inherit}
+
+/* ---- keyboard focus: one visible ring on every control (the AC-01 view already had one) ---- */
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #2f8f78;outline-offset:2px}
+.rail a:focus-visible,.rail button:focus-visible,.mobile-nav button:focus-visible{outline-color:#d5f28a}
+.skip:focus-visible{outline-offset:0}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

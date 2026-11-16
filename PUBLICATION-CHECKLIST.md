@@ -39,6 +39,13 @@
 - [x] Veröffentlicht am 2026-11-16 mit Commit `9a896ea`; Workflow-Lauf `43855300490` erfolgreich. Live geprüft: Inhalts-Hashes von `index.html`, `behinderung-view.js`, `vendor/ac01-core.bundle.js` und `app.js` stimmen mit dem lokalen Paket überein; im echten Browser öffnete sich der Behinderungsanzeige-Entwurf mit neutralem Wortlaut, ohne angekreuzte Umstände, mit sichtbarem Vorschlag und Entwurfsstempel; der Seitentext enthält keine Vorlagenformulierungen. Die Konsole wurde erst nach dem Laden beobachtet (kein belastbarer Fehlerbefund).
 - [ ] Nicht geprüft: echtes iPhone/Safari.
 
+## Aktualisierung 2026-11-16 (später): UI-Audit, Abstände, Kontraste, Fokus, korrigiertes Aufklappfeld
+
+- [x] Geänderte Dateien (aus dem lokalen Integrationsstand, Token `2026-11-16-s15`): `site/index.html`, `site/styles.css`, `site/ac01.css`, `site/ac01.js`, `site/app.js`, `site/behinderung-view.js`, `site/vendor/stundenzettel.bundle.js` (byteidentisch); **neu `site/spacing.css`**; `site/vendor/ac01-core.bundle.js` weiterhin mit neutralem Wortlaut gebaut. Das Artefakt umfasst jetzt **zwölf** Dateien; der Workflow wurde angepasst.
+- [x] Inhalt: Abstandsraster 4/8, Schrift mindestens 11/12 px, Kontrast sekundärer Texte mindestens 4,5:1 (gemessen: 0 Verstöße), sichtbarer Tastaturfokus an allen Bedienelementen, Rücksicht auf reduzierte Bewegung, korrigierte Liste der Behinderungsgründe (vorher in eine schmale Spalte gequetscht), Behinderungsanzeige-Dialog mit normalen Kontrollkästchen.
+- [x] Lokal geprüft: Workflow-Schritt (Allowlist, Namens- und Kennungssuche) besteht; `node --check` aller JS-Dateien; 33/33 Integrationsprüfungen gegen genau dieses Paket unter dem Pages-Pfad; keine Vorlagenformulierungen in den Bündeln.
+- [ ] Nicht geprüft: echtes iPhone/Safari, Dunkelmodus (die Demo ist nur hell).
+
 ## Prüfbefehle vor jeder Veröffentlichung
 
 Im lokalen Demo-Repository:

@@ -137,7 +137,12 @@
   // Behinderungsgrund: only for a Baubehinderung, and inside the existing "Foto / Plan" fold-out so the compact event row keeps
   // its height. Quick picks (frequent reasons) first, then the full, grouped and searchable list; wording comes from the catalog.
   const hasDisruption = event => disruptionCatalog.length > 0 && event.reasons.includes('Baubehinderung');
-  const evidenceLabel = event => hasDisruption(event) ? shortLong('Grund, Foto, Plan', 'Grund / Foto') : shortLong('Foto, Planbezug, Markierung', 'Foto / Plan');
+  const evidenceLabel = event => hasDisruption(event) ? shortLong('Grund, Foto, Plan', 'Grund/Foto') : shortLong('Foto, Planbezug, Markierung', 'Foto / Plan');
+  // Counter in the fold-out summary. For a Baubehinderung it counts the chosen reasons too and stays empty instead of "(optional)" to keep the compact row short.
+  const evidenceBadge = event => {
+    const n = evidenceCount(event) + (hasDisruption(event) ? splitReasons(event.reasons).disruptionIds.length : 0);
+    return n ? `(${n})` : (hasDisruption(event) ? '' : '(optional)');
+  };
   function disruptionBlock(event) {
     if (!hasDisruption(event)) return '';
     const chosen = new Set(splitReasons(event.reasons).disruptionIds);
@@ -161,7 +166,7 @@
       <div class="ac01-event-desc"><label for="${event.id}-description">Beschreibung</label><textarea id="${event.id}-description" data-event-field="description" rows="1" placeholder="Was ist passiert, welche Arbeiten waren betroffen?">${escapeHtml(event.description)}</textarea></div>
       <button class="ac01-remove ac01-event-remove" type="button" data-action="remove-event" aria-label="Ereignis ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button>
       <fieldset class="ac01-reasons"><legend>Ereignisgründe <small>(mehrere möglich)</small></legend><div class="ac01-pills">${eventReasons.map(reason => `<label class="ac01-pill"><input type="checkbox" data-event-reason="${escapeHtml(reason)}"${event.reasons.includes(reason) ? ' checked' : ''}><span title="${escapeHtml(reason)}">${escapeHtml(reasonLabel(reason))}</span></label>`).join('')}</div></fieldset>
-      <div class="ac01-event-more"><details class="ac01-evidence"${event.photos.length || event.planRef || event.planMark ? ' open' : ''}><summary>${evidenceLabel(event)} <span data-evidence-count>${evidenceCount(event) ? `(${evidenceCount(event)})` : '(optional)'}</span></summary><div class="ac01-evidence-body">${disruptionBlock(event)}
+      <div class="ac01-event-more"><details class="ac01-evidence"${event.photos.length || event.planRef || event.planMark ? ' open' : ''}><summary>${evidenceLabel(event)} <span data-evidence-count>${evidenceBadge(event)}</span></summary><div class="ac01-evidence-body">${disruptionBlock(event)}
         <div class="ac01-photo"><input class="ac01-file" id="${event.id}-photos" data-event-photos type="file" accept="image/*" multiple><label class="ac01-photo-btn" for="${event.id}-photos" title="Lokale Demoauswahl: nur Dateinamen, kein Upload">${shortLong('Fotos wählen', 'Fotos')}</label><span class="ac01-photo-names" data-event-photo-names>${event.photos.length ? escapeHtml(`${event.photos.join(', ')} · nur lokale Auswahl, kein Upload`) : ''}</span></div>
         <div><label for="${event.id}-planref">Planbezug (Planname / Stand)</label><input id="${event.id}-planref" data-event-field="planRef" value="${escapeHtml(event.planRef)}" placeholder="z. B. Plan EG, Stand B"></div>
         <div><label for="${event.id}-planmark">Markierung im Plan</label><input id="${event.id}-planmark" data-event-field="planMark" value="${escapeHtml(event.planMark)}" placeholder="z. B. Achse 4 / Feld C"></div>
@@ -445,7 +450,7 @@
     if (item && field) {
       item[field] = event.target.value;
       const count = event.target.closest('[data-event]').querySelector('[data-evidence-count]');
-      if (count && (field === 'planRef' || field === 'planMark')) count.textContent = evidenceCount(item) ? `(${evidenceCount(item)})` : '(optional)';
+      if (count && (field === 'planRef' || field === 'planMark')) count.textContent = evidenceBadge(item);
       renderReport();
     }
   });
@@ -464,7 +469,7 @@
       item.photos = [...event.target.files].map(file => file.name);
       const holder = event.target.closest('[data-event]');
       holder.querySelector('[data-event-photo-names]').textContent = item.photos.length ? `${item.photos.join(', ')} · nur lokale Auswahl, kein Upload` : '';
-      holder.querySelector('[data-evidence-count]').textContent = evidenceCount(item) ? `(${evidenceCount(item)})` : '(optional)';
+      holder.querySelector('[data-evidence-count]').textContent = evidenceBadge(item);
       renderReport();
       return;
     }
@@ -479,6 +484,8 @@
       const counter = event.target.closest('[data-event]').querySelector('[data-disruption-count]');
       const count = splitReasons(item.reasons).disruptionIds.length;
       if (counter) counter.textContent = count ? `(${count} gewählt)` : '(aus der Störungsgründe-Liste, mehrere möglich)';
+      const badge = event.target.closest('[data-event]').querySelector('[data-evidence-count]');
+      if (badge) badge.textContent = evidenceBadge(item);
     } else if (reason) {
       // Event types keep their order; disruption codes are kept only while the event is a Baubehinderung.
       const kinds = event.target.checked ? eventReasons.filter(known => known === reason || item.reasons.includes(known)) : splitReasons(item.reasons).kinds.filter(known => known !== reason);
@@ -487,7 +494,7 @@
       holder.querySelector('[data-disruption]')?.remove();
       const fold = holder.querySelector('.ac01-evidence');
       fold.querySelector('.ac01-evidence-body').insertAdjacentHTML('afterbegin', disruptionBlock(item));
-      fold.querySelector(':scope > summary').innerHTML = `${evidenceLabel(item)} <span data-evidence-count>${evidenceCount(item) ? `(${evidenceCount(item)})` : '(optional)'}</span>`;
+      fold.querySelector(':scope > summary').innerHTML = `${evidenceLabel(item)} <span data-evidence-count>${evidenceBadge(item)}</span>`;
       if (hasDisruption(item) && event.target.checked) fold.open = true;
     }
     renderReport();

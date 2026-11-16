@@ -416,3 +416,8 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 .ac01-disruption-group h4{margin:0 0 4px;color:var(--ac-muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
 .ac01-disruption-group[hidden],.ac01-pill[hidden]{display:none}
 .ac01-disruption .ac01-pill span{white-space:normal;min-height:44px;padding:6px 13px}
+
+/* The Foto / Plan body is a simple vertical stack (the photo block must not inherit the assignment row's grid column) */
+.ac01-evidence-body{display:flex;flex-direction:column;gap:6px}
+.ac01-evidence-body .ac01-photo{grid-column:auto;grid-row:auto}
+.ac01-evidence-body>*{min-width:0}
