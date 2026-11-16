@@ -56,6 +56,11 @@
 - [x] Geänderte Dateien (Token `2026-11-16-s18`): `site/index.html`, `site/ac01.js`, `site/spacing.css`. Inhalt: Das Aufklappfeld „Grund/Foto“ hat jetzt eine feste Fußzeile mit Statuszeile („n Gründe gewählt“) und der Schaltfläche „Fertig“; „Alle abwählen“; Escape schließt das Feld. Workflow-Allowlist unverändert (zwölf Dateien).
 - [x] Lokal geprüft: Workflow-Schritt besteht, `node --check`, Integrationsprüfungen gegen das Paket unter dem Pages-Pfad.
 
+## Aktualisierung 2026-11-16 (Arbeitstabelle)
+
+- [x] Geänderte Dateien (Token `2026-11-16-s19`): `site/index.html`, `site/spacing.css`. Inhalt: In der Arbeitstabelle richten sich alle Zellen oben aus; bei zwei oder mehr Orten wird die Ort-Zelle zu einem Stapel (Eingabe zuerst, Marken darunter), ein Ort bleibt in der Eingabezeile. Workflow-Allowlist unverändert (zwölf Dateien).
+- [x] Lokal geprüft: Workflow-Schritt besteht, `node --check`, Integrationsprüfungen gegen das Paket unter dem Pages-Pfad.
+
 ## Prüfbefehle vor jeder Veröffentlichung
 
 Im lokalen Demo-Repository:

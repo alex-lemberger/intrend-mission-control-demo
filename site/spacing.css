@@ -64,6 +64,15 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
   .ac01-event-remove{margin-left:var(--sp-3)}
   .ac01-event .ac01-evidence>summary{min-height:40px;padding:0 var(--sp-1)}
 }
+/* ---- work table (desktop): every cell aligns to the top; with two or more locations the cell becomes a tidy stack (input first, tags below); one location stays on the input's line ---- */
+@media(min-width:1024px){
+  .ac01-assignment{align-items:start}
+  .ac01-assignment>*{align-self:start}
+  .ac01-where:has(.ac01-chip:nth-child(2)){display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:var(--sp-2);min-width:0}
+  .ac01-where:has(.ac01-chip:nth-child(2)) .ac01-chip-add{order:-1;display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:var(--sp-1);flex:none}
+  .ac01-where:has(.ac01-chip:nth-child(2)) .ac01-chips{display:flex;flex-wrap:wrap;gap:var(--sp-1) var(--sp-2)}
+  .ac01-where .ac01-chip{min-height:26px;line-height:1.2}
+}
 @media(min-width:1024px) and (max-width:1239px){
   /* the 25-person table has no spare width here: air above and below, normal side padding */
   .ac01-block,#ac01-view .ac01-block{padding:var(--sp-5) var(--sp-4)}
