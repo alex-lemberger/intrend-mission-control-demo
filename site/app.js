@@ -68,6 +68,7 @@ function renderDraftNotices() {
   }
 }
 document.addEventListener('ac01-dirtychange', renderDraftNotices);
+document.addEventListener('ac01-dirtychange', renderEditorTitle);
 
 function switchView(view, { confirmed = false } = {}) {
   if(state.view==='ac01' && view!=='ac01' && !confirmed && editorDirty()){ askToLeaveEditor(view); return; }
@@ -83,14 +84,29 @@ function switchView(view, { confirmed = false } = {}) {
   if(view==='draft') renderDraft();
   if(view==='timesheet') TimesheetView.render();
   renderDraftNotices();
-  const route = view === 'ac01' ? '#ac01' : window.location.href.split('#')[0];
+  renderEditorTitle();
+  const route =view === 'ac01' ? '#ac01' : window.location.href.split('#')[0];
   if (view === 'ac01' ? window.location.hash !== '#ac01' : Boolean(window.location.hash)) {
     window.history.replaceState(null, '', route);
   }
   window.scrollTo({top:0,behavior:'instant'});
   $('#main').focus({preventScroll:true});
 }
-document.addEventListener('click', e => { const btn=e.target.closest('[data-view]'); if(btn) switchView(btn.dataset.view); });
+// Title and lead of the editor follow the saved day it holds: "erfassen" for a new day, "bearbeiten" for a saved day.
+function renderEditorTitle() {
+  const key = typeof AC01Workday !== 'undefined' ? AC01Workday.currentKey() : null;
+  const leadDefault = 'Mitarbeitende, Zeiten, Arbeiten und Ereignisse eines Tages eintragen und speichern.';
+  $('#ac01-title').innerHTML = key ? 'Baustellentag <em>bearbeiten.</em>' : 'Baustellentag <em>erfassen.</em>';
+  $('#ac01-lead').textContent = key ? `Gespeicherter Tag: ${project(key.projectId).name} · ${dateText(key.date)}. Änderungen gelten erst nach dem Speichern.` : leadDefault;
+  if (state.view === 'ac01') $('#top-title').textContent = key ? 'Baustellentag bearbeiten' : 'Baustellentag erfassen';
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-view]');
+  if (!btn) return;
+  // Only the "＋ Baustellentag erfassen" buttons outside the navigation start a new day; nav entries only switch.
+  if (btn.hasAttribute('data-new-day') && typeof AC01Workday !== 'undefined') AC01Workday.startNew();
+  switchView(btn.dataset.view);
+});
 
 const personnel = ['Martin Seidel','Jonas Krüger','Mika Özdemir','Deniz Yilmaz','Laura Beck','Emre Kaya'];
 function crewRow(name='',hours=8, floor='',work='') {
@@ -202,7 +218,9 @@ async function renderDashboard(){
   // Compact card per saved day: figures, status and a short preview. Everything else is one click away: the day opens in AC-01.
   const top = (items,max) => items.length>max ? `${items.slice(0,max).join(', ')} <em>und ${items.length-max} weitere</em>` : items.join(', ');
   const count = values => { const m=new Map(); values.forEach(v=>m.set(v,(m.get(v)||0)+1)); return [...m].sort((a,b)=>b[1]-a[1]); };   // stable: ties keep first-seen order
-  $('#wd-list').innerHTML = rows.map(({report:r,summary:x}) => {
+  const card = ({report:r,summary:x}) => {
+    // Behinderung events of this day: one document-draft action each (position n = place of the event in the day)
+    const bhEvents = r.events.map((v, i) => ({ v, i })).filter(({ v }) => v.reasons.includes('Baubehinderung'));
     const win = x.earliest===null && x.latest===null ? '' : ` · ${x.earliest===null?'?':hm(x.earliest)}–${x.latest===null?'?':hm(x.latest)}`;
     const reasons = Object.entries(x.reasonCounts).map(([k,n])=>`<span class="badge orange">${esc(reasonShort[k]||k)} ${n}</span>`).join('');
     const rowsAll = r.employees.flatMap(e=>e.assignments);
@@ -218,8 +236,20 @@ async function renderDashboard(){
     const edit = (primary) => `<button class="${primary?'primary':'outline'} wd-open" type="button" data-wd-open><i class="ic-wrap" data-icon="pencil"></i>${open&&primary?'Angaben ergänzen':'Baustellentag bearbeiten'} <span aria-hidden="true">→</span></button>`;
     const sheet = (primary) => `<button class="${primary?'primary':'outline'} wd-timesheet" type="button" data-ts-open><i class="ic-wrap" data-icon="file-text"></i>Stundenzettel erstellen <span aria-hidden="true">→</span></button>`;
     const nextHint = open ? '<span class="wd-open-hint">Stundenzettel ist trotzdem möglich.</span>' : '';
-    return `<article class="list-item wd-day" data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(project(r.projectId).name)}</strong><span class="badge" title="Gespeichert heißt nur: so erfasst. Nicht geprüft oder freigegeben.">Gespeichert · ungeprüft</span></div><div class="item-sub">${esc(dateText(r.date))} · <span class="wd-figures">${x.named} Mitarbeitende · ${x.assignmentCount} Arbeitszeilen · ${x.eventCount} Ereignisse</span>${win}</div><div class="item-meta">${clarify}${reasons}</div><dl class="wd-preview">${dd('wd-preview-people','Mitarbeitende',people.length?top(people,5):'noch keine')}${dd('wd-preview-work','Tätigkeiten',work.length?top(work,4):'noch keine')}${dd('wd-preview-places','Orte / Bauteile',places.length?top(places,4):'keine')}${dd('wd-preview-extras','Weitere Tagesangaben',filled.length?filled.join(', ')+' erfasst':'keine')}</dl><div class="wd-open-row">${open ? edit(true)+sheet(false) : sheet(true)+edit(false)}${nextHint}</div></article>`;
-  }).join('') || '<div class="empty">Noch kein Tag gespeichert. In „Baustellentag erfassen“ einen Tag eintragen und „Speichern → Mission Control“ wählen.<div class="empty-action"><button class="primary" type="button" data-view="ac01"><i class="ic-wrap" data-icon="plus"></i>Baustellentag erfassen</button></div></div>';
+    return `<article class="list-item wd-day" data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(project(r.projectId).name)}</strong><span class="badge" title="Gespeichert heißt nur: so erfasst. Nicht geprüft oder freigegeben.">Gespeichert · ungeprüft</span></div><div class="item-sub">${esc(dateText(r.date))} · <span class="wd-figures">${x.named} Mitarbeitende · ${x.assignmentCount} Arbeitszeilen · ${x.eventCount} ${x.eventCount===1?'Ereignis':'Ereignisse'}</span>${win}</div><div class="item-meta">${clarify}${reasons}</div><dl class="wd-preview">${dd('wd-preview-people','Mitarbeitende',people.length?top(people,5):'noch keine')}${dd('wd-preview-work','Tätigkeiten',work.length?top(work,4):'noch keine')}${dd('wd-preview-places','Orte / Bauteile',places.length?top(places,4):'keine')}${dd('wd-preview-extras','Weitere Tagesangaben',filled.length?filled.join(', ')+' erfasst':'keine')}</dl><div class="wd-open-row">${open ? edit(true)+sheet(false) : sheet(true)+edit(false)}${bhEvents.map(({ v, i }) => { const label = bhEvents.length > 1 ? `Behinderungsanzeige-Entwurf öffnen, Ereignis ${i + 1}` : 'Behinderungsanzeige-Entwurf öffnen'; return `<button class="outline wd-doc wd-doc-icon" type="button" data-bh-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}" data-event="${esc(v.id)}" aria-label="${label}" title="${label}"><i class="ic-wrap" data-icon="triangle-alert"></i></button>`; }).join('')}${nextHint}</div></article>`;
+  };
+  // Stable partition: WorkdayStore order stays visible both between projects and inside each project.
+  const projects = [];
+  const projectRows = new Map();
+  rows.forEach(row => {
+    if (!projectRows.has(row.report.projectId)) { projectRows.set(row.report.projectId, []); projects.push(row.report.projectId); }
+    projectRows.get(row.report.projectId).push(row);
+  });
+  $('#wd-list').innerHTML = projects.map(projectId => {
+    const days = projectRows.get(projectId), first = days[0].report;
+    const eventCount = days.reduce((n, row) => n + row.summary.eventCount, 0);
+    return `<div class="wd-project" data-project="${esc(projectId)}" data-date="${esc(first.date)}"><div><h3>${esc(project(projectId).name)}</h3><span class="wd-project-sub">${days.length} ${days.length===1?'Tag':'Tage'} · ${eventCount} ${eventCount===1?'Ereignis':'Ereignisse'}</span></div><button class="outline" type="button" data-ts-open><i class="ic-wrap" data-icon="file-text"></i>Stundenzettel für dieses Projekt</button></div>${days.map(card).join('')}`;
+  }).join('') || '<div class="empty">Noch kein Tag gespeichert. In „Baustellentag erfassen“ einen Tag eintragen und „Speichern → Mission Control“ wählen.<div class="empty-action"><button class="primary" type="button" data-view="ac01" data-new-day><i class="ic-wrap" data-icon="plus"></i>Baustellentag erfassen</button></div></div>';
   const evAll = rows.flatMap(({report:r}) => r.events.map(v=>({v,r})));
   $('#wd-event-count').textContent = `${evAll.length} ${evAll.length===1?'Ereignis':'Ereignisse'}`;
   $('#wd-events').innerHTML = evAll.map(({v,r})=>`<div class="wd-event-row"><button class="list-item wd-event" type="button" data-wd-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(v.description.trim().slice(0,62)||'Beschreibung fehlt')}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(r.projectId).name)} · ${esc(dateText(r.date))} · Ort: ${esc(v.location.trim()||'fehlt')}</div><div class="item-meta">${v.reasons.map(k=>`<span class="badge ${k==='Baubehinderung'?'red':'orange'}">${esc(reasonShort[k]||(globalThis.DisruptionCatalog?globalThis.DisruptionCatalog.label(k):k))}</span>`).join('')||'<span class="badge">Grund fehlt</span>'}<span class="badge">Gespeichert · ungeprüft</span></div></button>${v.reasons.includes('Baubehinderung')?`<div class="wd-doc-row"><button class="outline wd-doc" type="button" title="Behinderungsanzeige als Entwurf" aria-label="Behinderungsanzeige als Entwurf" data-bh-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}" data-event="${esc(v.id)}"><i class="ic-wrap" data-icon="triangle-alert"></i>Behinderungsanzeige-Entwurf</button></div>`:''}</div>`).join('') || '<div class="empty">Keine besonderen Ereignisse erfasst.</div>';
@@ -235,7 +265,7 @@ async function renderDashboard(){
 function showSavedWorkday(report, summary, replaced){
   $('#open-notice').hidden=true;
   $('#save-confirmation').hidden=false;
-  $('#save-confirmation').textContent=`✓ Baustellentag für ${project(report.projectId).name} am ${dateText(report.date)} ${replaced?'aktualisiert':'gespeichert'} · ${summary.named} Mitarbeitende · ${summary.assignmentCount} Arbeitszeilen · ${summary.eventCount} Ereignisse. ${summary.missing.length?`Noch zu klären: ${summary.missing.length}.`:'Nächster Schritt: Stundenzettel erstellen.'} Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.`;
+  $('#save-confirmation').textContent=`✓ Baustellentag für ${project(report.projectId).name} am ${dateText(report.date)} ${replaced?'aktualisiert':'gespeichert'} · ${summary.named} Mitarbeitende · ${summary.assignmentCount} Arbeitszeilen · ${summary.eventCount} ${summary.eventCount===1?'Ereignis':'Ereignisse'}. ${summary.missing.length?`Noch zu klären: ${summary.missing.length}.`:`Mögliche nächste Schritte stehen an der Tageskarte: Stundenzettel${report.events.some(v => v.reasons.includes('Baubehinderung')) ? ' · Behinderungsanzeige-Entwurf' : ''}.`} Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.`;
   switchView('dashboard');
 }
 // Reopening replaces the day in AC-01; unsaved changes there need a second, explicit click.

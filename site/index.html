@@ -6,17 +6,17 @@
   <meta name="theme-color" content="#11242c">
   <title>inTrend Mission Control · Field Operations</title>
   <!-- Static assets carry one release token (?v=). Change it in ALL ten references whenever an asset changes: a cached older file must never be combined with a newer one. -->
-  <link rel="stylesheet" href="styles.css?v=2026-11-16-s25">
-  <link rel="stylesheet" href="ac01.css?v=2026-11-16-s25">
-  <link rel="stylesheet" href="spacing.css?v=2026-11-16-s25">
-  <script src="vendor/ac01-core.bundle.js?v=2026-11-16-s25" defer></script>
-  <script src="workday-store.js?v=2026-11-16-s25" defer></script>
-  <script src="icons.js?v=2026-11-16-s25" defer></script>
-  <script src="app.js?v=2026-11-16-s25" defer></script>
-  <script src="ac01.js?v=2026-11-16-s25" defer></script>
-  <script src="vendor/stundenzettel.bundle.js?v=2026-11-16-s25" defer></script>
-  <script src="timesheet-view.js?v=2026-11-16-s25" defer></script>
-  <script src="behinderung-view.js?v=2026-11-16-s25" defer></script>
+  <link rel="stylesheet" href="styles.css?v=2026-11-16-s34">
+  <link rel="stylesheet" href="ac01.css?v=2026-11-16-s34">
+  <link rel="stylesheet" href="spacing.css?v=2026-11-16-s34">
+  <script src="vendor/ac01-core.bundle.js?v=2026-11-16-s34" defer></script>
+  <script src="workday-store.js?v=2026-11-16-s34" defer></script>
+  <script src="icons.js?v=2026-11-16-s34" defer></script>
+  <script src="app.js?v=2026-11-16-s34" defer></script>
+  <script src="ac01.js?v=2026-11-16-s34" defer></script>
+  <script src="vendor/stundenzettel.bundle.js?v=2026-11-16-s34" defer></script>
+  <script src="timesheet-view.js?v=2026-11-16-s34" defer></script>
+  <script src="behinderung-view.js?v=2026-11-16-s34" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -37,7 +37,7 @@
       <main id="main" tabindex="-1">
         <section id="field-view" class="view" hidden aria-labelledby="field-title">
           <div class="page-head field-page-head"><div><span class="eyebrow">BISHERIGES FORMULAR</span><h1 id="field-title">Tagesbericht <em>bearbeiten.</em></h1><p>Angaben zum Bericht direkt prüfen und ergänzen.</p></div><div class="head-tag"><span class="live-dot"></span> Heute auf der Baustelle</div></div>
-          <div class="legacy-banner" id="legacy-banner" role="note"><div><strong>Bisheriges Tagesbericht-Formular.</strong> Neue Arbeitstage bitte unter „Baustellentag erfassen“ eintragen: Nur dort entstehen Stundenzettel. Berichte aus diesem Formular erscheinen in Mission Control in einem eigenen Bereich und werden nicht in einen Stundenzettel übernommen.</div><button class="outline" type="button" data-view="ac01">Baustellentag erfassen <span aria-hidden="true">→</span></button></div>
+          <div class="legacy-banner" id="legacy-banner" role="note"><div><strong>Bisheriges Tagesbericht-Formular.</strong> Neue Arbeitstage bitte unter „Baustellentag erfassen“ eintragen: Nur dort entstehen Stundenzettel. Berichte aus diesem Formular erscheinen in Mission Control in einem eigenen Bereich und werden nicht in einen Stundenzettel übernommen.</div><button class="outline" type="button" data-view="ac01" data-new-day>Baustellentag erfassen <span aria-hidden="true">→</span></button></div>
           <div class="field-layout"><div class="phone-shell"><div class="phone-top"><span>9:41</span><span aria-hidden="true">●●● ▰</span></div><div class="phone-screen">
             <div class="mobile-header"><div><span class="eyebrow">TAGESBERICHT</span><h2>Team &amp; Arbeit</h2></div><div class="mobile-avatar">MS</div></div>
             <div class="date-card"><div><small>BERICHT FÜR</small><strong id="date-display">Heute</strong></div><span class="date-icon" aria-hidden="true">▦</span></div>
@@ -62,7 +62,7 @@
         </section>
         <section id="ac01-view" class="view" hidden aria-labelledby="ac01-title">
           <div class="page-head ac01-page-head">
-            <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p>Mitarbeitende, Zeiten, Arbeiten und Ereignisse eines Tages eintragen und speichern.</p></div>
+            <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p id="ac01-lead">Mitarbeitende, Zeiten, Arbeiten und Ereignisse eines Tages eintragen und speichern.</p></div>
           </div>
           <nav class="ac01-jump" aria-label="Bereiche dieser Seite"><button type="button" data-jump="#ac01-crew-title">Mitarbeitende</button><button type="button" data-jump="#ac01-events-title">Ereignisse <span id="ac01-jump-events"></span></button><button type="button" data-jump="#ac01-draft-title">Tagesbericht</button></nav>
           <div class="ac01-savebar" id="ac01-savebar"><p id="ac01-save-status" role="status" aria-live="polite"></p><div class="ac01-savebar-actions"><button type="button" class="ac01-add" id="ac01-new-day"><i class="ic-wrap" data-icon="file-plus"></i>Neuer leerer Tag</button><button type="button" class="ac01-add" data-view="dashboard"><i class="ic-wrap" data-icon="layout-dashboard"></i>Mission Control ansehen →</button></div></div>
@@ -123,7 +123,7 @@
                 <button class="ac01-add" id="ac01-add-employee" type="button"><i class="ic-wrap" data-icon="plus"></i>Mitarbeiter hinzufügen</button>
                 <div class="ac01-events-panel" aria-labelledby="ac01-events-title">
                   <div class="ac01-heading-row ac01-events-head"><h3 id="ac01-events-title" tabindex="-1">Ereignisse / Tickets <small>ohne Zeitangabe</small></h3><button type="button" class="ac01-add ac01-add-event" id="ac01-event-add" data-action="add-event"><i class="ic-wrap" data-icon="plus"></i>Ereignis hinzufügen</button></div>
-                  <p class="ac01-hint">Ein Ereignis hält fest, was passiert ist: Ort, Beschreibung und ein oder mehrere Gründe. Es hat keine eigene Zeit und ist keine Arbeitszeit; Personenzeit steht nur in den Arbeitszeilen. Es löst weder eine Behinderungsanzeige noch einen Nachtrag, eine Beauftragung oder eine Mitteilung an den Auftraggeber aus. Die fünf Gründe sind eine vorläufige Demo-Auswahl, kein bestätigter Katalog.</p>
+                  <p class="ac01-hint">Ein Ereignis hält fest, was passiert ist. Es ist keine Arbeitszeit und löst nichts aus: keine Behinderungsanzeige, keinen Nachtrag, keine Mitteilung an den Auftraggeber.</p>
                   <div id="ac01-events"></div>
                 </div>
               </section>
@@ -146,13 +146,13 @@
             <aside class="ac01-report-area" aria-labelledby="ac01-draft-title">
               <div class="ac01-heading-row"><h2 id="ac01-draft-title" tabindex="-1">Interner Tagesbericht</h2><span>Nur intern</span></div>
               <div id="ac01-draft"></div>
-              <div class="ac01-save-end"><button type="button" class="primary ac01-action" id="ac01-save-bottom" data-action="save-day">Tag speichern → Mission Control</button><p class="ac01-hint">Speichert den ganzen Tag. Danach: Mission Control, dort Stundenzettel erstellen.</p></div>
-              <details class="ac01-limitations"><summary>Hinweise zu dieser Demo</summary><p>Nur synthetische Daten im Arbeitsspeicher; beim Neuladen gehen Eingaben verloren. Gewählte Fotos werden nur als Dateiname gezeigt, nicht hochgeladen oder gespeichert. Dieser interne Entwurf ist weder ein externer Bautagesbericht noch ein Versand. Pausen-, Zeitzuordnungs- und Berichtseinheitsregeln sind offen.</p></details>
+              <div class="ac01-save-end"><button type="button" class="primary ac01-action" id="ac01-save-bottom" data-action="save-day">Tag speichern → Mission Control</button><p class="ac01-hint">Speichert den ganzen Tag. Danach zeigt Mission Control die möglichen nächsten Schritte.</p></div>
+              <details class="ac01-limitations"><summary>Hinweise zu dieser Demo</summary><p>Nur synthetische Daten im Arbeitsspeicher; beim Neuladen gehen Eingaben verloren. Gewählte Fotos werden nur als Dateiname gezeigt, nicht hochgeladen oder gespeichert. Dieser interne Entwurf ist weder ein externer Bautagesbericht noch ein Versand. Pausen-, Zeitzuordnungs- und Berichtseinheitsregeln sind offen. Die Auswahl der Ereignisarten ist vorläufig, kein bestätigter Katalog.</p></details>
             </aside>
           </div>
         </section>
-        <section id="dashboard-view" class="view" aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="primary" type="button" id="dashboard-primary" data-view="ac01"><i class="ic-wrap" data-icon="plus"></i>Baustellentag erfassen</button></div><div id="draft-notice" class="draft-notice" role="status" aria-live="polite" hidden></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="open-notice" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">AUS „BAUSTELLENTAG ERFASSEN“</span><h2>Erfasste Tage</h2></div><span id="wd-count" class="count-pill"></span></div><div id="wd-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="wd-event-count" class="count-pill"></span></div><div id="wd-events"></div></section></div><section class="panel legacy-panel" id="legacy-panel" hidden><div class="panel-head"><div><span class="eyebrow">BISHERIGES FORMULAR „TAGESBERICHT“ · NICHT AUS BAUSTELLENTAG ERFASSEN</span><h2>Berichte aus dem bisherigen Formular</h2></div><span id="report-count" class="count-pill"></span></div><div class="dashboard-grid"><div id="reports-list"></div><div><div class="panel-head"><h2>Ereignisse (bisheriges Formular)</h2><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></div></div></section><div class="dashboard-foot">Synthetische Daten · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg · Keine automatische Zustellung</div></section>
-        <section id="timesheet-view" class="view" hidden aria-labelledby="timesheet-title"><div class="page-head ts-head"><div><span class="eyebrow">MISSION CONTROL · AUS DEM GESPEICHERTEN BAUSTELLENTAG</span><h1 id="timesheet-title">Stundenzettel <em>erstellen.</em></h1><p>Einträge auswählen, Angaben ergänzen, prüfen und drucken. Es wird nichts gesendet oder abgelegt.</p></div><button class="outline" type="button" data-view="dashboard"><i class="ic-wrap" data-icon="arrow-left"></i>Zurück zu Mission Control</button></div><div id="ts-draft-notice" class="draft-notice" role="status" aria-live="polite" hidden></div><div id="ts-source"></div><div id="ts-host" hidden></div><div class="dashboard-foot">Synthetische Daten · Vorlage nicht freigegeben · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg</div></section>
+        <section id="dashboard-view" class="view" aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="primary" type="button" id="dashboard-primary" data-view="ac01" data-new-day><i class="ic-wrap" data-icon="plus"></i>Baustellentag erfassen</button></div><div id="draft-notice" class="draft-notice" role="status" aria-live="polite" hidden></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="open-notice" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">AUS „BAUSTELLENTAG ERFASSEN“</span><h2>Erfasste Tage</h2></div><span id="wd-count" class="count-pill"></span></div><div id="wd-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="wd-event-count" class="count-pill"></span></div><div id="wd-events"></div></section></div><section class="panel legacy-panel" id="legacy-panel" hidden><div class="panel-head"><div><span class="eyebrow">BISHERIGES FORMULAR „TAGESBERICHT“ · NICHT AUS BAUSTELLENTAG ERFASSEN</span><h2>Berichte aus dem bisherigen Formular</h2></div><span id="report-count" class="count-pill"></span></div><div class="dashboard-grid"><div id="reports-list"></div><div><div class="panel-head"><h2>Ereignisse (bisheriges Formular)</h2><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></div></div></section><div class="dashboard-foot">Synthetische Daten · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg · Keine automatische Zustellung</div></section>
+        <section id="timesheet-view" class="view" hidden aria-labelledby="timesheet-title"><div class="page-head ts-head"><div><span class="eyebrow">MISSION CONTROL · AUS GESPEICHERTEN BAUSTELLENTAGEN</span><h1 id="timesheet-title">Stundenzettel <em>erstellen.</em></h1><p>Einträge auswählen, Angaben ergänzen, prüfen und drucken. Es wird nichts gesendet oder abgelegt.</p></div><button class="outline" type="button" data-view="dashboard"><i class="ic-wrap" data-icon="arrow-left"></i>Zurück zu Mission Control</button></div><div id="ts-draft-notice" class="draft-notice" role="status" aria-live="polite" hidden></div><div id="ts-source"></div><div id="ts-host" hidden></div><div class="dashboard-foot">Synthetische Daten · Vorlage nicht freigegeben · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg</div></section>
         <section id="detail-view" class="view" hidden aria-labelledby="detail-title"><button class="back" type="button" data-view="dashboard">← Zurück zu Mission Control</button><div class="detail-grid"><div id="detail-content"></div><aside id="detail-aside"></aside></div></section>
         <section id="draft-view" class="view" hidden aria-labelledby="draft-title"><button class="back" type="button" data-view="detail">← Zurück zum Ereignis</button><div id="draft-content"></div></section>
       </main>

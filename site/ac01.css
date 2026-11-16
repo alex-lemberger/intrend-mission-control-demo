@@ -306,7 +306,8 @@ body:has(#ac01-view:not([hidden])) .rail{width:72px;padding:24px 10px}
 body:has(#ac01-view:not([hidden])) .rail .brand{padding:0 0 28px;justify-content:center}
 body:has(#ac01-view:not([hidden])) .rail .brand>div:last-child{display:none}
 body:has(#ac01-view:not([hidden])) .rail .nav-item{justify-content:center;gap:0;padding:14px 0;font-size:0}
-body:has(#ac01-view:not([hidden])) .rail .nav-item span{font-size:20px}
+/* text labels vanish through font-size:0; a label wrapped in a span must be hidden too, or it widens every entry beyond the 72px rail */
+body:has(#ac01-view:not([hidden])) .rail .nav-item .nav-label{display:none}
 body:has(#ac01-view:not([hidden])) .rail .rail-foot{display:none}
 body:has(#ac01-view:not([hidden])) main{padding-left:16px;padding-right:16px}
 #ac01-view .ac01-block{padding:14px 12px}
@@ -377,7 +378,7 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 .ac01-reasons legend{float:left;margin:0 8px 0 0;padding:0;font-size:12px;line-height:34px}
 .ac01-reasons legend small{display:none}
 .ac01-pills{gap:5px}
-#ac01-view .ac01-event label:not(.ac01-pill):not(.ac01-check){position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+#ac01-view .ac01-event label:not(.ac01-pill):not(.ac01-check):not(.ac01-photo-btn){position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 #ac01-view .ac01-event :is(input:not([type=checkbox]),textarea){min-height:36px;padding:4px 8px;font-size:13px}
 .ac01-event-desc textarea{height:36px;min-height:36px;resize:vertical;line-height:1.35;padding-top:7px}
 .ac01-pill span{min-height:30px;padding:0 10px;font-size:12px}
@@ -385,6 +386,9 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 .ac01-affected-list{position:absolute;right:0;top:calc(100% + 4px);z-index:6;width:300px;max-height:260px;overflow:auto;padding:8px 10px;border:1px solid #9dc2ad;border-radius:10px;background:#fff;box-shadow:0 8px 24px #1b403030}
 .ac01-event .ac01-long{display:none}
 .ac01-event .ac01-short{display:inline}
+/* the photo button inside the Foto / Plan fold-out stays a visible button with its full label */
+.ac01-event .ac01-evidence-body .ac01-long{display:inline}
+.ac01-event .ac01-evidence-body .ac01-short{display:none}
 }
 @media(min-width:1024px) and (max-width:1239px){
 .ac01-overview{top:0;padding:6px}

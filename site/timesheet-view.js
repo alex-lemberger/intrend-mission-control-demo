@@ -24,6 +24,7 @@
   }
   const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const lines = r => r.employees.reduce((n, e) => n + e.assignments.length, 0);
+  const dmy = iso => { const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}`; };
 
   function shadow() {
     const host = document.getElementById('ts-host');
@@ -58,11 +59,15 @@
     const restore = cached && cached.reportJson === reportJson ? cached.state : undefined;
     if (cached && !restore) drafts.delete(keyOf(current));
     const available = lines(report) + moreReports.reduce((n, d) => n + lines(d), 0);
+    // One saved day: the single date as before. Several days of the project: all dates ascending, as in the document.
+    const allDates = [report, ...moreReports].map(d => d.date).sort();
+    const dateLine = moreReports.length === 0 ? dateText(report.date) : `${allDates.map(dmy).join(', ')} · ${allDates.length} Tage`;
+    const projectCount = new Set(days.map(d => d.projectId)).size;
     $('#ts-source').innerHTML = `<section class="ts-source" data-project="${esc(report.projectId)}" data-date="${esc(report.date)}" aria-label="Quelle des Stundenzettels">
-      <div class="ts-source-main"><span class="eyebrow">QUELLE · GESPEICHERTER BAUSTELLENTAG</span><strong id="ts-src-project">${esc(project(report.projectId).name)}</strong><span id="ts-src-date">${esc(dateText(report.date))}</span></div>
+      <div class="ts-source-main"><span class="eyebrow">BAUPROJEKT · GESPEICHERTE TAGE</span><strong id="ts-src-project">${esc(project(report.projectId).name)}</strong><span id="ts-src-date">${esc(dateLine)}</span></div>
       <dl class="ts-figures"><div><dt>Einträge verfügbar</dt><dd id="ts-available">${available}</dd></div><div><dt>Ausgewählt</dt><dd id="ts-selected">0</dd></div></dl>
-      <div class="ts-source-actions"><button class="outline" type="button" data-ts-reopen><i class="ic-wrap" data-icon="pencil"></i>Baustellentag bearbeiten</button>${days.length > 1 ? '<button class="text-action" type="button" data-ts-choose>Anderen Tag wählen</button>' : ''}</div>
-      <p class="ts-note">${cached && !restore ? '<strong>Der Baustellentag wurde seit dem letzten Entwurf geändert; der Stundenzettel beginnt neu.</strong> ' : ''}Der Baustellentag wird hier nur gelesen; Änderungen im Stundenzettel bleiben im Stundenzettel.</p></section>`;
+      <div class="ts-source-actions"><button class="outline" type="button" data-ts-reopen><i class="ic-wrap" data-icon="pencil"></i>Baustellentag bearbeiten</button>${projectCount > 1 ? '<button class="text-action" type="button" data-ts-choose>Anderes Projekt wählen</button>' : ''}</div>
+      <p class="ts-note">${cached && !restore ? '<strong>Die gespeicherten Tage dieses Projekts haben sich geändert; der Stundenzettel beginnt neu.</strong> ' : ''}Der Baustellentag wird hier nur gelesen; Änderungen im Stundenzettel bleiben im Stundenzettel.</p></section>`;
     host.hidden = false;
     renderDraftNotices();
     const info = project(report.projectId);
@@ -76,11 +81,19 @@
     };
   }
 
+  // One row per project. The store lists newest first, so the first listed day of a project is the anchor for data-date.
   function renderChooser(days) {
+    const groups = [];
+    days.forEach(r => {
+      let group = groups.find(item => item.projectId === r.projectId);
+      if (!group) groups.push((group = { projectId: r.projectId, anchor: r.date, days: [] }));
+      group.days.push(r);
+    });
+    const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
     $('#ts-source').innerHTML = days.length
-      ? `<section class="panel ts-choose"><div class="panel-head"><div><span class="eyebrow">QUELLE WÄHLEN</span><h2>Aus welchem Baustellentag?</h2></div><span class="count-pill">${days.length} ${days.length === 1 ? 'Tag' : 'Tage'}</span></div>${days.map(r =>
-          `<article class="list-item ts-day" data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(project(r.projectId).name)}</strong><button class="outline" type="button" data-ts-open>Stundenzettel erstellen <span aria-hidden="true">→</span></button></div><div class="item-sub">${esc(dateText(r.date))} · ${r.employees.length} Mitarbeitende · ${lines(r)} Arbeitszeilen</div></article>`).join('')}</section>`
-      : `<section class="panel ts-empty"><div class="empty"><strong>Noch kein Baustellentag gespeichert.</strong><br>Ein Stundenzettel entsteht aus den Einträgen eines gespeicherten Baustellentags. Dort einmal erfassen und „Speichern → Mission Control“ wählen; Namen und Zeiten müssen dann nicht neu eingegeben werden.</div><div class="ts-empty-actions"><button class="primary" type="button" data-view="ac01">＋ Baustellentag erfassen</button></div></section>`;
+      ? `<section class="panel ts-choose"><div class="panel-head"><div><span class="eyebrow">PROJEKT WÄHLEN</span><h2>Für welches Bauprojekt?</h2></div><span class="count-pill">${plural(groups.length, 'Bauprojekt', 'Bauprojekte')}</span></div>${groups.map(g =>
+          `<article class="list-item ts-day" data-project="${esc(g.projectId)}" data-date="${esc(g.anchor)}"><div class="item-top"><strong>${esc(project(g.projectId).name)}</strong><button class="outline" type="button" data-ts-open>Stundenzettel erstellen <span aria-hidden="true">→</span></button></div><div class="item-sub">${plural(g.days.length, 'Tag', 'Tage')} · ${plural(g.days.reduce((n, d) => n + lines(d), 0), 'Eintrag', 'Einträge')}</div></article>`).join('')}</section>`
+      : `<section class="panel ts-empty"><div class="empty"><strong>Noch kein Baustellentag gespeichert.</strong><br>Ein Stundenzettel entsteht aus den Einträgen eines gespeicherten Baustellentags. Dort einmal erfassen und „Speichern → Mission Control“ wählen; Namen und Zeiten müssen dann nicht neu eingegeben werden.</div><div class="ts-empty-actions"><button class="primary" type="button" data-view="ac01" data-new-day>＋ Baustellentag erfassen</button></div></section>`;
   }
 
   function open(key) { current = { projectId: key.projectId, date: key.date }; switchView('timesheet'); }

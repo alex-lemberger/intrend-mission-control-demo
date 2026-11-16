@@ -35,11 +35,23 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .wd-preview>div{gap:var(--sp-1) var(--sp-4)}
 .wd-open-row{gap:var(--sp-3);margin-top:var(--sp-4)}
 .wd-open-row .primary,.wd-open-row .outline{width:auto}
+/* Project context groups the existing day cards without changing their order or their actions. */
+.wd-project{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);padding:var(--sp-5) var(--sp-5) var(--sp-3);margin-top:var(--sp-5);border-top:1px solid var(--line-soft);background:#f8faf7}
+.wd-project:first-child{margin-top:var(--sp-4);border-top:0}
+.wd-project h3{margin:0 0 var(--sp-1);font-size:16px;letter-spacing:-.3px}
+.wd-project-sub{display:block;color:var(--muted);font-size:12px}
+.wd-project .outline{flex:none;min-height:44px;padding:0 var(--sp-4);font-size:12px}
+@media(max-width:640px){.wd-project,.wd-project:first-child{align-items:stretch;flex-wrap:wrap;padding:0 var(--sp-4);margin-top:0;gap:0}.wd-project>div{min-width:0;line-height:20px}.wd-project h3,.wd-project-sub{display:inline;line-height:inherit}.wd-project h3{margin:0}.wd-project-sub{margin-left:var(--sp-2)}.wd-project .outline{width:100%}}
 /* event rows: the optional draft action sits under the card text, not beside it */
 .wd-event-row{display:block;border-top:1px solid var(--line-soft)}
 .wd-event-row .list-item{border-top:0}
 .wd-doc-row{padding:0 var(--sp-5) var(--sp-4);background:#fff}
 .wd-doc{padding:8px 14px;min-height:40px;font-size:13px;line-height:1.2;max-width:none;width:auto}
+/* Card quick action: compact 44x44 icon (label in aria-label/title). Only the card action group is narrowed; the Ereignisse panel keeps its labelled button. */
+.wd-open-row{column-gap:var(--sp-2)}
+.wd-open-row .outline,.wd-open-row .primary{padding:0 6px}
+.wd-open-row .wd-doc-icon{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;margin:0;flex:0 0 44px;justify-content:center}
+.wd-open-row .wd-doc-icon .ic-wrap{margin:0}
 
 /* ---- Baustellentag erfassen ---- */
 .ac01-workspace{gap:var(--sp-5)}
@@ -110,9 +122,12 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .bh-form .bh-check input[type=checkbox]{width:22px;height:22px;min-height:0;flex:0 0 22px;margin:2px 0 0;accent-color:var(--teal,#0a665e)}
 .bh-actions{flex-wrap:nowrap}.bh-actions button{white-space:nowrap;min-height:44px}
 @media(max-width:560px){.bh-actions{flex-wrap:wrap;width:100%}}
+/* narrow screens: one column that may shrink; before, the fields and the letter were about 45px wider than the dialog and cut off on the right */
+@media(max-width:900px){.bh-body{grid-template-columns:minmax(0,1fr)}}
 .bh-hints{padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-4)}
 .bh-sheet{padding:var(--sp-6) 40px}
 .bh-sheet p{margin:0 0 var(--sp-3)}
+@media(max-width:560px){.bh-grid{grid-template-columns:minmax(0,1fr)}.bh-sheet{padding:var(--sp-4);overflow-wrap:anywhere}.bh-sign{flex-wrap:wrap}}
 @media print{.bh-sheet{padding:0}}
 
 /* ---- contrast: secondary text >= 4.5:1 on white and on the page background ---- */

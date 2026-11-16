@@ -179,7 +179,7 @@
       <div class="ac01-event-where"><label for="${event.id}-location">Ort / Bauteil</label><input id="${event.id}-location" data-event-field="location" list="ac01-locations" value="${escapeHtml(event.location)}" placeholder="Ort / Bauteil"></div>
       <div class="ac01-event-desc"><label for="${event.id}-description">Beschreibung</label><textarea id="${event.id}-description" data-event-field="description" rows="1" placeholder="Was ist passiert? (Arbeiten, Betroffene)" title="Was ist passiert, welche Arbeiten waren betroffen?">${escapeHtml(event.description)}</textarea></div>
       <button class="ac01-remove ac01-event-remove" type="button" data-action="remove-event" aria-label="Ereignis ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button>
-      <fieldset class="ac01-reasons"><legend>Ereignisgründe <small>(mehrere möglich)</small></legend><div class="ac01-pills">${eventReasons.map(reason => `<label class="ac01-pill"><input type="checkbox" data-event-reason="${escapeHtml(reason)}"${event.reasons.includes(reason) ? ' checked' : ''}><span title="${escapeHtml(reason)}">${escapeHtml(reasonLabel(reason))}</span></label>`).join('')}</div></fieldset>
+      <fieldset class="ac01-reasons"><legend>Art des Ereignisses <small>(mehrere möglich)</small></legend><div class="ac01-pills">${eventReasons.map(reason => `<label class="ac01-pill"><input type="checkbox" data-event-reason="${escapeHtml(reason)}"${event.reasons.includes(reason) ? ' checked' : ''}><span title="${escapeHtml(reason)}">${escapeHtml(reasonLabel(reason))}</span></label>`).join('')}</div></fieldset>
       <div class="ac01-event-more"><details class="ac01-evidence"${event.photos.length || event.planRef || event.planMark ? ' open' : ''}><summary>${evidenceLabel(event)} <span data-evidence-count>${evidenceBadge(event)}</span></summary><div class="ac01-evidence-body">${disruptionBlock(event)}
         <div class="ac01-photo"><input class="ac01-file" id="${event.id}-photos" data-event-photos type="file" accept="image/*" multiple><label class="ac01-photo-btn" for="${event.id}-photos" title="Lokale Demoauswahl: nur Dateinamen, kein Upload">${shortLong('Fotos wählen', 'Fotos')}</label><span class="ac01-photo-names" data-event-photo-names>${event.photos.length ? escapeHtml(`${event.photos.join(', ')} · nur lokale Auswahl, kein Upload`) : ''}</span></div>
         <div><label for="${event.id}-planref">Planbezug (Planname / Stand)</label><input id="${event.id}-planref" data-event-field="planRef" value="${escapeHtml(event.planRef)}" placeholder="z. B. Plan EG, Stand B"></div>
@@ -553,6 +553,7 @@
 
   // Prefill (synthetic demo data only; nothing is stored) and bulk assignment.
   const toolsMessage = $('#ac01-tools-message'), bulkMessage = $('#ac01-bulk-message'), bulkEl = $('#ac01-bulk');
+  const toolsDefault = toolsMessage.textContent;
   const dropMissingEventPeople = () => events.forEach(item => { item.people = item.people.filter(id => employees.some(employee => employee.id === id)); });
 
   function runPrefill(names, label, what, note) {
@@ -812,6 +813,7 @@
     setMessage('');
     editingKey = { projectId: copy.projectId, date: copy.date };
     reviewRequested = false;
+    toolsMessage.textContent = toolsDefault;
     renderEmployees();
     renderEvents();
     savedSnapshot = snapshot();
@@ -835,6 +837,7 @@
     setMessage('');
     editingKey = null;
     reviewRequested = false;
+    toolsMessage.textContent = toolsDefault;
     renderEmployees();
     renderEvents();
     savedSnapshot = snapshot();
@@ -842,7 +845,9 @@
   }
   $('#ac01-new-day').addEventListener('click', newDay);
   $('#ac01-view').addEventListener('click', event => { if (event.target.closest('[data-action="save-day"]')) saveDay(); });
-  root.AC01Workday = { open: openDay, isDirty, draftKey: () => ({ projectId: $('#ac01-project').value, date: $('#ac01-date').value }), currentKey: () => (editingKey ? { ...editingKey } : null) };
+  // "＋ Baustellentag erfassen" outside the navigation: a saved day with no unsaved changes becomes a new empty day.
+  // Unsaved input, or a new day already open, is left alone (the caller only switches the view).
+  root.AC01Workday = { open: openDay, isDirty, startNew: () => { if (editingKey && !isDirty()) newDay(); }, draftKey: () => ({ projectId: $('#ac01-project').value, date: $('#ac01-date').value }), currentKey: () => (editingKey ? { ...editingKey } : null) };
 
   renderEmployees();
   renderEvents();
