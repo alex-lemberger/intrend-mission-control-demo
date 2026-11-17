@@ -8,10 +8,10 @@
 
 /* ---- legibility floor: nothing below 12px (micro-labels 11px) ---- */
 small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard-foot,.ac01-demo-line,.metric small,.metric span{font-size:12px}
-.eyebrow,.topbar-title .eyebrow{font-size:11px;letter-spacing:.12em}
-.brand small{font-size:11px;letter-spacing:.1em;white-space:nowrap}
+.eyebrow,.topbar-title .eyebrow{font-size:12px;letter-spacing:.12em}
+.brand small{font-size:12px;letter-spacing:.1em;white-space:nowrap}
 .ac01-stat small,.ac01-draft-meta small,.ts-figures dt{font-size:11px}
-.mobile-nav span{font-size:11px}
+.mobile-nav span{font-size:12px}
 /* 11px labels: "Mission Control" (89px) needs the full quarter of a 360px phone, so the bar gives up its side gaps there; below 350px a label may wrap instead of running into its neighbour */
 @media(max-width:390px){.mobile-nav{padding-left:2px;padding-right:2px}.mobile-nav button{padding-left:0;padding-right:0}.mobile-nav button span{letter-spacing:-.2px}}
 @media(max-width:350px){.mobile-nav button span{white-space:normal;text-align:center;line-height:1.15;hyphens:auto}}
@@ -163,7 +163,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 #wd-list .empty .empty-action{display:none}
 
 /* ---- navigation: the legacy form is visibly secondary ---- */
-.rail .nav-legacy{opacity:.72;font-size:13px}
+.rail .nav-legacy{opacity:.88;font-size:13px}
 .rail .nav-legacy:hover,.rail .nav-legacy.active,.rail .nav-legacy[aria-current]{opacity:1}
 
 /* ---- the save action reads as a button, not as another figure in the strip ---- */
