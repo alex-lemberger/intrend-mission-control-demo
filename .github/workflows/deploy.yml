@@ -40,6 +40,7 @@ jobs:
             site/styles.css \
             site/timesheet-view.js \
             site/vendor/ac01-core.bundle.js \
+            site/vendor/planner.bundle.js \
             site/vendor/stundenzettel.bundle.js \
             site/workday-store.js)"
           test "$actual" = "$expected"

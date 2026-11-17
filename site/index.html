@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#11242c">
   <title>inTrend Mission Control · Field Operations</title>
-  <!-- Static assets carry one release token (?v=). Change it in ALL ten references whenever an asset changes: a cached older file must never be combined with a newer one. -->
-  <link rel="stylesheet" href="styles.css?v=2026-11-17-s44">
-  <link rel="stylesheet" href="ac01.css?v=2026-11-17-s44">
-  <link rel="stylesheet" href="spacing.css?v=2026-11-17-s44">
-  <script src="vendor/ac01-core.bundle.js?v=2026-11-17-s44" defer></script>
-  <script src="workday-store.js?v=2026-11-17-s44" defer></script>
-  <script src="icons.js?v=2026-11-17-s44" defer></script>
-  <script src="app.js?v=2026-11-17-s44" defer></script>
-  <script src="ac01.js?v=2026-11-17-s44" defer></script>
-  <script src="vendor/stundenzettel.bundle.js?v=2026-11-17-s44" defer></script>
-  <script src="timesheet-view.js?v=2026-11-17-s44" defer></script>
-  <script src="behinderung-view.js?v=2026-11-17-s44" defer></script>
+  <!-- Static assets carry one release token (?v=). Change it in ALL twelve references whenever an asset changes: a cached older file must never be combined with a newer one. -->
+  <link rel="stylesheet" href="styles.css?v=2026-11-17-s45">
+  <link rel="stylesheet" href="ac01.css?v=2026-11-17-s45">
+  <link rel="stylesheet" href="spacing.css?v=2026-11-17-s45">
+  <script src="vendor/ac01-core.bundle.js?v=2026-11-17-s45" defer></script>
+  <script src="workday-store.js?v=2026-11-17-s45" defer></script>
+  <script src="icons.js?v=2026-11-17-s45" defer></script>
+  <script src="app.js?v=2026-11-17-s45" defer></script>
+  <script src="ac01.js?v=2026-11-17-s45" defer></script>
+  <script src="vendor/stundenzettel.bundle.js?v=2026-11-17-s45" defer></script>
+  <script src="vendor/planner.bundle.js?v=2026-11-17-s45" defer></script>
+  <script src="timesheet-view.js?v=2026-11-17-s45" defer></script>
+  <script src="behinderung-view.js?v=2026-11-17-s45" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -27,6 +28,7 @@
         <button type="button" class="nav-item active" data-view="dashboard" title="Mission Control" aria-current="page"><i class="ic-wrap nav-ic" data-icon="layout-dashboard"></i> Mission Control</button>
         <button type="button" class="nav-item" data-view="ac01" title="Baustellentag erfassen"><i class="ic-wrap nav-ic" data-icon="clipboard-list"></i> Baustellentag erfassen</button>
         <button type="button" class="nav-item" data-view="timesheet" title="Stundenzettel"><i class="ic-wrap nav-ic" data-icon="file-text"></i> Stundenzettel</button>
+        <button type="button" class="nav-item" data-view="planner" title="Termin- und Ressourcenplaner"><i class="ic-wrap nav-ic" data-icon="gantt"></i> Planer</button>
         <button type="button" class="nav-item nav-legacy" data-view="field" title="Tagesbericht · bisheriges Formular"><i class="ic-wrap nav-ic" data-icon="archive"></i> <span class="nav-label">Tagesbericht <small class="nav-sub">bisheriges Formular</small></span></button>
       </nav>
       <div class="rail-foot"><span class="live-dot"></span> Lokaler UX-Prototyp<br><small>Synthetische Beispieldaten</small></div>
@@ -153,8 +155,9 @@
             </aside>
           </div>
         </section>
-        <section id="dashboard-view" class="view" aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="primary" type="button" id="dashboard-primary" data-view="ac01" data-new-day><i class="ic-wrap" data-icon="plus"></i>Baustellentag erfassen</button></div><div id="draft-notice" class="draft-notice" role="status" aria-live="polite" hidden></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="open-notice" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">AUS „BAUSTELLENTAG ERFASSEN“</span><h2>Erfasste Tage</h2></div><span id="wd-count" class="count-pill"></span></div><div id="wd-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="wd-event-count" class="count-pill"></span></div><div id="wd-events"></div></section></div><section class="panel legacy-panel" id="legacy-panel" hidden><div class="panel-head"><div><span class="eyebrow">BISHERIGES FORMULAR „TAGESBERICHT“ · NICHT AUS BAUSTELLENTAG ERFASSEN</span><h2>Berichte aus dem bisherigen Formular</h2></div><span id="report-count" class="count-pill"></span></div><div class="dashboard-grid"><div id="reports-list"></div><div><div class="panel-head"><h2>Ereignisse (bisheriges Formular)</h2><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></div></div></section><div class="dashboard-foot">Synthetische Daten · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg · Keine automatische Zustellung</div></section>
+        <section id="dashboard-view" class="view" aria-labelledby="dashboard-title"><div class="page-head dashboard-head"><div><span class="eyebrow">BAULEITUNG · ÜBERBLICK</span><h1 id="dashboard-title">Mission <em>Control.</em></h1><p>Was heute erledigt wurde. Was Aufmerksamkeit braucht.</p></div><button class="primary" type="button" id="dashboard-primary" data-view="ac01" data-new-day><i class="ic-wrap" data-icon="plus"></i>Baustellentag erfassen</button></div><div id="draft-notice" class="draft-notice" role="status" aria-live="polite" hidden></div><div id="save-confirmation" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="open-notice" class="save-confirmation" role="status" aria-live="polite" hidden></div><div id="metrics" class="metrics"></div><div class="dashboard-grid"><section class="panel"><div class="panel-head"><div><span class="eyebrow">AUS „BAUSTELLENTAG ERFASSEN“</span><h2>Erfasste Tage</h2></div><span id="wd-count" class="count-pill"></span></div><div id="wd-list"></div></section><section class="panel"><div class="panel-head"><div><span class="eyebrow">KLÄRUNG &amp; NACHWEISE</span><h2>Ereignisse</h2></div><span id="wd-event-count" class="count-pill"></span></div><div id="wd-events"></div></section></div><section class="panel legacy-panel" id="legacy-panel" hidden><div class="panel-head"><div><span class="eyebrow">BISHERIGES FORMULAR „TAGESBERICHT“ · NICHT AUS BAUSTELLENTAG ERFASSEN</span><h2>Berichte aus dem bisherigen Formular</h2></div><span id="report-count" class="count-pill"></span></div><div class="dashboard-grid"><div id="reports-list"></div><div><div class="panel-head"><h2>Ereignisse (bisheriges Formular)</h2><span id="event-count" class="count-pill"></span></div><div id="events-list"></div></div></div></section><div class="dashboard-foot">Synthetische Daten · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg · Keine automatische Zustellung<br><button class="outline planner-link" type="button" data-view="planner"><i class="ic-wrap" data-icon="gantt"></i>Planer öffnen</button></div></section>
         <section id="timesheet-view" class="view" hidden aria-labelledby="timesheet-title"><div class="page-head ts-head"><div><span class="eyebrow">MISSION CONTROL · AUS GESPEICHERTEN BAUSTELLENTAGEN</span><h1 id="timesheet-title">Stundenzettel <em>erstellen.</em></h1><p>Einträge auswählen, Angaben ergänzen, prüfen und drucken. Es wird nichts gesendet oder abgelegt.</p></div><button class="outline" type="button" data-view="dashboard"><i class="ic-wrap" data-icon="arrow-left"></i>Zurück zu Mission Control</button></div><div id="ts-draft-notice" class="draft-notice" role="status" aria-live="polite" hidden></div><div id="ts-source"></div><div id="ts-host" hidden></div><div class="dashboard-foot">Synthetische Daten · Vorlage nicht freigegeben · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg</div></section>
+        <section id="planner-view" class="view" hidden aria-labelledby="planner-title"><div class="page-head ts-head"><div><h1 id="planner-title">Termin- und <em>Ressourcenplaner.</em></h1><p>Leistungen, Kolonnen, Geräte und Abhängigkeiten auf einer Zeitachse. Ein Ereignis entsteht aus dem Planvorgang und übernimmt dessen Soll-Daten.</p></div><button class="outline" type="button" data-view="dashboard"><i class="ic-wrap" data-icon="arrow-left"></i>Zurück zu Mission Control</button></div><div id="planner-host"></div><div class="dashboard-foot">Synthetische Daten · Erfundenes Beispielobjekt · Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg · Ein Ereignis begründet keinen Anspruch auf Nachtrag oder Rechnung</div></section>
         <section id="detail-view" class="view" hidden aria-labelledby="detail-title"><button class="back" type="button" data-view="dashboard">← Zurück zu Mission Control</button><div class="detail-grid"><div id="detail-content"></div><aside id="detail-aside"></aside></div></section>
         <section id="draft-view" class="view" hidden aria-labelledby="draft-title"><button class="back" type="button" data-view="detail">← Zurück zum Ereignis</button><div id="draft-content"></div></section>
       </main>

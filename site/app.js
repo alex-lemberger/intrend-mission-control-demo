@@ -78,11 +78,12 @@ function switchView(view, { confirmed = false } = {}) {
   document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== `${view}-view`);
   document.querySelectorAll('[data-view]').forEach(el => { const on = el.dataset.view===view; el.classList.toggle('active',on); if(el.matches('.nav-item,.mobile-nav button')){ if(on) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); } });
   $('#top-eyebrow').textContent = view==='field' ? 'BISHERIGES FORMULAR · LOKALE DEMO' : view==='ac01' ? 'BAUSTELLE · LOKALE DEMO' : 'MISSION CONTROL · LOKALE DEMO';
-  $('#top-title').textContent = ({field:'Tagesbericht · bisheriges Formular',ac01:'Baustellentag erfassen',dashboard:'Mission Control',timesheet:'Stundenzettel',detail:'Ereignis',draft:'Dokumententwurf'})[view];
+  $('#top-title').textContent = ({field:'Tagesbericht · bisheriges Formular',ac01:'Baustellentag erfassen',dashboard:'Mission Control',timesheet:'Stundenzettel',planner:'Planer',detail:'Ereignis',draft:'Dokumententwurf'})[view];
   if(view==='dashboard') renderDashboard();
   if(view==='detail') renderDetail();
   if(view==='draft') renderDraft();
   if(view==='timesheet') TimesheetView.render();
+  if(view==='planner') renderPlanner();
   renderDraftNotices();
   renderEditorTitle();
   const route =view === 'ac01' ? '#ac01' : window.location.href.split('#')[0];
@@ -91,6 +92,19 @@ function switchView(view, { confirmed = false } = {}) {
   }
   window.scrollTo({top:0,behavior:'instant'});
   $('#main').focus({preventScroll:true});
+}
+// Planner (Pilot 02): generated bundle vendor/planner.bundle.js, mounted once in a shadow root so its styles and the shell's stay apart.
+// It keeps its own plan while the page lives (memory only, fictional demo plan) and is not connected to the saved Baustellentage.
+let plannerApi = null;
+function renderPlanner() {
+  const host = $('#planner-host');
+  if (!window.PlannerApp) { host.innerHTML = '<div class="panel"><div class="empty">Der Planer-Baustein fehlt (vendor/planner.bundle.js).</div></div>'; return; }
+  if (plannerApi) return;
+  const sr = host.attachShadow({ mode: 'open' });
+  const style = document.createElement('style'); style.textContent = window.PlannerApp.css;
+  const mount = document.createElement('div');
+  sr.append(style, mount);
+  plannerApi = window.PlannerApp.mountPlanner(mount, { scheme: 'light' });
 }
 // Title and lead of the editor follow the saved day it holds: "erfassen" for a new day, "bearbeiten" for a saved day.
 function renderEditorTitle() {
