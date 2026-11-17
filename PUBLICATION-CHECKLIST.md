@@ -1,5 +1,17 @@
 # Sicherheits- und Publikationscheckliste
 
+## Bestätigte Veröffentlichung s45 (Planer) — 2026-11-17, Release-Token `2026-11-17-s45`
+
+- [x] Public static release committed as `a385deb` and pushed normally to `origin/main`. It adds the planner view (timeline, resources, dependencies, events from a plan task) as the navigation entry "Planer" with a phone-only button in the Mission Control footer. Fictional data, memory only.
+- [x] Changed files: `site/index.html`, `site/app.js`, `site/icons.js`, `site/spacing.css`, new `site/vendor/planner.bundle.js`; the workflow allowlist gained that one file (14 files in `site/`).
+- [x] GitHub Pages workflow `44150796496` (head `a385deb`) succeeded; `prepare` enforced the exact allowlist and the content scans (also replayed locally before the push).
+- [x] `vendor/planner.bundle.js` is generated from the private sources by the bundler with its own safety scan (no network, no names, no external URLs); not copied by hand.
+- [x] Version gate: all twelve referenced assets use `?v=2026-11-17-s45`.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` 47/47 against this exact package (private source: integration 46/46, ui-tests 62/62, SPFx 137/137).
+- [x] Live proof: SHA-256 of all 14 downloaded Pages files matches the local package.
+- [x] Live browser smoke (headless Chrome on the public URL, cache disabled): "Planer" opens, 3 plan tasks, 3 dependency arrows (1 broken, by design of the demo), 2 findings, an event created from a task appears on the axis, no console errors. Not a full test run on the live site.
+- [ ] Still unverified, not blockers: real iPhone/Safari, screen reader. The prototype is synthetic and memory-only; this publication grants no SharePoint or operational approval and does not confirm the planner scope with the stakeholder.
+
 ## Bestätigte Veröffentlichung UX-01…UX-05 + Ereignis-Editor — 2026-11-16, Release-Token `2026-11-16-s35`
 
 - [x] Public static release committed as `9ce1050` and pushed normally to `origin/main`; no history rewrite. It follows the UX-01…UX-05 release `fadbb20` and changes only the legacy event editor presentation.
