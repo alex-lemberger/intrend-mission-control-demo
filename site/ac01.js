@@ -238,7 +238,6 @@
         element.closest('[data-employee]').querySelector('[data-select]')?.setAttribute('aria-label', `${employeeLabel(employees[index], index)} auswählen`);
       }
     });
-    $('#ac01-jump-events').textContent = events.length ? `(${events.length})` : '';
   }
 
   // Compact line shown on small screens; every piece mirrors what is entered, missing parts are marked.
@@ -334,7 +333,62 @@
       + stat('Ereignisse', String(summary.eventCount), reasons || 'ohne Zeit')
       + `<button type="button" class="ac01-stat ac01-stat-open${alarm ? ' has-open' : ''}" data-review data-jump="#ac01-draft-title"><small>Noch zu klären</small><strong>${empty ? '–' : open}</strong><span>${clarifySub}</span></button>`
       + `<button type="button" class="ac01-stat ac01-save${replacePending ? ' is-replace' : ''}" data-action="save-day"><small>${replacePending ? 'Vorhandenen Tag ersetzen' : 'Tag speichern'}</small><strong>${replacePending ? 'Ja, ersetzen' : '<i class="ic-wrap" data-icon="save"></i>Speichern'}</strong><span>${replacePending ? 'zweiter Klick nötig' : '→ Mission Control'}</span></button>`;
+    stepData = { summary, empty, alarm, open };
+    renderSteps();
   }
+
+  // ---- Guided navigation: in-page links to the four sections, derived from what is already entered or validated.
+  // No workflow state of its own: "visited" never counts as done; an empty Ereignisse section is optional, not missing.
+  let stepData = null;
+  const stepsEl = $('#ac01-steps');
+  const stepButtons = [...stepsEl.querySelectorAll('[data-step]')];
+  const stepNote = key => stepsEl.querySelector(`[data-step-note="${key}"]`);
+  function renderSteps() {
+    if (!stepData) return;
+    const { summary, empty, alarm, open } = stepData;
+    const people = empty ? 0 : summary.named + summary.unnamed;
+    const dirty = isDirty();
+    const set = (key, text, state) => { stepNote(key).textContent = text; stepsEl.querySelector(`[data-step-item="${key}"]`).dataset.state = state; };
+    const projectText = $('#ac01-project').selectedOptions[0]?.textContent || '';
+    set('ctx', `${projectText} · ${dateLabel($('#ac01-date').value)}`, 'info');
+    set('crew', people ? `${people} ${people === 1 ? 'Person' : 'Personen'}` : 'Personen eintragen', people ? 'data' : 'todo');
+    set('events', summary.eventCount ? `${summary.eventCount} erfasst` : 'optional', summary.eventCount ? 'data' : 'optional');
+    if (alarm) set('save', open ? `${open} ${open === 1 ? 'Angabe' : 'Angaben'} prüfen` : 'Widerspruch prüfen', 'attention');
+    else if (empty && !editingKey) set('save', 'noch nichts zu speichern', 'todo');
+    else if (dirty) set('save', 'ungespeichert', 'dirty');
+    else set('save', 'gespeichert', 'saved');
+    const stateEl = $('#ac01-step-state');
+    stateEl.textContent = editingKey ? (dirty ? 'Gespeichert · Änderungen noch offen' : 'Gespeichert · wird bearbeitet') : (dirty ? 'Neuer Tag · nicht gespeichert' : 'Neuer Tag');
+    stateEl.dataset.mode = editingKey ? (dirty ? 'dirty' : 'saved') : (dirty ? 'dirty' : 'new');
+    document.getElementById('ac01-view').dataset.mode = editingKey ? 'edit' : 'new';
+    updateActiveStep();
+  }
+  function updateActiveStep() {
+    const view = $('#ac01-view');
+    if (view.hidden) return;
+    const targets = stepButtons.map(button => $(button.dataset.step));
+    const stripOn = matchMedia('(min-width:1024px)').matches ? overviewEl.offsetHeight : 0;
+    const line = stepsEl.offsetHeight + stripOn + 24;
+    let index = 0;
+    [0, 1, 2].forEach(i => { if (targets[i].getBoundingClientRect().top <= line) index = i; });
+    const single = matchMedia('(max-width:950px)').matches;
+    if (single ? targets[3].getBoundingClientRect().top <= line : $('.ac01-report-area').contains(document.activeElement)) index = 3;
+    stepButtons.forEach((button, i) => { if (i === index) button.setAttribute('aria-current', 'step'); else button.removeAttribute('aria-current'); });
+  }
+  if (root.ResizeObserver) new ResizeObserver(() => { const h = stepsEl.offsetHeight; if (h) document.documentElement.style.setProperty('--ac-steps-h', `${h}px`); }).observe(stepsEl);
+  let stepFrame = 0;
+  const scheduleActive = () => { if (!stepFrame) stepFrame = requestAnimationFrame(() => { stepFrame = 0; updateActiveStep(); }); };
+  window.addEventListener('scroll', scheduleActive, { passive: true });
+  window.addEventListener('resize', scheduleActive);
+  document.addEventListener('focusin', scheduleActive);
+  stepsEl.addEventListener('click', event => {
+    const button = event.target.closest('[data-step]');
+    if (!button) return;
+    const target = $(button.dataset.step);
+    target.scrollIntoView({ block: 'start' });
+    target.focus({ preventScroll: true });
+    updateActiveStep();
+  });
   // The sticky column header must sit below the sticky strip, whatever height the strip has at the current width.
   if (root.ResizeObserver) new ResizeObserver(() => { const h = overviewEl.offsetHeight; if (h) document.documentElement.style.setProperty('--ac-strip-h', `${h}px`); }).observe(overviewEl);
   // The strip is re-rendered often, so its jump buttons are handled by delegation.
@@ -772,6 +826,7 @@
     statusEl.textContent = `${text} Nur im Arbeitsspeicher dieser Demo: nach dem Neuladen der Seite ist alles weg.`;
     statusEl.classList.toggle('is-warning', replacePending || Boolean(existing && !sameKey(editingKey, key)));
     statusEl.dataset.dirty = String(dirty);               // drives the visible "Ungespeichert" marker
+    renderSteps();
     document.dispatchEvent(new CustomEvent('ac01-dirtychange'));   // app.js: nav marker and notices on Mission Control / Stundenzettel
   }
 

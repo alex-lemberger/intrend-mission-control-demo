@@ -6,17 +6,17 @@
   <meta name="theme-color" content="#11242c">
   <title>inTrend Mission Control · Field Operations</title>
   <!-- Static assets carry one release token (?v=). Change it in ALL ten references whenever an asset changes: a cached older file must never be combined with a newer one. -->
-  <link rel="stylesheet" href="styles.css?v=2026-11-17-s38">
-  <link rel="stylesheet" href="ac01.css?v=2026-11-17-s38">
-  <link rel="stylesheet" href="spacing.css?v=2026-11-17-s38">
-  <script src="vendor/ac01-core.bundle.js?v=2026-11-17-s38" defer></script>
-  <script src="workday-store.js?v=2026-11-17-s38" defer></script>
-  <script src="icons.js?v=2026-11-17-s38" defer></script>
-  <script src="app.js?v=2026-11-17-s38" defer></script>
-  <script src="ac01.js?v=2026-11-17-s38" defer></script>
-  <script src="vendor/stundenzettel.bundle.js?v=2026-11-17-s38" defer></script>
-  <script src="timesheet-view.js?v=2026-11-17-s38" defer></script>
-  <script src="behinderung-view.js?v=2026-11-17-s38" defer></script>
+  <link rel="stylesheet" href="styles.css?v=2026-11-17-s40">
+  <link rel="stylesheet" href="ac01.css?v=2026-11-17-s40">
+  <link rel="stylesheet" href="spacing.css?v=2026-11-17-s40">
+  <script src="vendor/ac01-core.bundle.js?v=2026-11-17-s40" defer></script>
+  <script src="workday-store.js?v=2026-11-17-s40" defer></script>
+  <script src="icons.js?v=2026-11-17-s40" defer></script>
+  <script src="app.js?v=2026-11-17-s40" defer></script>
+  <script src="ac01.js?v=2026-11-17-s40" defer></script>
+  <script src="vendor/stundenzettel.bundle.js?v=2026-11-17-s40" defer></script>
+  <script src="timesheet-view.js?v=2026-11-17-s40" defer></script>
+  <script src="behinderung-view.js?v=2026-11-17-s40" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -64,15 +64,15 @@
           <div class="page-head ac01-page-head">
             <div><span class="eyebrow">TAGESERFASSUNG · BEISPIELDATEN</span><h1 id="ac01-title">Baustellentag <em>erfassen.</em></h1><p id="ac01-lead">Mitarbeitende, Zeiten, Arbeiten und Ereignisse eines Tages eintragen und speichern.</p></div>
           </div>
-          <nav class="ac01-jump" aria-label="Bereiche dieser Seite"><button type="button" data-jump="#ac01-crew-title">Mitarbeitende</button><button type="button" data-jump="#ac01-events-title">Ereignisse <span id="ac01-jump-events"></span></button><button type="button" data-jump="#ac01-draft-title">Tagesbericht</button></nav>
+          <nav class="ac01-steps" id="ac01-steps" aria-label="Schritte dieses Baustellentags"><ol><li data-step-item="ctx"><button type="button" data-step="#ac01-ctx-title"><span class="st-n" aria-hidden="true">1</span><span class="st-t"><span class="st-l"><span class="st-long">Projekt &amp; Datum</span><span class="st-short">Projekt</span></span><small class="st-note" data-step-note="ctx"></small></span><i class="st-mark" aria-hidden="true"></i></button></li><li data-step-item="crew"><button type="button" data-step="#ac01-crew-title"><span class="st-n" aria-hidden="true">2</span><span class="st-t"><span class="st-l"><span class="st-long">Personal &amp; Arbeiten</span><span class="st-short">Personal</span></span><small class="st-note" data-step-note="crew"></small></span><i class="st-mark" aria-hidden="true"></i></button></li><li data-step-item="events"><button type="button" data-step="#ac01-events-title"><span class="st-n" aria-hidden="true">3</span><span class="st-t"><span class="st-l"><span class="st-long">Ereignisse</span><span class="st-short">Ereignisse</span></span><small class="st-note" data-step-note="events"></small></span><i class="st-mark" aria-hidden="true"></i></button></li><li data-step-item="save"><button type="button" data-step="#ac01-draft-title"><span class="st-n" aria-hidden="true">4</span><span class="st-t"><span class="st-l"><span class="st-long">Prüfen &amp; Speichern</span><span class="st-short">Speichern</span></span><small class="st-note" data-step-note="save"></small></span><i class="st-mark" aria-hidden="true"></i></button></li></ol><span class="st-state" id="ac01-step-state" role="status"></span></nav>
           <div class="ac01-savebar" id="ac01-savebar"><p id="ac01-save-status" role="status" aria-live="polite"></p><div class="ac01-savebar-actions"><button type="button" class="ac01-add" id="ac01-new-day"><i class="ic-wrap" data-icon="file-plus"></i>Neuer leerer Tag</button><button type="button" class="ac01-add" data-view="dashboard"><i class="ic-wrap" data-icon="layout-dashboard"></i>Mission Control ansehen →</button></div></div>
           <section class="ac01-overview" id="ac01-overview" aria-label="Überblick über den erfassten Tag"></section>
           <div class="ac01-workspace">
             <div class="ac01-work-area">
               <section class="ac01-block" aria-labelledby="ac01-ctx-title">
-                <h2 id="ac01-ctx-title">Projekt und Datum</h2>
+                <h2 id="ac01-ctx-title" tabindex="-1">Projekt und Datum</h2>
                 <div class="ac01-fields"><div><label for="ac01-project">Bauprojekt</label><select id="ac01-project"></select></div><div><label for="ac01-date">Datum</label><input id="ac01-date" type="date"></div></div>
-                <p class="ac01-hint">Demoangaben; die Auswahl ändert keine Eingaben.</p>
+                <p class="ac01-hint">Demoangaben; die Auswahl ändert keine Eingaben. Danach unten Personal und Arbeiten eintragen.</p>
               </section>
               <section class="ac01-block" aria-labelledby="ac01-crew-title">
                 <div class="ac01-heading-row"><h2 id="ac01-crew-title" tabindex="-1">Mitarbeitende, Arbeit und Ereignisse</h2><span id="ac01-crew-count" aria-live="polite"></span></div>

@@ -98,6 +98,7 @@ function renderEditorTitle() {
   const leadDefault = 'Mitarbeitende, Zeiten, Arbeiten und Ereignisse eines Tages eintragen und speichern.';
   $('#ac01-title').innerHTML = key ? 'Baustellentag <em>bearbeiten.</em>' : 'Baustellentag <em>erfassen.</em>';
   $('#ac01-lead').textContent = key ? `Gespeicherter Tag: ${project(key.projectId).name} · ${dateText(key.date)}. Änderungen gelten erst nach dem Speichern.` : leadDefault;
+  $('#ac01-view').dataset.mode = key ? 'edit' : 'new';
   if (state.view === 'ac01') $('#top-title').textContent = key ? 'Baustellentag bearbeiten' : 'Baustellentag erfassen';
 }
 document.addEventListener('click', e => {
@@ -273,7 +274,11 @@ async function renderDashboard(){
 function showSavedWorkday(report, summary, replaced){
   $('#open-notice').hidden=true;
   $('#save-confirmation').hidden=false;
-  $('#save-confirmation').textContent=`✓ Baustellentag für ${project(report.projectId).name} am ${dateText(report.date)} ${replaced?'aktualisiert':'gespeichert'} · ${summary.named} Mitarbeitende · ${summary.assignmentCount} Arbeitszeilen · ${summary.eventCount} ${summary.eventCount===1?'Ereignis':'Ereignisse'}. ${summary.missing.length?`Noch zu klären: ${summary.missing.length}.`:`Mögliche nächste Schritte stehen an der Tageskarte: Stundenzettel${report.events.some(v => v.reasons.includes('Baubehinderung')) ? ' · Behinderungsanzeige-Entwurf' : ''}.`} Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.`;
+  const MEMNOTE=' Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.';
+  const text=`✓ Baustellentag für ${project(report.projectId).name} am ${dateText(report.date)} ${replaced?'aktualisiert':'gespeichert'} · ${summary.named} Mitarbeitende · ${summary.assignmentCount} Arbeitszeilen · ${summary.eventCount} ${summary.eventCount===1?'Ereignis':'Ereignisse'}. ${summary.missing.length?`Noch zu klären: ${summary.missing.length}.`:`Mögliche nächste Schritte stehen an der Tageskarte: Stundenzettel${report.events.some(v => v.reasons.includes('Baubehinderung')) ? ' · Behinderungsanzeige-Entwurf' : ''}.`} Nur im Arbeitsspeicher; nach dem Neuladen der Seite weg.`;
+  const bh = report.events.map((v,i)=>({v,i})).filter(x=>x.v.reasons.includes('Baubehinderung'));
+  const at = `data-project="${esc(report.projectId)}" data-date="${esc(report.date)}"`;
+  $('#save-confirmation').innerHTML = `<span class="sc-text">${esc(text.replace(MEMNOTE,''))}<span class="sc-mem">${esc(MEMNOTE)}</span></span><span class="sc-actions" ${at}><button class="outline" type="button" data-wd-open><i class="ic-wrap" data-icon="pencil"></i>Weiter bearbeiten</button><button class="outline" type="button" data-ts-open><i class="ic-wrap" data-icon="file-text"></i><span class="sc-long">Stundenzettel für dieses Projekt</span><span class="sc-short">Stundenzettel</span></button>${bh.map(x=>`<button class="outline" type="button" data-bh-open ${at} data-event="${esc(x.v.id)}"><i class="ic-wrap" data-icon="triangle-alert"></i><span class="sc-long">Behinderungsanzeige-Entwurf</span><span class="sc-short">Behinderung</span>${bh.length>1?` (Ereignis ${x.i+1})`:''}</button>`).join('')}</span>`;
   switchView('dashboard');
 }
 // Reopening replaces the day in AC-01; unsaved changes there need a second, explicit click.
