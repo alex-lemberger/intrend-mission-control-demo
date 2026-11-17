@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:3816f952db7fdac8, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:d9cfb4a39f6f8805, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry ac01-core <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -135,7 +135,8 @@ function createDemoData() {
 "src/behinderung/behinderungsanzeige.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PERIOD_LABELS = exports.FIXED_TEXT = void 0;
+exports.LETTER_VARIANTS = exports.PERSONAL_TEXT = exports.PERIOD_LABELS = exports.FIXED_TEXT = void 0;
+exports.letterText = letterText;
 exports.proposeDetails = proposeDetails;
 exports.proposeReasons = proposeReasons;
 exports.createBehinderungsanzeigeDraft = createBehinderungsanzeigeDraft;
@@ -144,6 +145,14 @@ const disruption_ts_1 = require("../core/disruption.js");
 const wording_ts_1 = require("./wording.js");
 Object.defineProperty(exports, "FIXED_TEXT", { enumerable: true, get: function () { return wording_ts_1.FIXED_TEXT; } });
 Object.defineProperty(exports, "PERIOD_LABELS", { enumerable: true, get: function () { return wording_ts_1.PERIOD_LABELS; } });
+Object.defineProperty(exports, "PERSONAL_TEXT", { enumerable: true, get: function () { return wording_ts_1.PERSONAL_TEXT; } });
+exports.LETTER_VARIANTS = [
+    { id: 'formal', label: 'Formell', hint: 'Sachlich und trocken, nach der Vorlage.' },
+    { id: 'persoenlich', label: 'Persönlich', hint: 'Für Auftraggeber, die wir kennen; weniger trocken (Platzhaltertext).' },
+];
+function letterText(variant) {
+    return variant === 'persoenlich' ? { variant: 'persoenlich', text: wording_ts_1.PERSONAL_TEXT } : { variant: 'formal', text: wording_ts_1.FIXED_TEXT };
+}
 const dateDe = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('.') : iso);
 function proposeDetails(report, eventId) {
     const event = report.events.find(item => item.id === eventId);
@@ -166,6 +175,7 @@ function createBehinderungsanzeigeDraft(report, eventId, project, catalog, today
     if (!report.events.some(item => item.id === eventId))
         return null;
     return {
+        variant: 'formal',
         source: { projectId: report.projectId, date: report.date, eventId },
         date: today.trim(),
         project: project.name.trim(),
@@ -190,11 +200,14 @@ function buildBehinderungsanzeige(draft) {
     need(draft.durationDays, 'Voraussichtliche Dauer fehlt');
     need(draft.newCompletion, 'Voraussichtlicher neuer Fertigstellungstermin fehlt');
     need(draft.confirmBy, 'Bestätigungsfrist fehlt');
+    const { variant, text } = letterText(draft.variant);
     return {
-        title: wording_ts_1.FIXED_TEXT.title,
+        variant,
+        text,
+        title: text.title,
         date: draft.date,
         recipient: draft.recipient,
-        intro: wording_ts_1.FIXED_TEXT.intro(draft.project),
+        intro: text.intro(draft.project),
         reasons,
         details: draft.details,
         periods: wording_ts_1.PERIOD_LABELS.map(([label, unit], index) => [label, [draft.durationDays, draft.restartDays, draft.relocationDays, draft.newCompletion][index], unit]),
@@ -203,6 +216,7 @@ function buildBehinderungsanzeige(draft) {
         notes: [
             'ENTWURF: nicht rechtlich geprüft, nicht versendet, keine freigegebene Vorlage. Eine dokumentierte Behinderung begründet für sich keinen Anspruch.',
             'Fristen werden nicht berechnet; sie sind frei einzutragen.',
+            ...(variant === 'persoenlich' ? ['Die Formulierung der persönlichen Variante ist ein Platzhaltertext, keine geprüfte oder freigegebene Vorlage.'] : []),
         ],
     };
 }
@@ -550,7 +564,7 @@ exports.disruptionLabel = disruptionLabel;
 "src/behinderung/wording.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PERIOD_LABELS = exports.FIXED_TEXT = void 0;
+exports.PERIOD_LABELS = exports.PERSONAL_TEXT = exports.FIXED_TEXT = void 0;
 exports.FIXED_TEXT = {
     title: 'Anzeige einer Behinderung (Beispieltext)',
     salutation: 'Sehr geehrte Damen und Herren,',
@@ -560,6 +574,18 @@ exports.FIXED_TEXT = {
     claims: 'Aus der Behinderung können sich weitere vertragliche Folgen ergeben; diese werden gesondert geprüft.',
     confirmBy: (date) => `Wir bitten um Ihre Bestätigung bis ${date || '________'}.`,
     closing: 'Mit freundlichen Grüßen',
+    signature: '(Unterschrift Auftragnehmer)',
+    confirmation: '(Bestätigung des Auftraggebers)',
+};
+exports.PERSONAL_TEXT = {
+    title: 'Behinderungsanzeige',
+    salutation: 'Guten Tag,',
+    intro: (project) => `zum Bauvorhaben ${project || '________'} möchten wir Sie darüber informieren, dass wir bei der Ausführung unserer Leistungen behindert sind. Die Gründe im Überblick:`,
+    detailsHead: 'Dazu im Einzelnen:',
+    periodsIntro: 'Die Gründe liegen nicht in unserem Einflussbereich. Wir rechnen deshalb damit, dass sich die Ausführung um die Dauer der Behinderung verschiebt. Unsere bisherige Einschätzung:',
+    claims: 'Welche weiteren Folgen sich daraus ergeben, besprechen wir gern gesondert mit Ihnen.',
+    confirmBy: (date) => `Wir freuen uns über Ihre kurze Bestätigung bis zum ${date || '________'}.`,
+    closing: 'Freundliche Grüße',
     signature: '(Unterschrift Auftragnehmer)',
     confirmation: '(Bestätigung des Auftraggebers)',
 };
@@ -581,5 +607,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:3816f952db7fdac8" }));
+  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:d9cfb4a39f6f8805" }));
 })();

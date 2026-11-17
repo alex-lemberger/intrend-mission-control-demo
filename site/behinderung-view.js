@@ -39,8 +39,11 @@
     const input = ([key, label, type]) => type === 'textarea'
       ? `<div class="bh-span2"><label for="bh-${key}">${label}</label><textarea id="bh-${key}" data-bh-field="${key}" rows="3">${esc(draft[key])}</textarea></div>`
       : `<div><label for="bh-${key}">${label}</label><input id="bh-${key}" data-bh-field="${key}" type="${type}" value="${esc(draft[key])}"></div>`;
+    const variants = core.LETTER_VARIANTS.map(item => `<label class="bh-radio" for="bh-variant-${item.id}"><input type="radio" name="bh-variant" id="bh-variant-${item.id}" data-bh-field="variant" value="${item.id}"${draft.variant === item.id ? ' checked' : ''}> ${esc(item.label)}</label>`).join('');
+    const variantHint = core.LETTER_VARIANTS.find(item => item.id === draft.variant)?.hint || '';
     document.getElementById('bh-form').innerHTML = `
       <p class="bh-note">Vorschlag aus dem gespeicherten Ereignis. Alles ist änderbar. Nicht rechtlich geprüft, nicht versendet; Fristen werden nicht berechnet.</p>
+      <fieldset class="bh-variants"><legend>Art des Schreibens</legend><div class="bh-radios">${variants}</div><p class="bh-note" id="bh-variant-hint">${esc(variantHint)}</p></fieldset>
       <div class="bh-grid">${FIELDS.map(input).join('')}</div>
       <div class="bh-grid"><div class="bh-span2"><label for="bh-reasons">Gründe der Behinderung (eine Zeile pro Grund)</label><textarea id="bh-reasons" data-bh-field="reasons" rows="3">${esc(draft.reasons)}</textarea><p class="bh-note">Vorgeschlagen aus den in Mission Control gewählten Gründen; änderbar.</p></div></div>
       <div class="bh-grid"><div class="bh-span2"><label for="bh-details">Im Einzelnen (Begründung)</label><textarea id="bh-details" data-bh-field="details" rows="6">${esc(draft.details)}</textarea></div>
@@ -55,25 +58,28 @@
       <div class="bh-address">${l.recipient.trim() ? esc(l.recipient).replace(/\n/g, '<br>') : '<span class="bh-missing">(Adresse)</span>'}</div>
       <p class="bh-date">Datum: ${cell(dateDe(l.date))}</p>
       <h1>${esc(l.title)}</h1>
-      <p>${esc(core.FIXED_TEXT.salutation)}</p>
+      <p>${esc(l.text.salutation)}</p>
       <p>${esc(l.intro)}</p>
       ${l.reasons.length ? `<ul class="bh-reasonlist">${l.reasons.map(text => `<li>${esc(text)}</li>`).join('')}</ul>` : '<p class="bh-details"><span class="bh-missing">________________</span></p>'}
-      <p>${esc(core.FIXED_TEXT.detailsHead)}</p>
+      <p>${esc(l.text.detailsHead)}</p>
       <p class="bh-details">${l.details.trim() ? esc(l.details).replace(/\n/g, '<br>') : '<span class="bh-missing">________________</span>'}</p>
-      <p>${esc(core.FIXED_TEXT.periodsIntro)}</p>
+      <p>${esc(l.text.periodsIntro)}</p>
       <table class="bh-periods"><tbody>${l.periods.map(([label, value, unit]) => `<tr><td>${esc(label)}</td><td>${cell(unit ? value : dateDe(value), '_____')} ${esc(unit)}</td></tr>`).join('')}</tbody></table>
-      <p>${esc(core.FIXED_TEXT.claims)}</p>
-      <p>${esc(core.FIXED_TEXT.confirmBy('\u0001')).replace('\u0001', cell(dateDe(l.confirmBy)))}</p>
-      <p>${esc(core.FIXED_TEXT.closing)}</p>
-      <div class="bh-sign"><div>${esc(core.FIXED_TEXT.signature)}</div><div>${esc(core.FIXED_TEXT.confirmation)}</div></div>`;
+      <p>${esc(l.text.claims)}</p>
+      <p>${esc(l.text.confirmBy('\u0001')).replace('\u0001', cell(dateDe(l.confirmBy)))}</p>
+      <p>${esc(l.text.closing)}</p>
+      <div class="bh-sign"><div>${esc(l.text.signature)}</div><div>${esc(l.text.confirmation)}</div></div>`;
   }
 
   function onInput(event) {
     if (!draft) return;
-    const field = event.target.dataset.bhField, circ = event.target.dataset.bhCirc;
-    if (field) draft[field] = event.target.value;
-    else if (circ !== undefined) { draft.checked[Number(circ)] = event.target.checked; renderForm(); }
-    else return;
+    const field = event.target.dataset.bhField;
+    if (!field) return;
+    if (field === 'variant') {
+      if (!event.target.checked) return;
+      draft.variant = event.target.value;
+      document.getElementById('bh-variant-hint').textContent = core.LETTER_VARIANTS.find(item => item.id === draft.variant)?.hint || '';
+    } else draft[field] = event.target.value;
     renderPreview();
   }
 
