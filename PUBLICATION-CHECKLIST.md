@@ -132,3 +132,11 @@ Erwartet: genau fünf statische Dateien unter `site/`, keine Symlinks und gülti
 - [x] Sichtbar gekennzeichnet als synthetische Demodaten und als nicht freigegebener Entwurf; fehlende Angaben und die Annahme „leere Pause = 0 Min.“ bleiben sichtbar und werden im Ausdruck mit Fußnote gekennzeichnet.
 - [x] Keine externen Aufrufe, kein Tracking; HTML, CSS und Module laden nur relative Dateien.
 - [x] Browserprüfung (lokal gegen die statische Ausgabe) und Prüfung der öffentlichen Seite: siehe Commit-Beschreibung und Übergabebericht.
+
+### Aktualisierung s41 (2026-11-17)
+
+- [x] Geänderte Dateien: `site/ac01.js`, `site/ac01.css`, `site/behinderung-view.js`, `site/styles.css`, `site/spacing.css`, `site/index.html` (nur Release-Token), `site/vendor/ac01-core.bundle.js` (neutraler Wortlaut, neu gebaut). Dateiliste unverändert (13 Dateien).
+- [x] Inhalt: Subunternehmer in der Personenauswahl standardmäßig eingeklappt; der Briefentwurf listet die gewählten Gründe zeilenweise statt der sieben Beispielpunkte mit Häkchen.
+- [x] Lokal: Allowlist- und Namens-/Wortlaut-Prüfung des Workflows nachgestellt (sauber), `node --check` aller JS-Dateien, Integrationstest gegen das öffentliche Paket 41/41.
+- [x] GitHub-Pages-Lauf `44059501897` erfolgreich; SHA-256 der veröffentlichten Dateien `index.html`, `ac01.js`, `ac01.css`, `styles.css`, `spacing.css`, `behinderung-view.js`, `vendor/ac01-core.bundle.js` stimmt mit `site/` überein; Release-Token `2026-11-17-s41` in allen 11 Verweisen.
+- [ ] Browserprüfung der Live-Seite in dieser Sitzung **nicht** durchgeführt (nur Hash-Vergleich). Weiterhin synthetisch, nur im Speicher, keine echten Daten.
