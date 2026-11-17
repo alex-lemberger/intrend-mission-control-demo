@@ -12,6 +12,9 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .brand small{font-size:11px;letter-spacing:.1em;white-space:nowrap}
 .ac01-stat small,.ac01-draft-meta small,.ts-figures dt{font-size:11px}
 .mobile-nav span{font-size:11px}
+/* 11px labels: "Mission Control" (89px) needs the full quarter of a 360px phone, so the bar gives up its side gaps there; below 350px a label may wrap instead of running into its neighbour */
+@media(max-width:390px){.mobile-nav{padding-left:2px;padding-right:2px}.mobile-nav button{padding-left:0;padding-right:0}.mobile-nav button span{letter-spacing:-.2px}}
+@media(max-width:350px){.mobile-nav button span{white-space:normal;text-align:center;line-height:1.15;hyphens:auto}}
 .metric small{margin-bottom:var(--sp-3)}
 @media(max-width:760px){.metric small{font-size:11px}.badge{font-size:11px}}
 
@@ -24,6 +27,8 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 /* ---- Mission Control ---- */
 .metrics{gap:var(--sp-4);margin-bottom:var(--sp-5)}
 .metric{padding:var(--sp-5)}
+/* five tiles share ~860px at 761-1239px: with 24px side padding "Mitarbeitende" / "Arbeitszeilen" (12px, tracked) ran past the tile edge. Tighter side padding; a longer label may still break instead of overflowing. */
+@media(min-width:761px) and (max-width:1239px){.metric{padding:var(--sp-5) var(--sp-4)}.metric small{overflow-wrap:break-word;hyphens:auto}}
 .dashboard-grid{gap:var(--sp-5)}
 .panel-head{padding:var(--sp-5) var(--sp-5) var(--sp-4)}
 .list-item{padding:var(--sp-4) var(--sp-5)}

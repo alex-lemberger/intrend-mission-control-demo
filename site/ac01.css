@@ -200,7 +200,7 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 @media(min-width:1024px){
 #ac01-view{--ac-cols:142px 78px 78px 52px minmax(104px,1fr) minmax(56px,.5fr) minmax(152px,1.6fr) 54px 30px 28px}
 .ac01-table-head span{min-width:0;overflow-wrap:normal;hyphens:none}
-.ac01-table-head span:nth-child(6){letter-spacing:-.2px;font-size:10.5px;line-height:1.15}
+.ac01-table-head span:nth-child(6){letter-spacing:-.2px;font-size:11px;line-height:1.15}
 .ac01-table-head{display:grid;grid-template-columns:var(--ac-cols);column-gap:6px;align-items:end;margin:0 0 2px 42px;padding:6px 0;position:sticky;top:0;z-index:3;background:#fff;border-bottom:2px solid #b8cbbf;color:#33493e;font-size:11px;font-weight:850;letter-spacing:.2px}
 .ac01-employee{flex-wrap:nowrap;gap:0 6px;border:0;border-bottom:1px solid #dce7df;border-radius:0;background:transparent;margin:0;padding:3px 0}
 .ac01-employee:nth-child(even){background:#f6faf7}
@@ -298,17 +298,20 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 }
 
 /* ---- Table on typical desktop widths (1024-1239px): the shared 242px navigation rail and the page padding would leave
-        too little width. On the AC-01 view only, the rail collapses to icons and paddings shrink; at 1240px and above
-        nothing changes, below 1024px the cards remain. Required grid width is about 810px. ---- */
+        too little width. Between 1024 and 1239px the rail is the same compact icon rail on EVERY view (labels stay as
+        tooltips via title), so navigation does not change width when the view changes; page paddings shrink on the AC-01
+        view only. At 1240px and above nothing changes, below 1024px the cards remain. Required grid width is about 810px. ---- */
 @media(min-width:1024px) and (max-width:1239px){
 #ac01-view{--ac-cols:142px 78px 78px 50px minmax(104px,.9fr) minmax(56px,.5fr) minmax(148px,1.5fr) 54px 30px 28px}
-body:has(#ac01-view:not([hidden])) .rail{width:72px;padding:24px 10px}
-body:has(#ac01-view:not([hidden])) .rail .brand{padding:0 0 28px;justify-content:center}
-body:has(#ac01-view:not([hidden])) .rail .brand>div:last-child{display:none}
-body:has(#ac01-view:not([hidden])) .rail .nav-item{justify-content:center;gap:0;padding:14px 0;font-size:0}
+.rail{width:72px;padding:24px 10px}
+.rail .brand{padding:0 0 28px;justify-content:center}
+.rail .brand>div:last-child{display:none}
+.rail .nav-item{justify-content:center;gap:0;padding:14px 0;font-size:0}
 /* text labels vanish through font-size:0; a label wrapped in a span must be hidden too, or it widens every entry beyond the 72px rail */
-body:has(#ac01-view:not([hidden])) .rail .nav-item .nav-label{display:none}
-body:has(#ac01-view:not([hidden])) .rail .rail-foot{display:none}
+.rail .nav-item .nav-label{display:none}
+/* the legacy entry sets its own 13px label size with the same specificity in spacing.css (loaded later): outrank it */
+.rail .nav-item.nav-legacy{font-size:0}
+.rail .rail-foot{display:none}
 body:has(#ac01-view:not([hidden])) main{padding-left:16px;padding-right:16px}
 #ac01-view .ac01-block{padding:14px 12px}
 #ac01-view .ac01-bulk-fields{grid-template-columns:repeat(5,minmax(0,1fr))}
@@ -392,7 +395,7 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 }
 @media(min-width:1024px) and (max-width:1239px){
 .ac01-overview{top:0;padding:6px}
-#ac01-view{--ac-ev-cols:142px minmax(110px,1fr) minmax(0,1.8fr) 224px 28px}
+#ac01-view{--ac-ev-cols:142px minmax(110px,1fr) minmax(0,1.8fr) max-content 28px}
 }
 @media(min-width:1024px){.ac01-event-remove{margin-left:8px}}
 

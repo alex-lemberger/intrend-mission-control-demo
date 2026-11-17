@@ -1,0 +1,80 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "site/styles.css"
+        ],
+        "createdAt": "2026-11-17T01:11:18.861Z",
+        "reason": "existing Mission Control visual identity; side-tab is an explicitly accepted pattern in the release brief"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "site/index.html"
+        ],
+        "createdAt": "2026-11-17T01:11:18.885Z",
+        "reason": "existing Mission Control visual identity; side-tab is an explicitly accepted pattern in the release brief"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "site/ac01.css"
+        ],
+        "createdAt": "2026-11-17T01:11:24.499Z",
+        "reason": "existing Mission Control visual identity; side-tab is an explicitly accepted pattern in the release brief"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "site/styles.css"
+        ],
+        "createdAt": "2026-11-17T01:11:24.525Z",
+        "reason": "preserve the existing Mission Control visual identity during release preparation; redesign is out of scope"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "site/index.html"
+        ],
+        "createdAt": "2026-11-17T01:11:56.794Z",
+        "reason": "existing Mission Control visual identity; border-accent-on-rounded is an explicitly accepted pattern in the release brief"
+      },
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "site/ac01.css"
+        ],
+        "createdAt": "2026-11-17T01:11:56.819Z",
+        "reason": "existing Mission Control visual identity; border-accent-on-rounded is an explicitly accepted pattern in the release brief"
+      },
+      {
+        "rule": "kicker-above-heading",
+        "value": "*",
+        "files": [
+          "site/index.html"
+        ],
+        "createdAt": "2026-11-17T01:11:56.842Z",
+        "reason": "existing Mission Control visual identity; kicker-above-heading is an explicitly accepted pattern in the release brief"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "site/index.html"
+        ],
+        "createdAt": "2026-11-17T01:12:07.235Z",
+        "reason": "preserve the existing Mission Control visual identity during release preparation; redesign is out of scope"
+      }
+    ]
+  }
+}

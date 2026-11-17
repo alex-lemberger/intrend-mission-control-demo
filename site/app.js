@@ -135,6 +135,8 @@ function addEvent(data={}) {
   $('#event-list').append(card); updateEventSummary(); if(!data.id) $('.event-description',card).focus();
 }
 function syncEventFields(card) {
+  // The obstacle detail only helps describe a Hindernis. Keep a populated legacy value visible
+  // so switching a type never makes entered data disappear from the editor.
   const obstacle=$('.event-obstacle',card);
   $('.event-obstacle-field',card).hidden=$('.event-type',card).value!=='Hindernis' && !obstacle.value.trim();
 }

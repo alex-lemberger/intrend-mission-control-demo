@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#11242c">
   <title>inTrend Mission Control · Field Operations</title>
-  <!-- Static assets carry one release token (?v=). Change it in ALL eleven references whenever an asset changes: a cached older file must never be combined with a newer one. -->
-  <link rel="stylesheet" href="styles.css?v=2026-11-16-s35">
-  <link rel="stylesheet" href="ac01.css?v=2026-11-16-s35">
-  <link rel="stylesheet" href="spacing.css?v=2026-11-16-s35">
-  <script src="vendor/ac01-core.bundle.js?v=2026-11-16-s35" defer></script>
-  <script src="workday-store.js?v=2026-11-16-s35" defer></script>
-  <script src="icons.js?v=2026-11-16-s35" defer></script>
-  <script src="app.js?v=2026-11-16-s35" defer></script>
-  <script src="ac01.js?v=2026-11-16-s35" defer></script>
-  <script src="vendor/stundenzettel.bundle.js?v=2026-11-16-s35" defer></script>
-  <script src="timesheet-view.js?v=2026-11-16-s35" defer></script>
-  <script src="behinderung-view.js?v=2026-11-16-s35" defer></script>
+  <!-- Static assets carry one release token (?v=). Change it in ALL ten references whenever an asset changes: a cached older file must never be combined with a newer one. -->
+  <link rel="stylesheet" href="styles.css?v=2026-11-17-s38">
+  <link rel="stylesheet" href="ac01.css?v=2026-11-17-s38">
+  <link rel="stylesheet" href="spacing.css?v=2026-11-17-s38">
+  <script src="vendor/ac01-core.bundle.js?v=2026-11-17-s38" defer></script>
+  <script src="workday-store.js?v=2026-11-17-s38" defer></script>
+  <script src="icons.js?v=2026-11-17-s38" defer></script>
+  <script src="app.js?v=2026-11-17-s38" defer></script>
+  <script src="ac01.js?v=2026-11-17-s38" defer></script>
+  <script src="vendor/stundenzettel.bundle.js?v=2026-11-17-s38" defer></script>
+  <script src="timesheet-view.js?v=2026-11-17-s38" defer></script>
+  <script src="behinderung-view.js?v=2026-11-17-s38" defer></script>
 </head>
 <body>
   <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -118,8 +118,10 @@
                   </div>
                   <p class="ac01-hint" id="ac01-bulk-message" role="status" aria-live="polite">Beispielwerte sind keine Regel. Erst „Auf Auswahl anwenden“ trägt Werte ein; jede Zeile bleibt einzeln änderbar.</p>
                 </details>
-                <div class="ac01-table-head" aria-hidden="true"><span>Name</span><span>Beginn</span><span>Ende</span><span>Pause (Min.)</span><span>Leistungsgruppe</span><span>LV / Tätigkeit</span><span>Ort / Bauteil</span><span>Fotos</span><span></span><span></span></div>
-                <div id="ac01-employees"></div>
+                <div class="ac01-table">
+                  <div class="ac01-table-head" aria-hidden="true"><span>Name</span><span>Beginn</span><span>Ende</span><span>Pause (Min.)</span><span>Leistungsgruppe</span><span>LV / Tätigkeit</span><span>Ort / Bauteil</span><span>Fotos</span><span></span><span></span></div>
+                  <div id="ac01-employees"></div>
+                </div>
                 <button class="ac01-add" id="ac01-add-employee" type="button"><i class="ic-wrap" data-icon="plus"></i>Mitarbeiter hinzufügen</button>
                 <div class="ac01-events-panel" aria-labelledby="ac01-events-title">
                   <div class="ac01-heading-row ac01-events-head"><h3 id="ac01-events-title" tabindex="-1">Ereignisse / Tickets <small>ohne Zeitangabe</small></h3><button type="button" class="ac01-add ac01-add-event" id="ac01-event-add" data-action="add-event"><i class="ic-wrap" data-icon="plus"></i>Ereignis hinzufügen</button></div>
