@@ -674,6 +674,7 @@
   // Office staff are available but only listed on request and never preselected. Nothing here is persisted.
   const pickerSelection = new Set();
   let pickerOffice = false;
+  let pickerSubsOpen = false;   // subcontractors stay folded until asked for; the choice survives re-rendering
   const groupsEl = $('#ac01-picker-groups');
   const pickerMessage = $('#ac01-picker-message');
   function pickerGroupList() {
@@ -691,7 +692,7 @@
     const group = ({ key, title, entries }) => `<fieldset class="ac01-picker-group" data-group="${key}"><legend><label class="ac01-check"><input type="checkbox" data-pick-group="${key}"> <strong>${escapeHtml(title)}</strong> <small>(${entries.length})</small></label></legend><div class="ac01-pick-items">${entries.map(item).join('')}</div></fieldset>`;
     const lists = pickerGroupList();
     groupsEl.innerHTML = group(lists.own)
-      + `<div class="ac01-picker-sub"><h4>Subunternehmer <small>nach Firma, nur Kennungen</small></h4>${lists.subs.map(group).join('')}</div>`
+      + `<details class="ac01-picker-sub" id="ac01-picker-subs"${pickerSubsOpen ? ' open' : ''}><summary>Subunternehmer <small>(${lists.subs.reduce((n, g) => n + g.entries.length, 0)}) · nach Firma, nur Kennungen</small></summary>${lists.subs.map(group).join('')}</details>`
       + (pickerOffice ? group(lists.office) : '');
     syncPicker();
   }
@@ -706,6 +707,7 @@
     $('#ac01-picker-count').textContent = String(pickerSelection.size);
     $('#ac01-picker-add').disabled = pickerSelection.size === 0;
   }
+  groupsEl.addEventListener('toggle', event => { if (event.target.id === 'ac01-picker-subs') pickerSubsOpen = event.target.open; }, true);
   groupsEl.addEventListener('change', event => {
     const single = event.target.dataset.pick;
     const whole = event.target.dataset.pickGroup;

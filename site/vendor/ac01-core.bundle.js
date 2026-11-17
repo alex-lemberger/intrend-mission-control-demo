@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:a282e44452d2ba15, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:3816f952db7fdac8, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry ac01-core <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -95,24 +95,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createDemoData = createDemoData;
 const pad2 = (number) => String(number).padStart(2, '0');
 const DISRUPTION_CATALOG = [
-    { id: 'ST-001', group: 'Planung', label: 'Plan fehlt oder ist unvollständig', frequent: true, circumstances: [2] },
-    { id: 'ST-002', group: 'Planung', label: 'Planänderung nach Baubeginn', frequent: true, circumstances: [2] },
-    { id: 'ST-003', group: 'Planung', label: 'Koordination der Bauleitung fehlt', circumstances: [1] },
-    { id: 'ST-004', group: 'Vorgewerke', label: 'Vorgewerk nicht fertig', frequent: true, circumstances: [4] },
-    { id: 'ST-005', group: 'Vorgewerke', label: 'Fremdgewerk blockiert den Arbeitsbereich', frequent: true, circumstances: [0] },
-    { id: 'ST-006', group: 'Logistik', label: 'Zugang zur Arbeitsfläche nicht möglich', frequent: true, circumstances: [0] },
-    { id: 'ST-007', group: 'Logistik', label: 'Aufzug oder Transportweg nicht verfügbar', circumstances: [0] },
+    { id: 'ST-001', group: 'Planung', label: 'Plan fehlt oder ist unvollständig', frequent: true },
+    { id: 'ST-002', group: 'Planung', label: 'Planänderung nach Baubeginn', frequent: true },
+    { id: 'ST-003', group: 'Planung', label: 'Koordination der Bauleitung fehlt' },
+    { id: 'ST-004', group: 'Vorgewerke', label: 'Vorgewerk nicht fertig', frequent: true },
+    { id: 'ST-005', group: 'Vorgewerke', label: 'Fremdgewerk blockiert den Arbeitsbereich', frequent: true },
+    { id: 'ST-006', group: 'Logistik', label: 'Zugang zur Arbeitsfläche nicht möglich', frequent: true },
+    { id: 'ST-007', group: 'Logistik', label: 'Aufzug oder Transportweg nicht verfügbar' },
     { id: 'ST-008', group: 'Material', label: 'Material nicht oder zu spät geliefert', frequent: true },
-    { id: 'ST-009', group: 'Material', label: 'Lagerfläche fehlt', circumstances: [0] },
-    { id: 'ST-010', group: 'Bauablauf', label: 'Unterbrechung durch den Auftraggeber', frequent: true, circumstances: [1] },
-    { id: 'ST-011', group: 'Bauablauf', label: 'Verschiebung des Terminplans', circumstances: [1] },
+    { id: 'ST-009', group: 'Material', label: 'Lagerfläche fehlt' },
+    { id: 'ST-010', group: 'Bauablauf', label: 'Unterbrechung durch den Auftraggeber', frequent: true },
+    { id: 'ST-011', group: 'Bauablauf', label: 'Verschiebung des Terminplans' },
     { id: 'ST-012', group: 'Leistungsänderung', label: 'Zusätzliche Leistung angeordnet', frequent: true },
     { id: 'ST-013', group: 'Leistungsänderung', label: 'Geänderte Leistung angeordnet' },
-    { id: 'ST-014', group: 'Baustellenbedingungen', label: 'Witterung außergewöhnlich', circumstances: [6] },
-    { id: 'ST-015', group: 'Baustellenbedingungen', label: 'Baustelle nicht frei von Schmutz oder Wasser', circumstances: [0] },
-    { id: 'ST-016', group: 'Gerüst und Einrichtung', label: 'Gerüst nicht bereit', circumstances: [4] },
-    { id: 'ST-017', group: 'Zahlung und Abnahme', label: 'Abnahme verzögert', circumstances: [1] },
-    { id: 'ST-018', group: 'Zahlung und Abnahme', label: 'Vorleistung nicht abgenommen', circumstances: [4] },
+    { id: 'ST-014', group: 'Baustellenbedingungen', label: 'Witterung außergewöhnlich' },
+    { id: 'ST-015', group: 'Baustellenbedingungen', label: 'Baustelle nicht frei von Schmutz oder Wasser' },
+    { id: 'ST-016', group: 'Gerüst und Einrichtung', label: 'Gerüst nicht bereit' },
+    { id: 'ST-017', group: 'Zahlung und Abnahme', label: 'Abnahme verzögert' },
+    { id: 'ST-018', group: 'Zahlung und Abnahme', label: 'Vorleistung nicht abgenommen' },
 ];
 function createDemoData() {
     const directory = [
@@ -135,43 +135,32 @@ function createDemoData() {
 "src/behinderung/behinderungsanzeige.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PERIOD_LABELS = exports.FIXED_TEXT = exports.CIRCUMSTANCES = void 0;
+exports.PERIOD_LABELS = exports.FIXED_TEXT = void 0;
 exports.proposeDetails = proposeDetails;
-exports.suggestCircumstances = suggestCircumstances;
+exports.proposeReasons = proposeReasons;
 exports.createBehinderungsanzeigeDraft = createBehinderungsanzeigeDraft;
 exports.buildBehinderungsanzeige = buildBehinderungsanzeige;
-exports.acceptSuggestions = acceptSuggestions;
 const disruption_ts_1 = require("../core/disruption.js");
 const wording_ts_1 = require("./wording.js");
-Object.defineProperty(exports, "CIRCUMSTANCES", { enumerable: true, get: function () { return wording_ts_1.CIRCUMSTANCES; } });
 Object.defineProperty(exports, "FIXED_TEXT", { enumerable: true, get: function () { return wording_ts_1.FIXED_TEXT; } });
 Object.defineProperty(exports, "PERIOD_LABELS", { enumerable: true, get: function () { return wording_ts_1.PERIOD_LABELS; } });
 const dateDe = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('.') : iso);
-function proposeDetails(report, eventId, catalog) {
+function proposeDetails(report, eventId) {
     const event = report.events.find(item => item.id === eventId);
     if (!event)
         return '';
-    const { disruptionIds } = (0, disruption_ts_1.splitReasons)(event.reasons);
     const lines = [
         event.location.trim() && `Ort / Bauteil: ${event.location.trim()}`,
         event.description.trim() && `Sachverhalt: ${event.description.trim()}`,
-        disruptionIds.length && `Grund laut Erfassung: ${disruptionIds.map(id => (0, disruption_ts_1.disruptionLabel)(catalog, id)).join('; ')}`,
         `Festgestellt am: ${dateDe(report.date)}`,
     ];
     return lines.filter(Boolean).join('\n');
 }
-function suggestCircumstances(report, eventId, catalog) {
+function proposeReasons(report, eventId, catalog) {
     const event = report.events.find(item => item.id === eventId);
-    const out = {};
     if (!event)
-        return out;
-    for (const id of (0, disruption_ts_1.splitReasons)(event.reasons).disruptionIds) {
-        const entry = catalog.find(candidate => candidate.id === id);
-        for (const index of entry?.circumstances ?? [])
-            if (index >= 0 && index < wording_ts_1.CIRCUMSTANCES.length)
-                (out[index] ??= []).push(entry.label);
-    }
-    return out;
+        return '';
+    return (0, disruption_ts_1.splitReasons)(event.reasons).disruptionIds.map(id => (0, disruption_ts_1.disruptionLabel)(catalog, id)).join('\n');
 }
 function createBehinderungsanzeigeDraft(report, eventId, project, catalog, today = '') {
     if (!report.events.some(item => item.id === eventId))
@@ -182,9 +171,8 @@ function createBehinderungsanzeigeDraft(report, eventId, project, catalog, today
         project: project.name.trim(),
         projectNo: (project.projectNo ?? '').trim(),
         recipient: (project.client ?? '').trim(),
-        checked: wording_ts_1.CIRCUMSTANCES.map(() => false),
-        suggestions: suggestCircumstances(report, eventId, catalog),
-        details: proposeDetails(report, eventId, catalog),
+        reasons: proposeReasons(report, eventId, catalog),
+        details: proposeDetails(report, eventId),
         durationDays: '', restartDays: '', relocationDays: '', newCompletion: '', confirmBy: '',
     };
 }
@@ -195,8 +183,9 @@ function buildBehinderungsanzeige(draft) {
     need(draft.date, 'Datum fehlt');
     need(draft.project, 'Bauvorhaben fehlt');
     need(draft.recipient, 'Empfänger / Adresse fehlt');
-    if (!draft.checked.some(Boolean))
-        hints.push('Kein Umstand angekreuzt');
+    const reasons = draft.reasons.split('\n').map(line => line.trim()).filter(Boolean);
+    if (!reasons.length)
+        hints.push('Kein Grund angegeben');
     need(draft.details, 'Einzelbegründung fehlt');
     need(draft.durationDays, 'Voraussichtliche Dauer fehlt');
     need(draft.newCompletion, 'Voraussichtlicher neuer Fertigstellungstermin fehlt');
@@ -206,7 +195,7 @@ function buildBehinderungsanzeige(draft) {
         date: draft.date,
         recipient: draft.recipient,
         intro: wording_ts_1.FIXED_TEXT.intro(draft.project),
-        circumstances: wording_ts_1.CIRCUMSTANCES.map((text, index) => ({ text, checked: Boolean(draft.checked[index]), suggestedBy: draft.suggestions[index] ?? [] })),
+        reasons,
         details: draft.details,
         periods: wording_ts_1.PERIOD_LABELS.map(([label, unit], index) => [label, [draft.durationDays, draft.restartDays, draft.relocationDays, draft.newCompletion][index], unit]),
         confirmBy: draft.confirmBy,
@@ -216,17 +205,6 @@ function buildBehinderungsanzeige(draft) {
             'Fristen werden nicht berechnet; sie sind frei einzutragen.',
         ],
     };
-}
-function acceptSuggestions(draft) {
-    let added = 0;
-    for (const key of Object.keys(draft.suggestions)) {
-        const index = Number(key);
-        if (!draft.checked[index]) {
-            draft.checked[index] = true;
-            added += 1;
-        }
-    }
-    return added;
 }
 
 },
@@ -572,16 +550,7 @@ exports.disruptionLabel = disruptionLabel;
 "src/behinderung/wording.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PERIOD_LABELS = exports.FIXED_TEXT = exports.CIRCUMSTANCES = void 0;
-exports.CIRCUMSTANCES = [
-    'Die Baustelle ist nicht frei zugänglich bzw. nicht freigegeben.',
-    'Der Auftraggeber hat erforderliche Mitwirkungen nicht rechtzeitig erbracht.',
-    'Planungsunterlagen wurden nicht vollständig übergeben.',
-    'Planungsunterlagen enthalten Fehler.',
-    'Vorarbeiten anderer Beteiligter sind nicht abgeschlossen.',
-    'Höhere Gewalt.',
-    'Außergewöhnliche Witterungseinflüsse.',
-];
+exports.PERIOD_LABELS = exports.FIXED_TEXT = void 0;
 exports.FIXED_TEXT = {
     title: 'Anzeige einer Behinderung (Beispieltext)',
     salutation: 'Sehr geehrte Damen und Herren,',
@@ -612,5 +581,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:a282e44452d2ba15" }));
+  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:3816f952db7fdac8" }));
 })();

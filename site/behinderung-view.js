@@ -26,7 +26,6 @@
     dialog.addEventListener('click', event => {
       if (event.target.closest('[data-bh-close]')) dialog.close();
       else if (event.target.closest('[data-bh-print]')) window.print();
-      else if (event.target.closest('[data-bh-accept]')) { core.acceptSuggestions(draft); renderForm(); renderPreview(); }
     });
     return dialog;
   }
@@ -36,8 +35,6 @@
   ];
   const PERIODS = [['durationDays', 'Voraussichtliche Dauer (Arbeitstage)'], ['restartDays', 'Wiederaufnahme der Arbeiten (Arbeitstage)'], ['relocationDays', 'Verlagerung in ungünstigere Jahreszeit (Arbeitstage)'], ['newCompletion', 'Voraussichtlicher neuer Fertigstellungstermin']];
 
-  const pending = () => Object.keys(draft.suggestions).filter(key => !draft.checked[Number(key)]).length;
-
   function renderForm() {
     const input = ([key, label, type]) => type === 'textarea'
       ? `<div class="bh-span2"><label for="bh-${key}">${label}</label><textarea id="bh-${key}" data-bh-field="${key}" rows="3">${esc(draft[key])}</textarea></div>`
@@ -45,7 +42,7 @@
     document.getElementById('bh-form').innerHTML = `
       <p class="bh-note">Vorschlag aus dem gespeicherten Ereignis. Alles ist änderbar. Nicht rechtlich geprüft, nicht versendet; Fristen werden nicht berechnet.</p>
       <div class="bh-grid">${FIELDS.map(input).join('')}</div>
-      <fieldset class="bh-circ"><legend>Umstände (ankreuzen)</legend>${pending() ? `<p class="bh-suggest-bar">Zu den gewählten Gründen gibt es ${pending()} ${pending() === 1 ? 'Vorschlag' : 'Vorschläge'}; angekreuzt wird erst auf Ihren Klick. <button type="button" class="outline" data-bh-accept>Vorschläge übernehmen (${pending()})</button></p>` : ''}${core.CIRCUMSTANCES.map((text, i) => `<label class="bh-check"><input type="checkbox" data-bh-circ="${i}"${draft.checked[i] ? ' checked' : ''}><span>${esc(text)}${draft.suggestions[i] && !draft.checked[i] ? ` <em class="bh-suggest" data-bh-suggest="${i}">Vorschlag aufgrund: ${esc(draft.suggestions[i].join('; '))}</em>` : ''}</span></label>`).join('')}</fieldset>
+      <div class="bh-grid"><div class="bh-span2"><label for="bh-reasons">Gründe der Behinderung (eine Zeile pro Grund)</label><textarea id="bh-reasons" data-bh-field="reasons" rows="3">${esc(draft.reasons)}</textarea><p class="bh-note">Vorgeschlagen aus den in Mission Control gewählten Gründen; änderbar.</p></div></div>
       <div class="bh-grid"><div class="bh-span2"><label for="bh-details">Im Einzelnen (Begründung)</label><textarea id="bh-details" data-bh-field="details" rows="6">${esc(draft.details)}</textarea></div>
         ${PERIODS.map(([key, label]) => `<div><label for="bh-${key}">${label}</label><input id="bh-${key}" data-bh-field="${key}" ${key === 'newCompletion' ? 'type="date"' : 'inputmode="numeric"'} value="${esc(draft[key])}"></div>`).join('')}
         <div><label for="bh-confirmBy">Bestätigung bis</label><input id="bh-confirmBy" data-bh-field="confirmBy" type="date" value="${esc(draft.confirmBy)}"></div></div>`;
@@ -60,7 +57,7 @@
       <h1>${esc(l.title)}</h1>
       <p>${esc(core.FIXED_TEXT.salutation)}</p>
       <p>${esc(l.intro)}</p>
-      <ul class="bh-circlist">${l.circumstances.map(c => `<li class="${c.checked ? 'is-on' : ''}"><span aria-hidden="true">${c.checked ? '☒' : '☐'}</span> ${esc(c.text)}</li>`).join('')}</ul>
+      ${l.reasons.length ? `<ul class="bh-reasonlist">${l.reasons.map(text => `<li>${esc(text)}</li>`).join('')}</ul>` : '<p class="bh-details"><span class="bh-missing">________________</span></p>'}
       <p>${esc(core.FIXED_TEXT.detailsHead)}</p>
       <p class="bh-details">${l.details.trim() ? esc(l.details).replace(/\n/g, '<br>') : '<span class="bh-missing">________________</span>'}</p>
       <p>${esc(core.FIXED_TEXT.periodsIntro)}</p>

@@ -122,9 +122,6 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .bh-body{gap:var(--sp-5);padding:var(--sp-5)}
 .bh-form label{margin:var(--sp-3) 0 var(--sp-1)}
 .bh-grid{gap:0 var(--sp-3)}
-.bh-circ{margin:var(--sp-4) 0}
-.bh-form .bh-check{display:flex;padding:var(--sp-1) 0;gap:var(--sp-3);align-items:flex-start;font-weight:600;margin:0}
-.bh-form .bh-check input[type=checkbox]{width:22px;height:22px;min-height:0;flex:0 0 22px;margin:2px 0 0;accent-color:var(--teal,#0a665e)}
 .bh-actions{flex-wrap:nowrap}.bh-actions button{white-space:nowrap;min-height:44px}
 @media(max-width:560px){.bh-actions{flex-wrap:wrap;width:100%}}
 /* narrow screens: one column that may shrink; before, the fields and the letter were about 45px wider than the dialog and cut off on the right */
@@ -156,10 +153,10 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 #ac01-view input[type=checkbox]:focus-visible,input[type=checkbox]:focus-visible{outline:2px solid #2f8f78;outline-offset:1px;border-radius:4px;box-shadow:none}
 
 /* ---- folded tool blocks (employee picker, bulk action): show that they unfold ---- */
-#ac01-view :is(.ac01-picker,.ac01-bulk)>summary{position:relative;padding-right:28px}
-#ac01-view :is(.ac01-picker,.ac01-bulk)>summary::after{content:"";position:absolute;right:6px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:2px solid #0c4a38;border-bottom:2px solid #0c4a38;transform:rotate(45deg);transition:transform .15s}
-#ac01-view :is(.ac01-picker,.ac01-bulk)[open]>summary::after{transform:rotate(-135deg);margin-top:-2px}
-@media(prefers-reduced-motion:reduce){#ac01-view :is(.ac01-picker,.ac01-bulk)>summary::after{transition:none}}
+#ac01-view :is(.ac01-picker,.ac01-bulk,.ac01-picker-sub)>summary{position:relative;padding-right:28px}
+#ac01-view :is(.ac01-picker,.ac01-bulk,.ac01-picker-sub)>summary::after{content:"";position:absolute;right:6px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:2px solid #0c4a38;border-bottom:2px solid #0c4a38;transform:rotate(45deg);transition:transform .15s}
+#ac01-view :is(.ac01-picker,.ac01-bulk,.ac01-picker-sub)[open]>summary::after{transform:rotate(-135deg);margin-top:-2px}
+@media(prefers-reduced-motion:reduce){#ac01-view :is(.ac01-picker,.ac01-bulk,.ac01-picker-sub)>summary::after{transition:none}}
 
 /* ---- Mission Control before the first saved day: one call to action, no row of zeros ---- */
 #metrics.is-empty{display:none}
