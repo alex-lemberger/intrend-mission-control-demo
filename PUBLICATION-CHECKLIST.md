@@ -156,3 +156,11 @@ Erwartet: genau fünf statische Dateien unter `site/`, keine Symlinks und gülti
 - [x] Lokal: Allowlist-, Aufruf-, URL-, Namens-/Wortlaut-Prüfung des Workflows nachgestellt (sauber; neutraler Bundle ohne Paragraphenverweise), `node --check` aller JS-Dateien, Integrationstest gegen das öffentliche Paket 42/42.
 - [x] GitHub-Pages-Lauf `44108565520` (Commit `5397732`) erfolgreich; SHA-256 von `index.html`, `behinderung-view.js`, `styles.css`, `vendor/ac01-core.bundle.js`, `ac01.js`, `ac01.css`, `spacing.css` stimmt mit `site/` überein; Release-Token `2026-11-17-s43` in allen 11 Verweisen.
 - [ ] Browserprüfung der Live-Seite **nicht** durchgeführt (nur Hash-Vergleich). Weiterhin synthetisch, nur im Speicher, keine echten Daten.
+
+### Aktualisierung s44 (2026-11-17)
+
+- [x] Geänderte Dateien: `site/ac01.js` und `site/index.html` (nur Release-Token). Dateiliste unverändert (13 Dateien); der neutrale Wortlaut-Bundle ist unverändert.
+- [x] Inhalt: Im Ereignisfeld „Beschreibung“ steht jetzt ein kurzer Hinweis („Soll · Ist · Ursache · Folgen (kurz)“) mit erklärendem Tooltip. Das Feld bleibt optionaler Freitext, kein neues Pflichtfeld, keine Änderung am Layout.
+- [x] Lokal: Allowlist-, Aufruf-, URL-, Namens-/Wortlaut-Prüfung des Workflows nachgestellt (sauber), `node --check` aller JS-Dateien, Integrationstest gegen das öffentliche Paket 43/43.
+- [x] GitHub-Pages-Lauf `44124816250` (Commit `d55e496`) erfolgreich; SHA-256 von `index.html`, `ac01.js`, `ac01.css`, `styles.css`, `spacing.css`, `behinderung-view.js`, `vendor/ac01-core.bundle.js` stimmt mit `site/` überein; Release-Token `2026-11-17-s44` in allen 11 Verweisen.
+- [ ] Browserprüfung der Live-Seite **nicht** durchgeführt (nur Hash-Vergleich). Weiterhin synthetisch, nur im Speicher, keine echten Daten.
