@@ -140,3 +140,11 @@ Erwartet: genau fünf statische Dateien unter `site/`, keine Symlinks und gülti
 - [x] Lokal: Allowlist- und Namens-/Wortlaut-Prüfung des Workflows nachgestellt (sauber), `node --check` aller JS-Dateien, Integrationstest gegen das öffentliche Paket 41/41.
 - [x] GitHub-Pages-Lauf `44059501897` erfolgreich; SHA-256 der veröffentlichten Dateien `index.html`, `ac01.js`, `ac01.css`, `styles.css`, `spacing.css`, `behinderung-view.js`, `vendor/ac01-core.bundle.js` stimmt mit `site/` überein; Release-Token `2026-11-17-s41` in allen 11 Verweisen.
 - [ ] Browserprüfung der Live-Seite in dieser Sitzung **nicht** durchgeführt (nur Hash-Vergleich). Weiterhin synthetisch, nur im Speicher, keine echten Daten.
+
+### Aktualisierung s42 (2026-11-17)
+
+- [x] Geänderte Dateien: `site/spacing.css`, `site/styles.css`, `site/ac01.css`, `site/index.html` (nur Release-Token). Dateiliste unverändert (13 Dateien); JavaScript und neutraler Wortlaut unverändert.
+- [x] Inhalt: höherer Kontrast beim sekundären Menüeintrag (Tagesbericht), kleiner Text von 11 auf 12 px, wo die Spaltenbreiten es zulassen; Spaltenköpfe, Kennzahlenleiste und mobile Kennzahlen bleiben bewusst bei 11 px.
+- [x] Lokal: Allowlist-, URL-, Namens-/Wortlaut-Prüfung des Workflows nachgestellt (sauber), Integrationstest gegen das öffentliche Paket 41/41.
+- [x] GitHub-Pages-Lauf `44061158046` (Commit `98a3ce4`) erfolgreich; SHA-256 von `index.html`, `spacing.css`, `styles.css`, `ac01.css`, `ac01.js`, `behinderung-view.js`, `vendor/ac01-core.bundle.js` stimmt mit `site/` überein; Release-Token `2026-11-17-s42` in allen 11 Verweisen.
+- [ ] Browserprüfung der Live-Seite **nicht** durchgeführt (nur Hash-Vergleich). Weiterhin synthetisch, nur im Speicher, keine echten Daten.
