@@ -148,3 +148,11 @@ Erwartet: genau fünf statische Dateien unter `site/`, keine Symlinks und gülti
 - [x] Lokal: Allowlist-, URL-, Namens-/Wortlaut-Prüfung des Workflows nachgestellt (sauber), Integrationstest gegen das öffentliche Paket 41/41.
 - [x] GitHub-Pages-Lauf `44061158046` (Commit `98a3ce4`) erfolgreich; SHA-256 von `index.html`, `spacing.css`, `styles.css`, `ac01.css`, `ac01.js`, `behinderung-view.js`, `vendor/ac01-core.bundle.js` stimmt mit `site/` überein; Release-Token `2026-11-17-s42` in allen 11 Verweisen.
 - [ ] Browserprüfung der Live-Seite **nicht** durchgeführt (nur Hash-Vergleich). Weiterhin synthetisch, nur im Speicher, keine echten Daten.
+
+### Aktualisierung s43 (2026-11-17)
+
+- [x] Geänderte Dateien: `site/behinderung-view.js`, `site/styles.css`, `site/vendor/ac01-core.bundle.js` (neutraler Wortlaut, neu gebaut), `site/index.html` (nur Release-Token). Dateiliste unverändert (13 Dateien).
+- [x] Inhalt: Der Briefentwurf der Behinderungsanzeige kann in zwei Fassungen angezeigt werden (formell / persönlich). Der Text der persönlichen Fassung ist ein eigener Platzhalter und im Dialog so gekennzeichnet; Gründe, Beschreibung, Fristen und Hinweise ändern sich dadurch nicht.
+- [x] Lokal: Allowlist-, Aufruf-, URL-, Namens-/Wortlaut-Prüfung des Workflows nachgestellt (sauber; neutraler Bundle ohne Paragraphenverweise), `node --check` aller JS-Dateien, Integrationstest gegen das öffentliche Paket 42/42.
+- [x] GitHub-Pages-Lauf `44108565520` (Commit `5397732`) erfolgreich; SHA-256 von `index.html`, `behinderung-view.js`, `styles.css`, `vendor/ac01-core.bundle.js`, `ac01.js`, `ac01.css`, `spacing.css` stimmt mit `site/` überein; Release-Token `2026-11-17-s43` in allen 11 Verweisen.
+- [ ] Browserprüfung der Live-Seite **nicht** durchgeführt (nur Hash-Vergleich). Weiterhin synthetisch, nur im Speicher, keine echten Daten.
