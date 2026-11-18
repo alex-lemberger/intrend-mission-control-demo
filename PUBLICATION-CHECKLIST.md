@@ -1,5 +1,16 @@
 # Sicherheits- und Publikationscheckliste
 
+## Bestätigte Veröffentlichung s49 (Planer: Bearbeiten im Slide-out-Panel) — 2026-11-18, Release-Token `2026-11-18-s49`
+
+- [x] Public static release committed as `9442a1e` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: editing a plan item opens in a slide-out panel on the right (dialog, background inactive while open, focus moves in and back, Escape / click outside / cancel discard, a refused entry keeps the panel and the typed values). Fictional data, memory only.
+- [x] Allowlist unchanged (14 files in `site/`); `ac01-core.bundle.js` and `stundenzettel.bundle.js` byte-identical to the published ones; `planner.bundle.js` generated with `--neutral-wording`.
+- [x] Workflow rules replayed locally before the push (exact allowlist, no network/storage/dynamic code, only the SVG namespace URL, name/identifier/legal-wording scan: no hits); GitHub Pages workflow `44362335832` (head `9442a1e`) succeeded.
+- [x] Version gate: all twelve referenced assets use `?v=2026-11-18-s49`.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` 47/47 against this exact package (private source: integration 46/46, ui-tests 62/62, SPFx 179/179, planner browser check 20/20).
+- [x] Live proof: SHA-256 of all 14 downloaded Pages files matches the local package.
+- [x] Live browser smoke (Chrome on the public URL, cache bypassed): "Planer" opens; "Bearbeiten" opens the panel on the right with the first field focused and Save/Cancel visible; Escape closes it and the focus returns to the button. Not a full test run on the live site.
+- [ ] Still unverified, not blockers: real iPhone/Safari, screen reader, dark mode and phone width of the panel. The prototype is synthetic and memory-only; no SharePoint or operational approval.
+
 ## Bestätigte Veröffentlichung s48 (Planer: Plan bearbeiten, Unterbesetzung) — 2026-11-18, Release-Token `2026-11-18-s48`
 
 - [x] Public static release committed as `4c4918c` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: create and edit a plan item (the plan key stays, nothing else is moved automatically), create resources, create and remove assignments, a staffing hint (wanted number of people versus planned people), form values kept after a refused entry, small layout fixes. Fictional data, memory only.
