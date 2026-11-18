@@ -1,5 +1,16 @@
 # Sicherheits- und Publikationscheckliste
 
+## Bestätigte Veröffentlichung s48 (Planer: Plan bearbeiten, Unterbesetzung) — 2026-11-18, Release-Token `2026-11-18-s48`
+
+- [x] Public static release committed as `4c4918c` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: create and edit a plan item (the plan key stays, nothing else is moved automatically), create resources, create and remove assignments, a staffing hint (wanted number of people versus planned people), form values kept after a refused entry, small layout fixes. Fictional data, memory only.
+- [x] Allowlist unchanged (14 files in `site/`); `ac01-core.bundle.js` and `stundenzettel.bundle.js` rebuilt and byte-identical to the published ones; `planner.bundle.js` generated with `--neutral-wording`.
+- [x] Workflow rules replayed locally before the push (exact allowlist, no network/storage/dynamic code, only the SVG namespace URL, name/identifier/legal-wording scan: no hits); GitHub Pages workflow `44360272088` (head `4c4918c`) succeeded.
+- [x] Version gate: all twelve referenced assets use `?v=2026-11-18-s48`.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` 47/47 against this exact package (private source: integration 46/46, ui-tests 62/62, SPFx 179/179; the findings expectation of the planner test was updated from 2 to 3 for the new hint).
+- [x] Live proof: SHA-256 of all 14 downloaded Pages files matches the local package.
+- [x] Live browser smoke (Chrome on the public URL, cache bypassed): "Planer" opens with the new "Plan bearbeiten" section and three findings (double booking, staffing, dependency). Not a full test run on the live site.
+- [ ] Still unverified, not blockers: real iPhone/Safari, screen reader. The prototype is synthetic and memory-only; this publication grants no SharePoint or operational approval and does not confirm the planner scope with the stakeholder. The staffing rule is a working draft.
+
 ## Bestätigte Veröffentlichung s47 (Planer: Objekte, Wochenende, Ereignis-Einschätzung, Entwurf) — 2026-11-18, Release-Token `2026-11-18-s47`
 
 - [x] Public static release committed as `ec96884` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: object names with a four-digit cost-center number (fictional 7001/7002), weekend display, event assessment fields, a view-only draft letter from an event (neutral wording) and stronger contrast. Fictional data, memory only.
