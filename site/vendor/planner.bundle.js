@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:cd411f9566f552ea, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/core/ids.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:347b080721bc07b3, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry planner <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -10,12 +10,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.mountPlanner = mountPlanner;
 const plan_ts_1 = require("../src/planner/plan.js");
 const demo_plan_ts_1 = require("../src/planner/demo-plan.js");
+const from_plan_event_ts_1 = require("../src/behinderung/from-plan-event.js");
+const behinderungsanzeige_ts_1 = require("../src/behinderung/behinderungsanzeige.js");
 function mountPlanner(root, options = {}) {
     root.classList.add('pl-app');
     root.classList.toggle('standalone', Boolean(options.heading));
     root.dataset.scheme = options.scheme ?? 'light';
     let state = (0, demo_plan_ts_1.buildDemoPlan)();
     let formFor = null;
+    let assessFor = null;
+    let letterFor = null;
+    let dispoView = 'personal';
     let error = '';
     let depError = '';
     let depOpen = false;
@@ -101,10 +106,10 @@ function mountPlanner(root, options = {}) {
                 const b = el('button', 'taskbtn', `${t.planKey} · ${t.title}`);
                 b.type = 'button';
                 b.title = 'Ereignis aus diesem Planvorgang erzeugen';
-                b.onclick = () => { formFor = t.id; error = ''; render(); };
+                b.onclick = () => { formFor = t.id; assessFor = null; letterFor = null; error = ''; render(); };
                 const nm = el('span', 'nm');
                 nm.append(b);
-                l.append(nm, el('small', '', `${t.level} · ${t.area} · ${t.lvRef}`), el('small', '', `Soll ${short(t.sollStart)}–${short(t.sollEnd)}${t.istStart ? ` · Fortschritt ${t.progress} %` : ''}`));
+                l.append(nm, el('small', '', `${state.objekte.find(o => o.id === t.objektId)?.name ?? 'ohne Objekt'} · ${t.level} · ${t.area} · ${t.lvRef}`), el('small', '', `Soll ${short(t.sollStart)}–${short(t.sollEnd)}${t.istStart ? ` · Fortschritt ${t.progress} %` : ''}`));
             }, 'task', t.id);
             const soll = (0, plan_ts_1.barOnAxis)(axis, t.sollStart, t.sollEnd);
             if (soll) {
@@ -355,29 +360,168 @@ function mountPlanner(root, options = {}) {
         return wrap;
     }
     function drawLoad() {
+        const wrap = el('div');
+        const tabs = el('div', 'seg');
+        tabs.setAttribute('role', 'group');
+        tabs.setAttribute('aria-label', 'Ansicht der Wochenübersicht');
+        for (const [v, text] of [['personal', 'Personal'], ['objekte', 'Objekte']]) {
+            const b = el('button', 'segbtn', text);
+            b.type = 'button';
+            b.dataset.view = v;
+            b.setAttribute('aria-pressed', String(dispoView === v));
+            b.onclick = () => { dispoView = v; render(); };
+            tabs.append(b);
+        }
+        wrap.append(tabs);
         const weeks = [];
         for (let m = AXIS_FROM; (0, plan_ts_1.diffDays)(m, AXIS_TO) >= 0; m = (0, plan_ts_1.addDays)(m, 7))
             weeks.push(m);
         const t = el('table');
+        t.id = 'dispo';
+        t.dataset.view = dispoView;
         const head = el('tr');
-        head.append(el('th', '', 'Kolonne / Gerät'));
+        head.append(el('th', '', dispoView === 'personal' ? 'Kolonne / Gerät' : 'Objekt'));
         for (const w of weeks)
             head.append(el('th', '', `KW ${(0, plan_ts_1.isoWeek)(w)}`));
         t.append(head);
-        for (const r of state.resources) {
-            const tr = el('tr');
-            tr.append(el('td', '', r.label));
-            for (const w of weeks) {
-                const days = Array.from({ length: 5 }, (_, i) => (0, plan_ts_1.occupancyOn)(state, r.id, (0, plan_ts_1.addDays)(w, i)));
-                const status = days.includes('doppelt') ? 'doppelt' : days.every(x => x === 'frei') ? 'frei' : 'verplant';
-                const label = status === 'doppelt' ? 'doppelt belegt' : status === 'frei' ? 'frei' : days.includes('frei') ? 'teilweise frei' : 'verplant';
-                tr.append(el('td', `cell ${status}`, label));
+        const resLabel = (id) => state.resources.find(x => x.id === id).label;
+        if (dispoView === 'personal') {
+            for (const row of (0, plan_ts_1.weeklyDisposition)(state, weeks)) {
+                const tr = el('tr');
+                tr.append(el('td', '', resLabel(row.resourceId)));
+                for (const w of row.weeks) {
+                    const label = w.status === 'doppelt' ? 'doppelt belegt' : w.status === 'frei' ? 'frei' : w.freeDays > 0 ? `teilweise frei (${w.freeDays} ${w.freeDays === 1 ? 'Arbeitstag' : 'Arbeitstage'})` : 'verplant';
+                    const td = el('td', `cell ${w.status}`, label);
+                    if (w.taskIds.length)
+                        td.append(el('small', 'cell-tasks', w.taskIds.map(key).join(', ')));
+                    tr.append(td);
+                }
+                t.append(tr);
             }
-            t.append(tr);
+        }
+        else {
+            for (const row of (0, plan_ts_1.dispositionByObjekt)(state, weeks)) {
+                const tr = el('tr');
+                tr.append(el('td', '', row.name));
+                for (const w of row.weeks) {
+                    const status = w.entries.some(e => e.status === 'doppelt') ? 'doppelt' : w.entries.length ? 'verplant' : 'frei';
+                    const td = el('td', `cell ${status}`);
+                    if (!w.entries.length)
+                        td.textContent = 'keine Einsätze';
+                    for (const e of w.entries)
+                        td.append(el('small', `cell-tasks${e.status === 'doppelt' ? ' dbl' : ''}`, `${resLabel(e.resourceId)} · ${e.taskIds.map(key).join(', ')}${e.status === 'doppelt' ? ' (doppelt belegt)' : ''}`));
+                    tr.append(td);
+                }
+                t.append(tr);
+            }
         }
         const tw = el('div', 'tw');
         tw.append(t);
-        return tw;
+        wrap.append(tw);
+        return wrap;
+    }
+    function assessmentFields(init) {
+        const box = el('fieldset', 'assess');
+        box.append(el('legend', '', 'Einschätzung (optional, nur Kategorien, keine Rechtsfolge)'));
+        const sel = (label, values, cur, blank = false) => {
+            const l = el('label', '', label);
+            const x = el('select');
+            for (const v of blank ? ['', ...values] : values) {
+                const o = el('option', '', v || '– nicht angegeben');
+                o.value = v;
+                x.append(o);
+            }
+            x.value = cur;
+            l.append(x);
+            box.append(l);
+            return x;
+        };
+        const txt = (label, cur) => { const l = el('label', '', label); const x = el('textarea'); x.rows = 2; x.value = cur; l.append(x); box.append(l); return x; };
+        const wirkung = sel('Wirkung', plan_ts_1.WIRKUNGEN, init?.wirkung ?? 'noch nicht beurteilt');
+        const vorh = sel('Ausweichmöglichkeit vorhanden', plan_ts_1.VORHANDEN_WERTE, init?.ausweichmoeglichkeit.vorhanden ?? 'Unklar');
+        const aBesch = txt('Ausweichmöglichkeit: Beschreibung', init?.ausweichmoeglichkeit.beschreibung ?? '');
+        const genutzt = sel('Ausweichmöglichkeit genutzt', plan_ts_1.GENUTZT_WERTE, init?.ausweichmoeglichkeit.genutzt ?? '', true);
+        const moeglich = sel('Gegenmaßnahme möglich', plan_ts_1.JA_NEIN_WERTE, init?.gegenmassnahme.moeglich ?? '', true);
+        const gBesch = txt('Gegenmaßnahme: Beschreibung', init?.gegenmassnahme.beschreibung ?? '');
+        const durch = sel('Gegenmaßnahme durchgeführt', plan_ts_1.JA_NEIN_WERTE, init?.gegenmassnahme.durchgefuehrt ?? '', true);
+        const wirksam = sel('Gegenmaßnahme wirksam', plan_ts_1.JA_NEIN_WERTE, init?.gegenmassnahme.wirksam ?? '', true);
+        const nw = init?.nachweise[0];
+        const nArt = sel('Nachweis (synthetisch)', plan_ts_1.NACHWEIS_ARTEN, nw?.art ?? '', true);
+        const nl = el('label', '', 'Nachweis: Bezeichnung (Text, kein Dateibezug)');
+        const nBez = el('input');
+        nBez.value = nw?.bezeichnung ?? '';
+        nl.append(nBez);
+        box.append(nl);
+        const read = () => ({
+            wirkung: wirkung.value,
+            ausweichmoeglichkeit: { vorhanden: vorh.value, beschreibung: aBesch.value, genutzt: genutzt.value },
+            gegenmassnahme: { moeglich: moeglich.value, beschreibung: gBesch.value, durchgefuehrt: durch.value, wirksam: wirksam.value },
+            nachweise: nArt.value || nBez.value.trim() ? [{ art: (nArt.value || plan_ts_1.NACHWEIS_ARTEN[plan_ts_1.NACHWEIS_ARTEN.length - 1]), bezeichnung: nBez.value }] : []
+        });
+        return { node: box, read };
+    }
+    function drawAssessForm() {
+        if (!assessFor)
+            return null;
+        const e = state.events.find(x => x.id === assessFor);
+        const f = el('form', 'evt');
+        f.id = 'assess-form';
+        f.append(el('h2', '', `Einschätzung zu: ${e.title}`));
+        f.append(el('p', 'snap', 'Es werden nur die Einschätzungsfelder geändert. Soll-Momentaufnahme, Termine und Abhängigkeiten bleiben unverändert; kein Termin wird verschoben.'));
+        const af = assessmentFields(e);
+        f.append(af.node);
+        if (error)
+            f.append(el('p', 'err', error));
+        const ok = el('button', 'primary', 'Einschätzung speichern');
+        ok.type = 'submit';
+        const cancel = el('button', '', 'Abbrechen');
+        cancel.type = 'button';
+        cancel.onclick = () => { assessFor = null; error = ''; render(); };
+        const row = el('div', 'row');
+        row.append(ok, cancel);
+        f.append(row);
+        f.onsubmit = ev => { ev.preventDefault(); try {
+            state = (0, plan_ts_1.assessEvent)(state, e.id, af.read());
+            assessFor = null;
+            error = '';
+        }
+        catch (x) {
+            error = x instanceof Error ? x.message : String(x);
+        } render(); };
+        return f;
+    }
+    function drawLetter() {
+        if (!letterFor)
+            return null;
+        const draft = (0, from_plan_event_ts_1.createDraftFromPlanEvent)(state, letterFor, '');
+        if (!draft)
+            return null;
+        const l = (0, behinderungsanzeige_ts_1.buildBehinderungsanzeige)(draft);
+        const box = el('section', 'evt');
+        box.id = 'letter-panel';
+        box.append(el('h2', '', 'Behinderungsanzeige-Entwurf (nur Ansicht)'));
+        box.append(el('p', 'snap', 'Aus dem Ereignis übernommen werden nur erfasste Tatsachen. Fristen, Datum, Empfänger und Bestätigungsfrist werden nicht berechnet und bleiben offen. Die Einschätzung (Wirkung, Ausweichmöglichkeit, Gegenmaßnahme) steht nicht im Schreiben. Nichts wird gespeichert oder versendet.'));
+        box.append(el('strong', '', l.title), el('p', '', l.intro));
+        const reasons = el('ul', 'list');
+        for (const r of l.reasons)
+            reasons.append(el('li', '', r));
+        if (l.reasons.length)
+            box.append(reasons);
+        const det = el('p', 'letter-details', l.details);
+        det.style.whiteSpace = 'pre-line';
+        box.append(det);
+        box.append(el('p', 'muted', l.periods.map(([label, value, unit]) => `${label}: ${value || '…'} ${unit}`).join(' · ')));
+        if (l.hints.length)
+            box.append(el('p', 'muted', `Noch offen: ${l.hints.join(' · ')}`));
+        for (const n of l.notes)
+            box.append(el('p', 'muted', n));
+        const close = el('button', '', 'Schließen');
+        close.type = 'button';
+        close.onclick = () => { letterFor = null; render(); };
+        const row = el('div', 'row');
+        row.append(close);
+        box.append(row);
+        return box;
     }
     function drawForm() {
         if (!formFor)
@@ -406,6 +550,8 @@ function mountPlanner(root, options = {}) {
         field('Beginn', from);
         field('Ist-Zustand', ist);
         field('Ursache', ursache);
+        const af = assessmentFields();
+        f.append(af.node);
         if (error)
             f.append(el('p', 'err', error));
         const ok = el('button', 'primary', 'Ereignis anlegen');
@@ -419,7 +565,7 @@ function mountPlanner(root, options = {}) {
         f.onsubmit = ev => {
             ev.preventDefault();
             try {
-                state = (0, plan_ts_1.createEventFromTask)(state, t.id, { title: title.value, from: from.value, istZustand: ist.value, ursache: ursache.value }, demo_plan_ts_1.DEMO_TODAY).state;
+                state = (0, plan_ts_1.createEventFromTask)(state, t.id, { title: title.value, from: from.value, istZustand: ist.value, ursache: ursache.value, ...af.read() }, demo_plan_ts_1.DEMO_TODAY).state;
                 formFor = null;
                 error = '';
             }
@@ -440,6 +586,16 @@ function mountPlanner(root, options = {}) {
             const after = (0, plan_ts_1.downstreamTasks)(state, e.taskId);
             if (after.length)
                 li.append(el('span', 'muted', `Nachfolger im Plan (zu prüfen): ${after.map(t => t.planKey).join(', ')}`));
+            const g = e.gegenmassnahme, a = e.ausweichmoeglichkeit;
+            li.append(el('span', 'muted', `Wirkung: ${e.wirkung} · Ausweichmöglichkeit: ${a.vorhanden}${a.genutzt ? `, genutzt: ${a.genutzt}` : ''} · Gegenmaßnahme: ${g.moeglich || '–'}${g.durchgefuehrt ? `, durchgeführt: ${g.durchgefuehrt}` : ''}${g.wirksam ? `, wirksam: ${g.wirksam}` : ''} · Nachweise: ${e.nachweise.length ? e.nachweise.map(n => `${n.art} (${n.bezeichnung})`).join(', ') : '–'}`));
+            const ab = el('button', 'quiet', 'Einschätzung bearbeiten');
+            ab.type = 'button';
+            ab.onclick = () => { assessFor = e.id; formFor = null; letterFor = null; error = ''; render(); };
+            li.append(ab);
+            const lb = el('button', 'quiet', 'Behinderungsanzeige-Entwurf');
+            lb.type = 'button';
+            lb.onclick = () => { letterFor = e.id; assessFor = null; formFor = null; error = ''; render(); };
+            li.append(lb);
             if (!e.to) {
                 const b = el('button', 'quiet', 'Wiederaufnahme heute');
                 b.type = 'button';
@@ -460,9 +616,9 @@ function mountPlanner(root, options = {}) {
         const scroll = el('div', 'pl-scroll');
         const grid = drawGrid(axis);
         scroll.append(grid, drawLegend());
-        const form = drawForm();
+        const form = drawForm() ?? drawAssessForm() ?? drawLetter();
         const h = (t) => el('h2', '', t);
-        root.append(scroll, h('Auffälligkeiten'), drawFindings(), h('Abhängigkeiten'), drawDependencies(), ...(form ? [form] : []), h('Ereignisse'), drawEvents(), h('Personaldisposition (Wochenübersicht)'), drawLoad());
+        root.append(scroll, h('Auffälligkeiten'), drawFindings(), h('Abhängigkeiten'), drawDependencies(), ...(form ? [form] : []), h('Ereignisse'), drawEvents(), h('Personaldisposition über alle Leistungen (Wochenübersicht)'), drawLoad());
         drawArrows(grid);
         observer = new ResizeObserver(() => drawArrows(grid));
         observer.observe(grid);
@@ -475,8 +631,14 @@ function mountPlanner(root, options = {}) {
 "src/planner/plan.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.downstreamTasks = exports.checkDependency = exports.removeDependency = exports.addDependency = exports.wouldCreateCycle = exports.endEvent = exports.createEventFromTask = exports.occupancyOn = exports.findConflicts = exports.assign = exports.addResource = exports.addTask = exports.taskProblems = exports.emptyPlan = exports.barOnAxis = exports.buildAxis = exports.mondayOf = exports.isoWeek = exports.weekdayOf = exports.diffDays = exports.addDays = exports.isIsoDay = void 0;
+exports.downstreamTasks = exports.checkDependency = exports.removeDependency = exports.addDependency = exports.wouldCreateCycle = exports.endEvent = exports.assessEvent = exports.createEventFromTask = exports.dispositionByObjekt = exports.weeklyDisposition = exports.occupancyOn = exports.findConflicts = exports.assign = exports.addResource = exports.addTask = exports.addObjekt = exports.taskProblems = exports.emptyPlan = exports.barOnAxis = exports.buildAxis = exports.mondayOf = exports.isoWeek = exports.weekdayOf = exports.diffDays = exports.addDays = exports.isIsoDay = exports.NACHWEIS_ARTEN = exports.JA_NEIN_WERTE = exports.GENUTZT_WERTE = exports.VORHANDEN_WERTE = exports.WIRKUNGEN = exports.OBJEKT_NAME = void 0;
 const ids_ts_1 = require("../core/ids.js");
+exports.OBJEKT_NAME = /^(\d{4}) (\S.*)$/;
+exports.WIRKUNGEN = ['Hemmung', 'Unterbrechung', 'Anfangsverschiebung', 'Leistungserweiterung', 'Kombination', 'noch nicht beurteilt'];
+exports.VORHANDEN_WERTE = ['Ja', 'Nein', 'Teilweise', 'Unklar'];
+exports.GENUTZT_WERTE = ['Ja', 'Nein', 'Teilweise'];
+exports.JA_NEIN_WERTE = ['Ja', 'Nein', 'Unklar'];
+exports.NACHWEIS_ARTEN = ['Foto', 'Plan', 'E-Mail', 'Bautagesbericht', 'sonstiges Dokument'];
 const DAY = 86_400_000;
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const isIsoDay = (s) => {
@@ -532,7 +694,7 @@ const barOnAxis = (axis, start, end) => {
     return { col: (0, exports.diffDays)(first, s), span: (0, exports.diffDays)(s, e) + 1, clippedStart: s !== start, clippedEnd: e !== end };
 };
 exports.barOnAxis = barOnAxis;
-const emptyPlan = () => ({ tasks: [], resources: [], assignments: [], events: [], dependencies: [] });
+const emptyPlan = () => ({ objekte: [], tasks: [], resources: [], assignments: [], events: [], dependencies: [] });
 exports.emptyPlan = emptyPlan;
 const taskProblems = (t) => {
     const p = [];
@@ -555,9 +717,25 @@ const taskProblems = (t) => {
     return p;
 };
 exports.taskProblems = taskProblems;
+const addObjekt = (s, name) => {
+    const n = name.trim();
+    if (!n)
+        throw new RangeError('Objekt ohne Bezeichnung');
+    const m = exports.OBJEKT_NAME.exec(n);
+    if (!m)
+        throw new RangeError('Objekt-Name: vierstellige Kostenstelle, Leerzeichen, Kurzname (z. B. "1015 Kurzname")');
+    if (s.objekte.some(o => o.kostenstelle === m[1]))
+        throw new RangeError(`Objekt exists: Kostenstelle ${m[1]}`);
+    if (s.objekte.some(o => o.name.toLowerCase() === n.toLowerCase()))
+        throw new RangeError(`Objekt exists: ${n}`);
+    return { ...s, objekte: [...s.objekte, { id: (0, ids_ts_1.nextId)('po'), name: n, kostenstelle: m[1] }] };
+};
+exports.addObjekt = addObjekt;
 const addTask = (s, input) => {
+    if (input.objektId && !s.objekte.some(o => o.id === input.objektId))
+        throw new RangeError('unknown objekt');
     const task = {
-        id: (0, ids_ts_1.nextId)('pt'), planKey: input.planKey, title: input.title, area: input.area ?? '', level: input.level ?? '', lvRef: input.lvRef ?? '',
+        id: (0, ids_ts_1.nextId)('pt'), planKey: input.planKey, objektId: input.objektId ?? '', title: input.title, area: input.area ?? '', level: input.level ?? '', lvRef: input.lvRef ?? '',
         sollStart: input.sollStart, sollEnd: input.sollEnd, istStart: input.istStart ?? '', istEnd: input.istEnd ?? '',
         progress: input.progress ?? 0, status: input.status ?? 'geplant', rowOrder: s.tasks.length + 1
     };
@@ -619,6 +797,56 @@ const occupancyOn = (s, resourceId, day) => {
     return tasks.size === 0 ? 'frei' : tasks.size === 1 ? 'verplant' : 'doppelt';
 };
 exports.occupancyOn = occupancyOn;
+const weeklyDisposition = (s, weekStarts) => s.resources.map(r => ({
+    resourceId: r.id,
+    weeks: weekStarts.map(w => {
+        const days = Array.from({ length: 7 }, (_, i) => (0, exports.addDays)(w, i));
+        const occ = days.map(d => (0, exports.occupancyOn)(s, r.id, d));
+        const taskIds = s.tasks
+            .filter(t => s.assignments.some(a => a.resourceId === r.id && a.taskId === t.id && days.some(d => (0, exports.diffDays)(a.from, d) >= 0 && (0, exports.diffDays)(d, a.to) >= 0)))
+            .map(t => t.id);
+        const status = occ.includes('doppelt') ? 'doppelt' : occ.every(x => x === 'frei') ? 'frei' : 'verplant';
+        return { weekStart: w, status, taskIds, freeDays: occ.slice(0, 5).filter(x => x === 'frei').length };
+    })
+}));
+exports.weeklyDisposition = weeklyDisposition;
+const dispositionByObjekt = (s, weekStarts) => {
+    const personal = (0, exports.weeklyDisposition)(s, weekStarts);
+    const groups = s.objekte.map(o => ({ objektId: o.id, name: o.name }));
+    if (s.tasks.some(t => !t.objektId || !s.objekte.some(o => o.id === t.objektId)))
+        groups.push({ objektId: '', name: 'ohne Objekt' });
+    return groups.map(g => {
+        const mine = new Set(s.tasks.filter(t => (g.objektId ? t.objektId === g.objektId : !s.objekte.some(o => o.id === t.objektId))).map(t => t.id));
+        return {
+            ...g,
+            weeks: weekStarts.map((w, i) => ({
+                weekStart: w,
+                entries: personal.flatMap(r => {
+                    const wk = r.weeks[i];
+                    const taskIds = wk.taskIds.filter(id => mine.has(id));
+                    return taskIds.length ? [{ resourceId: r.resourceId, taskIds, status: wk.status }] : [];
+                })
+            }))
+        };
+    });
+};
+exports.dispositionByObjekt = dispositionByObjekt;
+const oneOf = (v, list) => list.includes(v);
+const assessmentProblem = (a) => {
+    if (a.wirkung !== undefined && !oneOf(a.wirkung, exports.WIRKUNGEN))
+        return 'Wirkung ungültig';
+    const w = a.ausweichmoeglichkeit;
+    if (w && (!oneOf(w.vorhanden, exports.VORHANDEN_WERTE) || (w.genutzt !== '' && !oneOf(w.genutzt, exports.GENUTZT_WERTE))))
+        return 'Ausweichmöglichkeit ungültig';
+    const g = a.gegenmassnahme;
+    if (g && [g.moeglich, g.durchgefuehrt, g.wirksam].some(v => v !== '' && !oneOf(v, exports.JA_NEIN_WERTE)))
+        return 'Gegenmaßnahme ungültig';
+    if (a.nachweise?.some(n => !oneOf(n.art, exports.NACHWEIS_ARTEN) || !n.bezeichnung.trim()))
+        return 'Nachweis ungültig (Art aus der Liste, Bezeichnung nötig)';
+    return null;
+};
+const EMPTY_AUSWEICH = { vorhanden: 'Unklar', beschreibung: '', genutzt: '' };
+const EMPTY_GEGEN = { moeglich: '', beschreibung: '', durchgefuehrt: '', wirksam: '' };
 const createEventFromTask = (s, taskId, input, takenOn) => {
     const t = s.tasks.find(x => x.id === taskId);
     if (!t)
@@ -629,6 +857,9 @@ const createEventFromTask = (s, taskId, input, takenOn) => {
         throw new RangeError('Ereignisbeginn ungültig');
     if (input.to && (!(0, exports.isIsoDay)(input.to) || (0, exports.diffDays)(input.from, input.to) < 0))
         throw new RangeError('Ereignisende ungültig');
+    const problem = assessmentProblem(input);
+    if (problem)
+        throw new RangeError(problem);
     const resources = s.assignments.filter(a => a.taskId === taskId).map(a => {
         const r = s.resources.find(x => x.id === a.resourceId);
         return { type: r.type, label: r.label, from: a.from, to: a.to };
@@ -637,10 +868,33 @@ const createEventFromTask = (s, taskId, input, takenOn) => {
         taskId, planKey: t.planKey, title: t.title, area: t.area, level: t.level, lvRef: t.lvRef,
         sollStart: t.sollStart, sollEnd: t.sollEnd, resources, takenOn
     };
-    const event = { id: (0, ids_ts_1.nextId)('pe'), taskId, snapshot, title: input.title, from: input.from, to: input.to ?? '', istZustand: input.istZustand ?? '', ursache: input.ursache ?? '' };
+    const event = {
+        id: (0, ids_ts_1.nextId)('pe'), taskId, snapshot, title: input.title, from: input.from, to: input.to ?? '', istZustand: input.istZustand ?? '', ursache: input.ursache ?? '',
+        wirkung: input.wirkung ?? 'noch nicht beurteilt', ausweichmoeglichkeit: { ...(input.ausweichmoeglichkeit ?? EMPTY_AUSWEICH) },
+        gegenmassnahme: { ...(input.gegenmassnahme ?? EMPTY_GEGEN) }, nachweise: (input.nachweise ?? []).map(n => ({ ...n }))
+    };
     return { state: { ...s, events: [...s.events, event] }, event };
 };
 exports.createEventFromTask = createEventFromTask;
+const assessEvent = (s, eventId, a) => {
+    const e = s.events.find(x => x.id === eventId);
+    if (!e)
+        throw new RangeError('unknown event');
+    const problem = assessmentProblem(a);
+    if (problem)
+        throw new RangeError(problem);
+    return {
+        ...s,
+        events: s.events.map(x => x.id !== eventId ? x : {
+            ...x,
+            wirkung: a.wirkung ?? x.wirkung,
+            ausweichmoeglichkeit: a.ausweichmoeglichkeit ? { ...a.ausweichmoeglichkeit } : x.ausweichmoeglichkeit,
+            gegenmassnahme: a.gegenmassnahme ? { ...a.gegenmassnahme } : x.gegenmassnahme,
+            nachweise: a.nachweise ? a.nachweise.map(n => ({ ...n })) : x.nachweise
+        })
+    };
+};
+exports.assessEvent = assessEvent;
 const endEvent = (s, eventId, to) => {
     const e = s.events.find(x => x.id === eventId);
     if (!e)
@@ -736,9 +990,12 @@ const plan_ts_1 = require("./plan.js");
 exports.DEMO_TODAY = '2026-11-19';
 const buildDemoPlan = () => {
     let s = (0, plan_ts_1.emptyPlan)();
-    s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-001', title: 'Trockenbauwände 1. OG', area: 'Baufeld 2', level: '1. OG', lvRef: 'OZ 03.02.010', sollStart: '2026-11-17', sollEnd: '2026-11-28', istStart: '2026-11-17', istEnd: '', progress: 45, status: 'in Arbeit' });
-    s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-002', title: 'Decke Foyer', area: 'Foyer', level: 'EG', lvRef: 'OZ 03.02.020', sollStart: '2026-11-24', sollEnd: '2026-12-12' });
-    s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-003', title: 'Spachtelung', area: 'Baufeld 2', level: '1. OG', lvRef: 'OZ 03.03.010', sollStart: '2026-12-08', sollEnd: '2026-12-19' });
+    s = (0, plan_ts_1.addObjekt)(s, '7001 Muster A (fiktiv)');
+    s = (0, plan_ts_1.addObjekt)(s, '7002 Muster B (fiktiv)');
+    const [oa, ob] = s.objekte.map(o => o.id);
+    s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-001', objektId: oa, title: 'Trockenbauwände 1. OG', area: 'Baufeld 2', level: '1. OG', lvRef: 'OZ 03.02.010', sollStart: '2026-11-17', sollEnd: '2026-11-28', istStart: '2026-11-17', istEnd: '', progress: 45, status: 'in Arbeit' });
+    s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-002', objektId: ob, title: 'Decke Foyer', area: 'Foyer', level: 'EG', lvRef: 'OZ 03.02.020', sollStart: '2026-11-24', sollEnd: '2026-12-12' });
+    s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-003', objektId: oa, title: 'Spachtelung', area: 'Baufeld 2', level: '1. OG', lvRef: 'OZ 03.03.010', sollStart: '2026-12-08', sollEnd: '2026-12-19' });
     s = (0, plan_ts_1.addResource)(s, 'kolonne', 'Kolonne A (Muster)', 4);
     s = (0, plan_ts_1.addResource)(s, 'kolonne', 'Kolonne B (Muster)', 3);
     s = (0, plan_ts_1.addResource)(s, 'geraet', 'Hubsteiger (Muster)', 1);
@@ -755,6 +1012,133 @@ const buildDemoPlan = () => {
     return s;
 };
 exports.buildDemoPlan = buildDemoPlan;
+
+},
+"src/behinderung/from-plan-event.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.createDraftFromPlanEvent = createDraftFromPlanEvent;
+const dateDe = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('.') : iso);
+function createDraftFromPlanEvent(s, eventId, today = '') {
+    const e = s.events.find(x => x.id === eventId);
+    if (!e)
+        return null;
+    const task = s.tasks.find(x => x.id === e.taskId);
+    const objekt = task ? s.objekte.find(o => o.id === task.objektId) : undefined;
+    const snap = e.snapshot;
+    const place = [snap.area, snap.level].map(v => v.trim()).filter(Boolean).join(', ');
+    const lines = [
+        place && `Ort / Bauteil: ${place}`,
+        snap.title.trim() && `Planvorgang: ${snap.planKey} ${snap.title.trim()}`,
+        snap.lvRef.trim() && `LV-Bezug: ${snap.lvRef.trim()}`,
+        e.istZustand.trim() && `Sachverhalt: ${e.istZustand.trim()}`,
+        `Im Planer erfasst am: ${dateDe(snap.takenOn)}`,
+        `Beginn: ${dateDe(e.from)}`,
+        e.to && `Wiederaufnahme: ${dateDe(e.to)}`,
+        e.nachweise.length > 0 && `Nachweise: ${e.nachweise.map(n => n.bezeichnung.trim()).join('; ')}`,
+    ];
+    return {
+        variant: 'formal',
+        source: { projectId: objekt?.id ?? '', date: e.from, eventId },
+        date: today.trim(),
+        project: objekt?.name ?? '',
+        projectNo: objekt?.kostenstelle ?? '',
+        recipient: '',
+        reasons: e.ursache.trim(),
+        details: lines.filter(Boolean).join('\n'),
+        durationDays: '', restartDays: '', relocationDays: '', newCompletion: '', confirmBy: '',
+    };
+}
+
+},
+"src/behinderung/behinderungsanzeige.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.LETTER_VARIANTS = exports.PERSONAL_TEXT = exports.PERIOD_LABELS = exports.FIXED_TEXT = void 0;
+exports.letterText = letterText;
+exports.proposeDetails = proposeDetails;
+exports.proposeReasons = proposeReasons;
+exports.createBehinderungsanzeigeDraft = createBehinderungsanzeigeDraft;
+exports.buildBehinderungsanzeige = buildBehinderungsanzeige;
+const disruption_ts_1 = require("../core/disruption.js");
+const wording_ts_1 = require("./wording.js");
+Object.defineProperty(exports, "FIXED_TEXT", { enumerable: true, get: function () { return wording_ts_1.FIXED_TEXT; } });
+Object.defineProperty(exports, "PERIOD_LABELS", { enumerable: true, get: function () { return wording_ts_1.PERIOD_LABELS; } });
+Object.defineProperty(exports, "PERSONAL_TEXT", { enumerable: true, get: function () { return wording_ts_1.PERSONAL_TEXT; } });
+exports.LETTER_VARIANTS = [
+    { id: 'formal', label: 'Formell', hint: 'Sachlich und trocken, nach der Vorlage.' },
+    { id: 'persoenlich', label: 'Persönlich', hint: 'Für Auftraggeber, die wir kennen; weniger trocken (Platzhaltertext).' },
+];
+function letterText(variant) {
+    return variant === 'persoenlich' ? { variant: 'persoenlich', text: wording_ts_1.PERSONAL_TEXT } : { variant: 'formal', text: wording_ts_1.FIXED_TEXT };
+}
+const dateDe = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('.') : iso);
+function proposeDetails(report, eventId) {
+    const event = report.events.find(item => item.id === eventId);
+    if (!event)
+        return '';
+    const lines = [
+        event.location.trim() && `Ort / Bauteil: ${event.location.trim()}`,
+        event.description.trim() && `Sachverhalt: ${event.description.trim()}`,
+        `Festgestellt am: ${dateDe(report.date)}`,
+    ];
+    return lines.filter(Boolean).join('\n');
+}
+function proposeReasons(report, eventId, catalog) {
+    const event = report.events.find(item => item.id === eventId);
+    if (!event)
+        return '';
+    return (0, disruption_ts_1.splitReasons)(event.reasons).disruptionIds.map(id => (0, disruption_ts_1.disruptionLabel)(catalog, id)).join('\n');
+}
+function createBehinderungsanzeigeDraft(report, eventId, project, catalog, today = '') {
+    if (!report.events.some(item => item.id === eventId))
+        return null;
+    return {
+        variant: 'formal',
+        source: { projectId: report.projectId, date: report.date, eventId },
+        date: today.trim(),
+        project: project.name.trim(),
+        projectNo: (project.projectNo ?? '').trim(),
+        recipient: (project.client ?? '').trim(),
+        reasons: proposeReasons(report, eventId, catalog),
+        details: proposeDetails(report, eventId),
+        durationDays: '', restartDays: '', relocationDays: '', newCompletion: '', confirmBy: '',
+    };
+}
+function buildBehinderungsanzeige(draft) {
+    const hints = [];
+    const need = (value, text) => { if (!value.trim())
+        hints.push(text); };
+    need(draft.date, 'Datum fehlt');
+    need(draft.project, 'Bauvorhaben fehlt');
+    need(draft.recipient, 'Empfänger / Adresse fehlt');
+    const reasons = draft.reasons.split('\n').map(line => line.trim()).filter(Boolean);
+    if (!reasons.length)
+        hints.push('Kein Grund angegeben');
+    need(draft.details, 'Einzelbegründung fehlt');
+    need(draft.durationDays, 'Voraussichtliche Dauer fehlt');
+    need(draft.newCompletion, 'Voraussichtlicher neuer Fertigstellungstermin fehlt');
+    need(draft.confirmBy, 'Bestätigungsfrist fehlt');
+    const { variant, text } = letterText(draft.variant);
+    return {
+        variant,
+        text,
+        title: text.title,
+        date: draft.date,
+        recipient: draft.recipient,
+        intro: text.intro(draft.project),
+        reasons,
+        details: draft.details,
+        periods: wording_ts_1.PERIOD_LABELS.map(([label, unit], index) => [label, [draft.durationDays, draft.restartDays, draft.relocationDays, draft.newCompletion][index], unit]),
+        confirmBy: draft.confirmBy,
+        hints,
+        notes: [
+            'ENTWURF: nicht rechtlich geprüft, nicht versendet, keine freigegebene Vorlage. Eine dokumentierte Behinderung begründet für sich keinen Anspruch.',
+            'Fristen werden nicht berechnet; sie sind frei einzutragen.',
+            ...(variant === 'persoenlich' ? ['Die Formulierung der persönlichen Variante ist ein Platzhaltertext, keine geprüfte oder freigegebene Vorlage.'] : []),
+        ],
+    };
+}
 
 },
 "src/core/ids.js": function (require, exports, module) {
@@ -774,6 +1158,69 @@ const uuid = () => {
 const nextId = (prefix) => `${prefix}-${uuid()}`;
 exports.nextId = nextId;
 
+},
+"src/core/disruption.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.disruptionLabel = exports.isDisruptionId = void 0;
+exports.splitReasons = splitReasons;
+exports.toggleDisruptionId = toggleDisruptionId;
+const CODE = /^ST-\d{3}$/;
+const isDisruptionId = (value) => CODE.test(value);
+exports.isDisruptionId = isDisruptionId;
+function splitReasons(reasons = []) {
+    return { kinds: reasons.filter(reason => !(0, exports.isDisruptionId)(reason)), disruptionIds: reasons.filter(exports.isDisruptionId) };
+}
+function toggleDisruptionId(reasons, id, on) {
+    if (!(0, exports.isDisruptionId)(id))
+        return [...reasons];
+    const { kinds, disruptionIds } = splitReasons(reasons);
+    const next = new Set(disruptionIds);
+    if (on)
+        next.add(id);
+    else
+        next.delete(id);
+    return [...kinds, ...[...next].sort()];
+}
+const disruptionLabel = (catalog, id) => catalog.find(entry => entry.id === id)?.label ?? id;
+exports.disruptionLabel = disruptionLabel;
+
+},
+"src/behinderung/wording.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PERIOD_LABELS = exports.PERSONAL_TEXT = exports.FIXED_TEXT = void 0;
+exports.FIXED_TEXT = {
+    title: 'Anzeige einer Behinderung (Beispieltext)',
+    salutation: 'Sehr geehrte Damen und Herren,',
+    intro: (project) => `zum Bauvorhaben ${project || '________'} teilen wir mit, dass die vereinbarte Leistungsausführung derzeit behindert ist oder behindert werden kann. Als Gründe nennen wir:`,
+    detailsHead: 'Nähere Erläuterung:',
+    periodsIntro: 'Die genannten Gründe liegen nicht in unserem Einflussbereich. Wir gehen daher davon aus, dass sich die Ausführungsfristen um die Dauer der Behinderung verlängern. Voraussichtliche Angaben:',
+    claims: 'Aus der Behinderung können sich weitere vertragliche Folgen ergeben; diese werden gesondert geprüft.',
+    confirmBy: (date) => `Wir bitten um Ihre Bestätigung bis ${date || '________'}.`,
+    closing: 'Mit freundlichen Grüßen',
+    signature: '(Unterschrift Auftragnehmer)',
+    confirmation: '(Bestätigung des Auftraggebers)',
+};
+exports.PERSONAL_TEXT = {
+    title: 'Behinderungsanzeige',
+    salutation: 'Guten Tag,',
+    intro: (project) => `zum Bauvorhaben ${project || '________'} möchten wir Sie darüber informieren, dass wir bei der Ausführung unserer Leistungen behindert sind. Die Gründe im Überblick:`,
+    detailsHead: 'Dazu im Einzelnen:',
+    periodsIntro: 'Die Gründe liegen nicht in unserem Einflussbereich. Wir rechnen deshalb damit, dass sich die Ausführung um die Dauer der Behinderung verschiebt. Unsere bisherige Einschätzung:',
+    claims: 'Welche weiteren Folgen sich daraus ergeben, besprechen wir gern gesondert mit Ihnen.',
+    confirmBy: (date) => `Wir freuen uns über Ihre kurze Bestätigung bis zum ${date || '________'}.`,
+    closing: 'Freundliche Grüße',
+    signature: '(Unterschrift Auftragnehmer)',
+    confirmation: '(Bestätigung des Auftraggebers)',
+};
+exports.PERIOD_LABELS = [
+    ['Voraussichtliche Dauer der Behinderung', 'Arbeitstage'],
+    ['Zeit bis zur Wiederaufnahme der Arbeiten', 'Arbeitstage'],
+    ['Zusätzlicher Zeitbedarf durch verschobene Ausführung', 'Arbeitstage'],
+    ['Voraussichtlicher neuer Fertigstellungstermin', ''],
+];
+
 }
 };
   const cache = {};
@@ -785,5 +1232,5 @@ exports.nextId = nextId;
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #c8d7cc; --line-soft: #e3ebe5; --line-strong: #9eafa3;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #73b99b;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #9bbbd0; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #bdb8a8;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #c88736; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #34453d; --line-soft: #2a3832; --line-strong: #566b60;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #3d6580; --ist: #4fb8a8;\n    --stoer: #e0705c; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #5a5a4e;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), var(--day)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { box-shadow: inset 2px 0 0 var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: #fff; font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\nform.frm :is(select, input) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: #fff; } button.primary:hover { background: var(--teal-d); }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}" }, { build: "sha256:cd411f9566f552ea" }));
+  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #73b99b;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), var(--day)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { box-shadow: inset 2px 0 0 var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: #fff; font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\nform.frm :is(select, input) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: #fff; } button.primary:hover { background: var(--teal-d); }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; opacity: .85; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }" }, { build: "sha256:347b080721bc07b3" }));
 })();
