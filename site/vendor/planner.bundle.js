@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:347b080721bc07b3, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:0e3aa84feb095cae, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry planner <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -20,6 +20,9 @@ function mountPlanner(root, options = {}) {
     let formFor = null;
     let assessFor = null;
     let letterFor = null;
+    let editTaskId = null;
+    let planError = '';
+    let planOpen = '';
     let dispoView = 'personal';
     let error = '';
     let depError = '';
@@ -106,10 +109,14 @@ function mountPlanner(root, options = {}) {
                 const b = el('button', 'taskbtn', `${t.planKey} · ${t.title}`);
                 b.type = 'button';
                 b.title = 'Ereignis aus diesem Planvorgang erzeugen';
-                b.onclick = () => { formFor = t.id; assessFor = null; letterFor = null; error = ''; render(); };
+                b.onclick = () => { formFor = t.id; assessFor = null; letterFor = null; editTaskId = null; error = ''; render(); };
+                const eb = el('button', 'quiet', 'Bearbeiten');
+                eb.type = 'button';
+                eb.setAttribute('aria-label', `Planvorgang ${t.planKey} bearbeiten`);
+                eb.onclick = () => { editTaskId = t.id; formFor = null; assessFor = null; letterFor = null; planError = ''; render(); };
                 const nm = el('span', 'nm');
-                nm.append(b);
-                l.append(nm, el('small', '', `${state.objekte.find(o => o.id === t.objektId)?.name ?? 'ohne Objekt'} · ${t.level} · ${t.area} · ${t.lvRef}`), el('small', '', `Soll ${short(t.sollStart)}–${short(t.sollEnd)}${t.istStart ? ` · Fortschritt ${t.progress} %` : ''}`));
+                nm.append(b, eb);
+                l.append(nm, el('small', '', `${state.objekte.find(o => o.id === t.objektId)?.name ?? 'ohne Objekt'} · ${t.level} · ${t.area} · ${t.lvRef}`), el('small', '', `Soll ${short(t.sollStart)}–${short(t.sollEnd)}${t.requiredHeads ? ` · Besetzung ${t.requiredHeads} Pers.` : ''}${t.istStart ? ` · Fortschritt ${t.progress} %` : ''}`));
             }, 'task', t.id);
             const soll = (0, plan_ts_1.barOnAxis)(axis, t.sollStart, t.sollEnd);
             if (soll) {
@@ -256,6 +263,11 @@ function mountPlanner(root, options = {}) {
             const tasks = [...new Set(state.assignments.filter(a => c.assignmentIds.includes(a.id)).map(a => key(a.taskId)))];
             const li = el('li', 'finding conflict');
             li.append(el('span', 'tag stoer', 'Doppelbelegung'), `${r.label}: ${fmt(c.from)} bis ${fmt(c.to)} (${tasks.join(', ')})`);
+            items.push(li);
+        }
+        for (const u of (0, plan_ts_1.findUnderstaffing)(state)) {
+            const li = el('li', 'finding understaffed');
+            li.append(el('span', 'tag warn', 'Unterbesetzung'), `${u.planKey}: ${fmt(u.from)} bis ${fmt(u.to)} (${plural(u.days)}), Soll-Besetzung ${u.required}, geplant ab ${u.minAssigned} Personen, bis zu ${u.required - u.minAssigned} fehlen`);
             items.push(li);
         }
         for (const d of state.dependencies) {
@@ -490,6 +502,210 @@ function mountPlanner(root, options = {}) {
         } render(); };
         return f;
     }
+    const STATUS_LIST = ['geplant', 'in Arbeit', 'in Prüfung', 'ausgeführt'];
+    const RESOURCE_TYPES = [['kolonne', 'Kolonne'], ['mitarbeiter', 'Mitarbeiter'], ['geraet', 'Gerät']];
+    function field(f, label, control) { const l = el('label', '', label); l.append(control); f.append(l); }
+    function input(name, type = 'text', value = '') { const i = el('input'); i.name = name; i.type = type; i.value = value; return i; }
+    function select(name, opts, value = '') {
+        const s = el('select');
+        s.name = name;
+        for (const [v, t] of opts) {
+            const o = el('option', '', t);
+            o.value = v;
+            s.append(o);
+        }
+        if (opts.some(([v]) => v === value))
+            s.value = value;
+        return s;
+    }
+    const objektOptions = () => [['', 'ohne Objekt'], ...state.objekte.map(o => [o.id, o.name])];
+    const drafts = {};
+    const saveDraft = (f, id) => {
+        const d = {};
+        for (const e of Array.from(f.elements))
+            if (e.name)
+                d[e.name] = e.value;
+        drafts[id] = d;
+    };
+    const restoreDraft = (f, id) => {
+        const d = drafts[id];
+        if (!d)
+            return;
+        for (const e of Array.from(f.elements))
+            if (e.name && e.name in d)
+                e.value = d[e.name];
+    };
+    const val = (f, n) => f.elements.namedItem(n).value;
+    function drawTaskEditForm() {
+        if (!editTaskId)
+            return null;
+        const t = state.tasks.find(x => x.id === editTaskId);
+        if (!t)
+            return null;
+        const f = el('form', 'evt frm');
+        f.id = 'task-edit-form';
+        f.append(el('h2', '', `Planvorgang bearbeiten: ${t.planKey}`));
+        const note = el('p', 'snap', 'Nachfolger, Zuordnungen und bestehende Ereignisse werden nicht verschoben; die Abhängigkeitsprüfung zeigt nur, was nicht mehr passt. Der Planschlüssel bleibt unverändert.');
+        note.style.gridColumn = '1 / -1';
+        f.append(note);
+        field(f, 'Titel', input('title', 'text', t.title));
+        field(f, 'Objekt', select('objekt', objektOptions(), t.objektId));
+        field(f, 'Bereich', input('area', 'text', t.area));
+        field(f, 'Ebene', input('level', 'text', t.level));
+        field(f, 'LV-Bezug', input('lvRef', 'text', t.lvRef));
+        field(f, 'Soll-Beginn', input('sollStart', 'date', t.sollStart));
+        field(f, 'Soll-Ende', input('sollEnd', 'date', t.sollEnd));
+        field(f, 'Ist-Beginn', input('istStart', 'date', t.istStart));
+        field(f, 'Ist-Ende', input('istEnd', 'date', t.istEnd));
+        const pr = input('progress', 'number', String(t.progress));
+        pr.min = '0';
+        pr.max = '100';
+        pr.step = '1';
+        field(f, 'Fortschritt (%)', pr);
+        const rq = input('required', 'number', String(t.requiredHeads));
+        rq.min = '0';
+        rq.step = '1';
+        field(f, 'Soll-Besetzung (Personen, 0 = offen)', rq);
+        field(f, 'Status', select('status', STATUS_LIST.map(x => [x, x]), t.status));
+        restoreDraft(f, `edit:${t.id}`);
+        if (planError) {
+            const e = el('p', 'err', planError);
+            e.style.gridColumn = '1 / -1';
+            f.append(e);
+        }
+        const ok = el('button', 'primary', 'Speichern');
+        ok.type = 'submit';
+        const cancel = el('button', '', 'Abbrechen');
+        cancel.type = 'button';
+        cancel.onclick = () => { editTaskId = null; planError = ''; delete drafts[`edit:${t.id}`]; render(); };
+        const row = el('div', 'row');
+        row.append(ok, cancel);
+        row.style.gridColumn = '1 / -1';
+        f.append(row);
+        f.onsubmit = ev => {
+            ev.preventDefault();
+            saveDraft(f, `edit:${t.id}`);
+            try {
+                state = (0, plan_ts_1.updateTask)(state, t.id, {
+                    title: val(f, 'title'), objektId: val(f, 'objekt'), area: val(f, 'area'), level: val(f, 'level'), lvRef: val(f, 'lvRef'),
+                    sollStart: val(f, 'sollStart'), sollEnd: val(f, 'sollEnd'), istStart: val(f, 'istStart'), istEnd: val(f, 'istEnd'),
+                    progress: Number(val(f, 'progress')), requiredHeads: Number(val(f, 'required')), status: val(f, 'status')
+                });
+                editTaskId = null;
+                planError = '';
+                delete drafts[`edit:${t.id}`];
+            }
+            catch (x) {
+                planError = x instanceof Error ? x.message : String(x);
+            }
+            render();
+        };
+        return f;
+    }
+    function drawPlanEditor() {
+        const wrap = el('div');
+        const details = (id, title) => {
+            const d = el('details', 'add');
+            d.id = id;
+            d.open = planOpen === id;
+            d.addEventListener('toggle', () => { if (d.open)
+                planOpen = id;
+            else if (planOpen === id)
+                planOpen = ''; });
+            d.append(el('summary', '', title));
+            return d;
+        };
+        const errLine = (f, id) => { restoreDraft(f, id); if (planOpen === id && planError) {
+            const e = el('p', 'err', planError);
+            e.style.gridColumn = '1 / -1';
+            f.append(e);
+        } };
+        const submit = (f, id, label, run) => {
+            const ok = el('button', 'primary', label);
+            ok.type = 'submit';
+            f.append(ok);
+            f.addEventListener('submit', ev => { ev.preventDefault(); planOpen = id; saveDraft(f, id); try {
+                run();
+                planError = '';
+                delete drafts[id];
+            }
+            catch (x) {
+                planError = x instanceof Error ? x.message : String(x);
+            } render(); });
+        };
+        const dt = details('add-task', 'Planvorgang anlegen');
+        const ft = el('form', 'frm');
+        ft.id = 'task-form';
+        field(ft, 'Planschlüssel', input('planKey', 'text', (0, plan_ts_1.suggestPlanKey)(state)));
+        field(ft, 'Titel', input('title'));
+        field(ft, 'Objekt', select('objekt', objektOptions()));
+        field(ft, 'Bereich', input('area'));
+        field(ft, 'Ebene', input('level'));
+        field(ft, 'LV-Bezug', input('lvRef'));
+        field(ft, 'Soll-Beginn', input('sollStart', 'date'));
+        field(ft, 'Soll-Ende', input('sollEnd', 'date'));
+        const rq = input('required', 'number', '0');
+        rq.min = '0';
+        rq.step = '1';
+        field(ft, 'Soll-Besetzung (Personen, 0 = offen)', rq);
+        errLine(ft, 'add-task');
+        submit(ft, 'add-task', 'Anlegen', () => { state = (0, plan_ts_1.addTask)(state, { planKey: val(ft, 'planKey').trim(), title: val(ft, 'title'), objektId: val(ft, 'objekt'), area: val(ft, 'area'), level: val(ft, 'level'), lvRef: val(ft, 'lvRef'), sollStart: val(ft, 'sollStart'), sollEnd: val(ft, 'sollEnd'), requiredHeads: Number(val(ft, 'required')) }); });
+        dt.append(ft);
+        wrap.append(dt);
+        const dr = details('add-res', 'Ressource anlegen');
+        const fr = el('form', 'frm');
+        fr.id = 'res-form';
+        field(fr, 'Art', select('type', RESOURCE_TYPES));
+        field(fr, 'Bezeichnung', input('label'));
+        const hc = input('heads', 'number', '1');
+        hc.min = '1';
+        hc.step = '1';
+        field(fr, 'Köpfe', hc);
+        errLine(fr, 'add-res');
+        submit(fr, 'add-res', 'Anlegen', () => { state = (0, plan_ts_1.addResource)(state, val(fr, 'type'), val(fr, 'label'), Number(val(fr, 'heads'))); });
+        dr.append(fr);
+        wrap.append(dr);
+        const da = details('add-assign', 'Zuordnung anlegen');
+        const fa = el('form', 'frm');
+        fa.id = 'assign-form';
+        field(fa, 'Planvorgang', select('task', state.tasks.map(t => [t.id, `${t.planKey} · ${t.title}`])));
+        field(fa, 'Ressource', select('res', state.resources.map(r => [r.id, r.label])));
+        field(fa, 'Von', input('from', 'date'));
+        field(fa, 'Bis', input('to', 'date'));
+        const hrs = input('hours', 'number', '0');
+        hrs.min = '0';
+        hrs.step = '1';
+        field(fa, 'Planstunden', hrs);
+        errLine(fa, 'add-assign');
+        submit(fa, 'add-assign', 'Zuordnen', () => { state = (0, plan_ts_1.assign)(state, val(fa, 'task'), val(fa, 'res'), val(fa, 'from'), val(fa, 'to'), Number(val(fa, 'hours'))); });
+        da.append(fa);
+        wrap.append(da);
+        if (state.assignments.length) {
+            const t = el('table');
+            t.id = 'assignments';
+            const head = el('tr');
+            for (const h of ['Ressource', 'Planvorgang', 'Zeitraum', ''])
+                head.append(el('th', '', h));
+            t.append(head);
+            for (const a of state.assignments) {
+                const tr = el('tr');
+                const r = state.resources.find(x => x.id === a.resourceId);
+                tr.append(el('td', '', r?.label ?? '?'), el('td', '', key(a.taskId)), el('td', '', `${fmt(a.from)} bis ${fmt(a.to)}`));
+                const act = el('td');
+                const rm = el('button', 'quiet', 'Entfernen');
+                rm.type = 'button';
+                rm.setAttribute('aria-label', `Zuordnung ${r?.label ?? ''} zu ${key(a.taskId)} entfernen`);
+                rm.onclick = () => { state = (0, plan_ts_1.removeAssignment)(state, a.id); render(); };
+                act.append(rm);
+                tr.append(act);
+                t.append(tr);
+            }
+            const tw = el('div', 'tw');
+            tw.append(t);
+            wrap.append(tw);
+        }
+        return wrap;
+    }
     function drawLetter() {
         if (!letterFor)
             return null;
@@ -590,11 +806,11 @@ function mountPlanner(root, options = {}) {
             li.append(el('span', 'muted', `Wirkung: ${e.wirkung} · Ausweichmöglichkeit: ${a.vorhanden}${a.genutzt ? `, genutzt: ${a.genutzt}` : ''} · Gegenmaßnahme: ${g.moeglich || '–'}${g.durchgefuehrt ? `, durchgeführt: ${g.durchgefuehrt}` : ''}${g.wirksam ? `, wirksam: ${g.wirksam}` : ''} · Nachweise: ${e.nachweise.length ? e.nachweise.map(n => `${n.art} (${n.bezeichnung})`).join(', ') : '–'}`));
             const ab = el('button', 'quiet', 'Einschätzung bearbeiten');
             ab.type = 'button';
-            ab.onclick = () => { assessFor = e.id; formFor = null; letterFor = null; error = ''; render(); };
+            ab.onclick = () => { assessFor = e.id; formFor = null; letterFor = null; editTaskId = null; error = ''; render(); };
             li.append(ab);
             const lb = el('button', 'quiet', 'Behinderungsanzeige-Entwurf');
             lb.type = 'button';
-            lb.onclick = () => { letterFor = e.id; assessFor = null; formFor = null; error = ''; render(); };
+            lb.onclick = () => { letterFor = e.id; assessFor = null; formFor = null; editTaskId = null; error = ''; render(); };
             li.append(lb);
             if (!e.to) {
                 const b = el('button', 'quiet', 'Wiederaufnahme heute');
@@ -616,9 +832,9 @@ function mountPlanner(root, options = {}) {
         const scroll = el('div', 'pl-scroll');
         const grid = drawGrid(axis);
         scroll.append(grid, drawLegend());
-        const form = drawForm() ?? drawAssessForm() ?? drawLetter();
+        const form = drawForm() ?? drawAssessForm() ?? drawLetter() ?? drawTaskEditForm();
         const h = (t) => el('h2', '', t);
-        root.append(scroll, h('Auffälligkeiten'), drawFindings(), h('Abhängigkeiten'), drawDependencies(), ...(form ? [form] : []), h('Ereignisse'), drawEvents(), h('Personaldisposition über alle Leistungen (Wochenübersicht)'), drawLoad());
+        root.append(scroll, h('Auffälligkeiten'), drawFindings(), h('Abhängigkeiten'), drawDependencies(), h('Plan bearbeiten'), drawPlanEditor(), ...(form ? [form] : []), h('Ereignisse'), drawEvents(), h('Personaldisposition über alle Leistungen (Wochenübersicht)'), drawLoad());
         drawArrows(grid);
         observer = new ResizeObserver(() => drawArrows(grid));
         observer.observe(grid);
@@ -631,7 +847,7 @@ function mountPlanner(root, options = {}) {
 "src/planner/plan.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.downstreamTasks = exports.checkDependency = exports.removeDependency = exports.addDependency = exports.wouldCreateCycle = exports.endEvent = exports.assessEvent = exports.createEventFromTask = exports.dispositionByObjekt = exports.weeklyDisposition = exports.occupancyOn = exports.findConflicts = exports.assign = exports.addResource = exports.addTask = exports.addObjekt = exports.taskProblems = exports.emptyPlan = exports.barOnAxis = exports.buildAxis = exports.mondayOf = exports.isoWeek = exports.weekdayOf = exports.diffDays = exports.addDays = exports.isIsoDay = exports.NACHWEIS_ARTEN = exports.JA_NEIN_WERTE = exports.GENUTZT_WERTE = exports.VORHANDEN_WERTE = exports.WIRKUNGEN = exports.OBJEKT_NAME = void 0;
+exports.downstreamTasks = exports.checkDependency = exports.removeDependency = exports.addDependency = exports.wouldCreateCycle = exports.endEvent = exports.assessEvent = exports.createEventFromTask = exports.dispositionByObjekt = exports.weeklyDisposition = exports.occupancyOn = exports.findConflicts = exports.assign = exports.addResource = exports.suggestPlanKey = exports.removeAssignment = exports.findUnderstaffing = exports.updateTask = exports.addTask = exports.addObjekt = exports.taskProblems = exports.emptyPlan = exports.barOnAxis = exports.buildAxis = exports.mondayOf = exports.isoWeek = exports.weekdayOf = exports.diffDays = exports.addDays = exports.isIsoDay = exports.NACHWEIS_ARTEN = exports.JA_NEIN_WERTE = exports.GENUTZT_WERTE = exports.VORHANDEN_WERTE = exports.WIRKUNGEN = exports.OBJEKT_NAME = void 0;
 const ids_ts_1 = require("../core/ids.js");
 exports.OBJEKT_NAME = /^(\d{4}) (\S.*)$/;
 exports.WIRKUNGEN = ['Hemmung', 'Unterbrechung', 'Anfangsverschiebung', 'Leistungserweiterung', 'Kombination', 'noch nicht beurteilt'];
@@ -714,6 +930,8 @@ const taskProblems = (t) => {
         p.push('Ist-Ende liegt vor Ist-Beginn');
     if (!(t.progress >= 0 && t.progress <= 100))
         p.push('Fortschritt außerhalb 0–100');
+    if (t.requiredHeads !== undefined && !(Number.isInteger(t.requiredHeads) && t.requiredHeads >= 0))
+        p.push('Soll-Besetzung: ganze Zahl ab 0');
     return p;
 };
 exports.taskProblems = taskProblems;
@@ -737,7 +955,7 @@ const addTask = (s, input) => {
     const task = {
         id: (0, ids_ts_1.nextId)('pt'), planKey: input.planKey, objektId: input.objektId ?? '', title: input.title, area: input.area ?? '', level: input.level ?? '', lvRef: input.lvRef ?? '',
         sollStart: input.sollStart, sollEnd: input.sollEnd, istStart: input.istStart ?? '', istEnd: input.istEnd ?? '',
-        progress: input.progress ?? 0, status: input.status ?? 'geplant', rowOrder: s.tasks.length + 1
+        progress: input.progress ?? 0, status: input.status ?? 'geplant', rowOrder: s.tasks.length + 1, requiredHeads: input.requiredHeads ?? 0
     };
     const problems = (0, exports.taskProblems)(task);
     if (problems.length)
@@ -747,6 +965,66 @@ const addTask = (s, input) => {
     return { ...s, tasks: [...s.tasks, task] };
 };
 exports.addTask = addTask;
+const updateTask = (s, taskId, patch) => {
+    const t = s.tasks.find(x => x.id === taskId);
+    if (!t)
+        throw new RangeError('unknown task');
+    if (patch.objektId && !s.objekte.some(o => o.id === patch.objektId))
+        throw new RangeError('unknown objekt');
+    const next = { ...t, ...patch };
+    const problems = (0, exports.taskProblems)(next);
+    if (problems.length)
+        throw new RangeError(problems.join('; '));
+    return { ...s, tasks: s.tasks.map(x => x.id === taskId ? next : x) };
+};
+exports.updateTask = updateTask;
+const findUnderstaffing = (s) => {
+    const out = [];
+    for (const t of s.tasks) {
+        if (!(t.requiredHeads > 0) || t.status === 'ausgeführt')
+            continue;
+        const mine = s.assignments.filter(a => a.taskId === t.id);
+        let cur = null;
+        for (let d = t.sollStart; (0, exports.diffDays)(d, t.sollEnd) >= 0; d = (0, exports.addDays)(d, 1)) {
+            if ((0, exports.weekdayOf)(d) >= 5)
+                continue;
+            const heads = mine.reduce((n, a) => {
+                if ((0, exports.diffDays)(a.from, d) < 0 || (0, exports.diffDays)(d, a.to) < 0)
+                    return n;
+                const r = s.resources.find(x => x.id === a.resourceId);
+                return r && r.type !== 'geraet' ? n + r.headcount : n;
+            }, 0);
+            if (heads < t.requiredHeads) {
+                if (cur) {
+                    cur.to = d;
+                    cur.days += 1;
+                    cur.minAssigned = Math.min(cur.minAssigned, heads);
+                }
+                else
+                    cur = { taskId: t.id, planKey: t.planKey, from: d, to: d, days: 1, required: t.requiredHeads, minAssigned: heads };
+            }
+            else if (cur) {
+                out.push(cur);
+                cur = null;
+            }
+        }
+        if (cur)
+            out.push(cur);
+    }
+    return out;
+};
+exports.findUnderstaffing = findUnderstaffing;
+const removeAssignment = (s, assignmentId) => {
+    if (!s.assignments.some(a => a.id === assignmentId))
+        throw new RangeError('unknown assignment');
+    return { ...s, assignments: s.assignments.filter(a => a.id !== assignmentId) };
+};
+exports.removeAssignment = removeAssignment;
+const suggestPlanKey = (s) => {
+    const max = s.tasks.reduce((m, t) => { const n = /^PV-(\d+)$/.exec(t.planKey); return n ? Math.max(m, Number(n[1])) : m; }, 0);
+    return `PV-${String(max + 1).padStart(3, '0')}`;
+};
+exports.suggestPlanKey = suggestPlanKey;
 const addResource = (s, type, label, headcount = 1) => {
     if (!label.trim())
         throw new RangeError('Ressource ohne Bezeichnung');
@@ -994,7 +1272,7 @@ const buildDemoPlan = () => {
     s = (0, plan_ts_1.addObjekt)(s, '7002 Muster B (fiktiv)');
     const [oa, ob] = s.objekte.map(o => o.id);
     s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-001', objektId: oa, title: 'Trockenbauwände 1. OG', area: 'Baufeld 2', level: '1. OG', lvRef: 'OZ 03.02.010', sollStart: '2026-11-17', sollEnd: '2026-11-28', istStart: '2026-11-17', istEnd: '', progress: 45, status: 'in Arbeit' });
-    s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-002', objektId: ob, title: 'Decke Foyer', area: 'Foyer', level: 'EG', lvRef: 'OZ 03.02.020', sollStart: '2026-11-24', sollEnd: '2026-12-12' });
+    s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-002', objektId: ob, title: 'Decke Foyer', area: 'Foyer', level: 'EG', lvRef: 'OZ 03.02.020', sollStart: '2026-11-24', sollEnd: '2026-12-12', requiredHeads: 5 });
     s = (0, plan_ts_1.addTask)(s, { planKey: 'PV-003', objektId: oa, title: 'Spachtelung', area: 'Baufeld 2', level: '1. OG', lvRef: 'OZ 03.03.010', sollStart: '2026-12-08', sollEnd: '2026-12-19' });
     s = (0, plan_ts_1.addResource)(s, 'kolonne', 'Kolonne A (Muster)', 4);
     s = (0, plan_ts_1.addResource)(s, 'kolonne', 'Kolonne B (Muster)', 3);
@@ -1232,5 +1510,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #73b99b;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), var(--day)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { box-shadow: inset 2px 0 0 var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: #fff; font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\nform.frm :is(select, input) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: #fff; } button.primary:hover { background: var(--teal-d); }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; opacity: .85; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }" }, { build: "sha256:347b080721bc07b3" }));
+  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #73b99b;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), var(--day)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { box-shadow: inset 2px 0 0 var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: #fff; font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\nform.frm :is(select, input) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: #fff; } button.primary:hover { background: var(--teal-d); }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; opacity: .85; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }" }, { build: "sha256:0e3aa84feb095cae" }));
 })();
