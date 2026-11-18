@@ -1,5 +1,16 @@
 # Sicherheits- und Publikationscheckliste
 
+## Bestätigte Veröffentlichung s47 (Planer: Objekte, Wochenende, Ereignis-Einschätzung, Entwurf) — 2026-11-18, Release-Token `2026-11-18-s47`
+
+- [x] Public static release committed as `ec96884` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: object names with a four-digit cost-center number (fictional 7001/7002), weekend display, event assessment fields, a view-only draft letter from an event (neutral wording) and stronger contrast. Fictional data, memory only.
+- [x] Allowlist unchanged (14 files in `site/`). `ac01-core.bundle.js` (built with `--neutral-wording`) and `stundenzettel.bundle.js` were rebuilt and are byte-identical to the published ones; `planner.bundle.js` is generated with `--neutral-wording`, not copied by hand.
+- [x] Workflow rules replayed locally before the push (exact allowlist, no network/storage/dynamic code, only the SVG namespace URL, name/identifier/legal-wording scan: no hits); GitHub Pages workflow `44346285308` (head `ec96884`) succeeded.
+- [x] Version gate: all twelve referenced assets use `?v=2026-11-18-s47`.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` 47/47 against this exact package (private source: integration 46/46, ui-tests 62/62, SPFx 161/161).
+- [x] Live proof: SHA-256 of all 14 downloaded Pages files matches the local package.
+- [x] Live browser smoke (Chrome on the public URL, cache bypassed): "Planer" opens, objects "7001/7002 … (fiktiv)", weekly view with the Personal/Objekte switch, the "Behinderungsanzeige-Entwurf" button opens a view-only draft with neutral example wording and open fields. Not a full test run on the live site.
+- [ ] Still unverified, not blockers: real iPhone/Safari, screen reader. The prototype is synthetic and memory-only; this publication grants no SharePoint or operational approval and does not confirm the planner scope or the object concept with the stakeholder.
+
 ## Bestätigte Veröffentlichung s45 (Planer) — 2026-11-17, Release-Token `2026-11-17-s45`
 
 - [x] Public static release committed as `a385deb` and pushed normally to `origin/main`. It adds the planner view (timeline, resources, dependencies, events from a plan task) as the navigation entry "Planer" with a phone-only button in the Mission Control footer. Fictional data, memory only.
