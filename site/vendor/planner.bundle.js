@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:ed74a1dd2e3aaece, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:eff0ff22bf6adb74, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/planner/in-memory-plan-repository.js, src/planner/plan-session.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/planner/plan-integrity.js, src/planner/plan-repository.js, src/planner/plan-sync.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry planner <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -10,26 +10,26 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.mountPlanner = mountPlanner;
 const plan_ts_1 = require("../src/planner/plan.js");
 const demo_plan_ts_1 = require("../src/planner/demo-plan.js");
+const in_memory_plan_repository_ts_1 = require("../src/planner/in-memory-plan-repository.js");
+const plan_session_ts_1 = require("../src/planner/plan-session.js");
 const from_plan_event_ts_1 = require("../src/behinderung/from-plan-event.js");
 const behinderungsanzeige_ts_1 = require("../src/behinderung/behinderungsanzeige.js");
 function mountPlanner(root, options = {}) {
     root.classList.add('pl-app');
     root.classList.toggle('standalone', Boolean(options.heading));
     root.dataset.scheme = options.scheme ?? 'light';
-    let state = (0, demo_plan_ts_1.buildDemoPlan)();
-    let formFor = null;
-    let assessFor = null;
+    let state = (0, plan_ts_1.emptyPlan)();
+    const session = new plan_session_ts_1.PlanSession(options.repository ?? new in_memory_plan_repository_ts_1.InMemoryPlanRepository((0, demo_plan_ts_1.buildDemoPlan)()));
+    let opened = false;
+    let destroyed = false;
     let letterFor = null;
-    let editTaskId = null;
+    let panel = null;
     let panelEnter = false;
     let focusTarget = '';
     let returnFocus = '';
     let planError = '';
-    let planOpen = '';
     let dispoView = 'personal';
-    let error = '';
-    let depError = '';
-    let depOpen = false;
+    let confirmDiscard = false;
     let observer = null;
     const AXIS_FROM = (0, plan_ts_1.mondayOf)('2026-11-16');
     const AXIS_TO = (0, plan_ts_1.addDays)(AXIS_FROM, 5 * 7 - 1);
@@ -49,6 +49,24 @@ function mountPlanner(root, options = {}) {
             e.setAttribute(k, v);
         return e;
     };
+    const ICONS = {
+        plus: [['path', { d: 'M12 5v14M5 12h14' }]],
+        pencil: [['path', { d: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z' }], ['path', { d: 'm15 5 4 4' }]],
+        trash: [['path', { d: 'M3 6h18' }], ['path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' }], ['path', { d: 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' }], ['path', { d: 'M10 11v6M14 11v6' }]],
+        x: [['path', { d: 'M18 6 6 18M6 6l12 12' }]],
+        check: [['path', { d: 'M20 6 9 17l-5-5' }]],
+        file: [['path', { d: 'M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z' }], ['path', { d: 'M14 2v6h6M16 13H8M16 17H8M10 9H8' }]],
+        clipboard: [['rect', { x: '8', y: '2', width: '8', height: '4', rx: '1' }], ['path', { d: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2' }], ['path', { d: 'm9 14 2 2 4-4' }]],
+        play: [['path', { d: 'M6 3 20 12 6 21Z' }]],
+        refresh: [['path', { d: 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8' }], ['path', { d: 'M21 3v5h-5' }], ['path', { d: 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16' }], ['path', { d: 'M3 16h5v5' }]],
+    };
+    function icon(name) {
+        const i = svg('svg', { class: 'ico', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' });
+        for (const [tag, attrs] of ICONS[name])
+            i.append(svg(tag, attrs));
+        return i;
+    }
+    function withIcon(b, name) { b.classList.add('ico-btn'); b.prepend(icon(name)); return b; }
     const fmt = (d) => `${d.slice(8)}.${d.slice(5, 7)}.${d.slice(0, 4)}`;
     const short = (d) => `${d.slice(8)}.${d.slice(5, 7)}.`;
     const key = (id) => state.tasks.find(t => t.id === id)?.planKey ?? '?';
@@ -112,14 +130,16 @@ function mountPlanner(root, options = {}) {
                 const b = el('button', 'taskbtn', `${t.planKey} · ${t.title}`);
                 b.type = 'button';
                 b.title = 'Ereignis aus diesem Planvorgang erzeugen';
-                b.onclick = () => { formFor = t.id; assessFor = null; letterFor = null; editTaskId = null; error = ''; render(); };
-                const eb = el('button', 'quiet', 'Bearbeiten');
+                b.dataset.task = t.id;
+                b.onclick = () => openPanel(eventCreateSpec(t.id));
+                const eb = withIcon(el('button', 'quiet icon-only'), 'pencil');
                 eb.type = 'button';
+                eb.title = 'Planvorgang bearbeiten';
                 eb.setAttribute('aria-label', `Planvorgang ${t.planKey} bearbeiten`);
-                eb.onclick = () => { editTaskId = t.id; formFor = null; assessFor = null; letterFor = null; planError = ''; panelEnter = true; focusTarget = 'panel'; render(); };
+                eb.onclick = () => openPanel(taskEditSpec(t.id));
                 const nm = el('span', 'nm');
                 nm.append(b, eb);
-                l.append(nm, el('small', '', `${state.objekte.find(o => o.id === t.objektId)?.name ?? 'ohne Objekt'} · ${t.level} · ${t.area} · ${t.lvRef}`), el('small', '', `Soll ${short(t.sollStart)}–${short(t.sollEnd)}${t.requiredHeads ? ` · Besetzung ${t.requiredHeads} Pers.` : ''}${t.istStart ? ` · Fortschritt ${t.progress} %` : ''}`));
+                l.append(nm, el('small', '', [state.objekte.find(o => o.id === t.objektId)?.name ?? 'ohne Objekt', t.level, t.area, t.lvRef].filter(Boolean).join(' · ')), el('small', '', `Soll ${short(t.sollStart)}–${short(t.sollEnd)}${t.requiredHeads ? ` · Besetzung ${t.requiredHeads} Pers.` : ''}${t.istStart ? ` · Fortschritt ${t.progress} %` : ''}`));
             }, 'task', t.id);
             const soll = (0, plan_ts_1.barOnAxis)(axis, t.sollStart, t.sollEnd);
             if (soll) {
@@ -306,7 +326,7 @@ function mountPlanner(root, options = {}) {
                 st.append(c.ok ? el('span', 'tag', `eingehalten · ${plural(c.slackDays)} Puffer`) : el('span', 'tag warn', `verletzt · ${plural(-c.slackDays)} zu früh`));
                 tr.append(st);
                 const act = el('td');
-                const rm = el('button', 'quiet', 'Entfernen');
+                const rm = withIcon(el('button', 'quiet', 'Entfernen'), 'trash');
                 rm.type = 'button';
                 rm.setAttribute('aria-label', `Abhängigkeit ${depText(d)} entfernen`);
                 rm.onclick = () => { state = (0, plan_ts_1.removeDependency)(state, d.id); render(); };
@@ -318,60 +338,13 @@ function mountPlanner(root, options = {}) {
             tw.append(t);
             wrap.append(tw);
         }
-        const det = el('details', 'add');
-        det.open = depOpen;
-        det.addEventListener('toggle', () => { depOpen = det.open; });
-        det.append(el('summary', '', 'Abhängigkeit hinzufügen'));
-        const f = el('form', 'frm');
-        f.id = 'dep-form';
-        const sel = (name, label, opts) => {
-            const l = el('label', '', label);
-            const s = el('select');
-            s.name = name;
-            for (const [v, t] of opts) {
-                const o = el('option', '', t);
-                o.value = v;
-                s.append(o);
-            }
-            l.append(s);
-            f.append(l);
-        };
-        const tasks = state.tasks.map(t => [t.id, `${t.planKey} · ${t.title}`]);
-        sel('pred', 'Vorgänger', tasks);
-        sel('succ', 'Nachfolger', tasks.length > 1 ? [...tasks.slice(1), tasks[0]] : tasks);
-        sel('type', 'Typ', Object.keys(TYPE_LABEL).map(k => [k, `${TYPE_LABEL[k]} (${k})`]));
-        const lag = el('input');
-        lag.name = 'lag';
-        lag.type = 'number';
-        lag.step = '1';
-        lag.value = '0';
-        lag.setAttribute('aria-label', 'Versatz in Kalendertagen');
-        const ll = el('label', '', 'Versatz (Kalendertage)');
-        ll.append(lag);
-        f.append(ll);
-        const ok = el('button', 'primary', 'Hinzufügen');
-        ok.type = 'submit';
-        f.append(ok);
-        if (depError) {
-            const e = el('p', 'err', depError);
-            e.style.gridColumn = '1 / -1';
-            f.append(e);
-        }
-        f.onsubmit = ev => {
-            ev.preventDefault();
-            const v = (n) => f.elements.namedItem(n).value;
-            try {
-                state = (0, plan_ts_1.addDependency)(state, v('pred'), v('succ'), v('type'), Number(v('lag')));
-                depError = '';
-            }
-            catch (e) {
-                depError = e instanceof Error ? e.message : String(e);
-            }
-            depOpen = true;
-            render();
-        };
-        det.append(f);
-        wrap.append(det);
+        const bar = el('div', 'row');
+        const bd = withIcon(el('button', '', 'Abhängigkeit anlegen'), 'plus');
+        bd.type = 'button';
+        bd.id = 'open-dep';
+        bd.onclick = () => openPanel(dependencyCreateSpec());
+        bar.append(bd);
+        wrap.append(bar);
         return wrap;
     }
     function drawLoad() {
@@ -435,76 +408,6 @@ function mountPlanner(root, options = {}) {
         wrap.append(tw);
         return wrap;
     }
-    function assessmentFields(init) {
-        const box = el('fieldset', 'assess');
-        box.append(el('legend', '', 'Einschätzung (optional, nur Kategorien, keine Rechtsfolge)'));
-        const sel = (label, values, cur, blank = false) => {
-            const l = el('label', '', label);
-            const x = el('select');
-            for (const v of blank ? ['', ...values] : values) {
-                const o = el('option', '', v || '– nicht angegeben');
-                o.value = v;
-                x.append(o);
-            }
-            x.value = cur;
-            l.append(x);
-            box.append(l);
-            return x;
-        };
-        const txt = (label, cur) => { const l = el('label', '', label); const x = el('textarea'); x.rows = 2; x.value = cur; l.append(x); box.append(l); return x; };
-        const wirkung = sel('Wirkung', plan_ts_1.WIRKUNGEN, init?.wirkung ?? 'noch nicht beurteilt');
-        const vorh = sel('Ausweichmöglichkeit vorhanden', plan_ts_1.VORHANDEN_WERTE, init?.ausweichmoeglichkeit.vorhanden ?? 'Unklar');
-        const aBesch = txt('Ausweichmöglichkeit: Beschreibung', init?.ausweichmoeglichkeit.beschreibung ?? '');
-        const genutzt = sel('Ausweichmöglichkeit genutzt', plan_ts_1.GENUTZT_WERTE, init?.ausweichmoeglichkeit.genutzt ?? '', true);
-        const moeglich = sel('Gegenmaßnahme möglich', plan_ts_1.JA_NEIN_WERTE, init?.gegenmassnahme.moeglich ?? '', true);
-        const gBesch = txt('Gegenmaßnahme: Beschreibung', init?.gegenmassnahme.beschreibung ?? '');
-        const durch = sel('Gegenmaßnahme durchgeführt', plan_ts_1.JA_NEIN_WERTE, init?.gegenmassnahme.durchgefuehrt ?? '', true);
-        const wirksam = sel('Gegenmaßnahme wirksam', plan_ts_1.JA_NEIN_WERTE, init?.gegenmassnahme.wirksam ?? '', true);
-        const nw = init?.nachweise[0];
-        const nArt = sel('Nachweis (synthetisch)', plan_ts_1.NACHWEIS_ARTEN, nw?.art ?? '', true);
-        const nl = el('label', '', 'Nachweis: Bezeichnung (Text, kein Dateibezug)');
-        const nBez = el('input');
-        nBez.value = nw?.bezeichnung ?? '';
-        nl.append(nBez);
-        box.append(nl);
-        const read = () => ({
-            wirkung: wirkung.value,
-            ausweichmoeglichkeit: { vorhanden: vorh.value, beschreibung: aBesch.value, genutzt: genutzt.value },
-            gegenmassnahme: { moeglich: moeglich.value, beschreibung: gBesch.value, durchgefuehrt: durch.value, wirksam: wirksam.value },
-            nachweise: nArt.value || nBez.value.trim() ? [{ art: (nArt.value || plan_ts_1.NACHWEIS_ARTEN[plan_ts_1.NACHWEIS_ARTEN.length - 1]), bezeichnung: nBez.value }] : []
-        });
-        return { node: box, read };
-    }
-    function drawAssessForm() {
-        if (!assessFor)
-            return null;
-        const e = state.events.find(x => x.id === assessFor);
-        const f = el('form', 'evt');
-        f.id = 'assess-form';
-        f.append(el('h2', '', `Einschätzung zu: ${e.title}`));
-        f.append(el('p', 'snap', 'Es werden nur die Einschätzungsfelder geändert. Soll-Momentaufnahme, Termine und Abhängigkeiten bleiben unverändert; kein Termin wird verschoben.'));
-        const af = assessmentFields(e);
-        f.append(af.node);
-        if (error)
-            f.append(el('p', 'err', error));
-        const ok = el('button', 'primary', 'Einschätzung speichern');
-        ok.type = 'submit';
-        const cancel = el('button', '', 'Abbrechen');
-        cancel.type = 'button';
-        cancel.onclick = () => { assessFor = null; error = ''; render(); };
-        const row = el('div', 'row');
-        row.append(ok, cancel);
-        f.append(row);
-        f.onsubmit = ev => { ev.preventDefault(); try {
-            state = (0, plan_ts_1.assessEvent)(state, e.id, af.read());
-            assessFor = null;
-            error = '';
-        }
-        catch (x) {
-            error = x instanceof Error ? x.message : String(x);
-        } render(); };
-        return f;
-    }
     const STATUS_LIST = ['geplant', 'in Arbeit', 'in Prüfung', 'ausgeführt'];
     const RESOURCE_TYPES = [['kolonne', 'Kolonne'], ['mitarbeiter', 'Mitarbeiter'], ['geraet', 'Gerät']];
     function field(f, label, control) { const l = el('label', '', label); l.append(control); f.append(l); }
@@ -539,37 +442,87 @@ function mountPlanner(root, options = {}) {
                 e.value = d[e.name];
     };
     const val = (f, n) => f.elements.namedItem(n).value;
-    function buildTaskEditForm() {
-        if (!editTaskId)
-            return null;
-        const t = state.tasks.find(x => x.id === editTaskId);
-        if (!t)
-            return null;
+    function openPanel(spec) {
+        panel = spec;
+        letterFor = null;
+        planError = '';
+        confirmDiscard = false;
+        panelEnter = true;
+        focusTarget = 'panel';
+        render();
+    }
+    function switchPanel(spec) {
+        panel = spec;
+        planError = '';
+        confirmDiscard = false;
+        panelEnter = false;
+        focusTarget = 'panel';
+        render();
+    }
+    function fieldControl(f) {
+        if (f.kind === 'select')
+            return select(f.name, f.options ?? [], f.value ?? '');
+        if (f.kind === 'textarea') {
+            const t = el('textarea');
+            t.name = f.name;
+            t.rows = 2;
+            t.value = f.value ?? '';
+            if (f.placeholder)
+                t.placeholder = f.placeholder;
+            return t;
+        }
+        const c = input(f.name, f.kind, f.value ?? '');
+        if (f.min !== undefined)
+            c.min = f.min;
+        if (f.max !== undefined)
+            c.max = f.max;
+        if (f.step !== undefined)
+            c.step = f.step;
+        if (f.placeholder)
+            c.placeholder = f.placeholder;
+        if (f.required)
+            c.required = true;
+        return c;
+    }
+    const initialValue = (f) => {
+        if (f.kind !== 'select')
+            return f.value ?? '';
+        const o = f.options ?? [];
+        return o.some(([v]) => v === f.value) ? f.value : (o[0]?.[0] ?? '');
+    };
+    function isDirty() {
+        const f = root.querySelector('#edit-form');
+        if (!panel || !f)
+            return false;
+        return panel.fields.some(fd => { const c = f.elements.namedItem(fd.name); return c ? c.value !== initialValue(fd) : false; });
+    }
+    function buildPanelForm(spec) {
         const f = el('form', 'frm panel-form');
-        f.id = 'task-edit-form';
-        const note = el('p', 'snap', 'Nachfolger, Zuordnungen und bestehende Ereignisse werden nicht verschoben; die Abhängigkeitsprüfung zeigt nur, was nicht mehr passt. Der Planschlüssel bleibt unverändert.');
-        note.style.gridColumn = '1 / -1';
-        f.append(note);
-        field(f, 'Titel', input('title', 'text', t.title));
-        field(f, 'Objekt', select('objekt', objektOptions(), t.objektId));
-        field(f, 'Bereich', input('area', 'text', t.area));
-        field(f, 'Ebene', input('level', 'text', t.level));
-        field(f, 'LV-Bezug', input('lvRef', 'text', t.lvRef));
-        field(f, 'Soll-Beginn', input('sollStart', 'date', t.sollStart));
-        field(f, 'Soll-Ende', input('sollEnd', 'date', t.sollEnd));
-        field(f, 'Ist-Beginn', input('istStart', 'date', t.istStart));
-        field(f, 'Ist-Ende', input('istEnd', 'date', t.istEnd));
-        const pr = input('progress', 'number', String(t.progress));
-        pr.min = '0';
-        pr.max = '100';
-        pr.step = '1';
-        field(f, 'Fortschritt (%)', pr);
-        const rq = input('required', 'number', String(t.requiredHeads));
-        rq.min = '0';
-        rq.step = '1';
-        field(f, 'Soll-Besetzung (Personen, 0 = offen)', rq);
-        field(f, 'Status', select('status', STATUS_LIST.map(x => [x, x]), t.status));
-        restoreDraft(f, `edit:${t.id}`);
+        f.id = 'edit-form';
+        f.dataset.panel = spec.kind;
+        if (spec.intro) {
+            const note = el('p', 'snap', spec.intro);
+            note.style.gridColumn = '1 / -1';
+            f.append(note);
+        }
+        let box = null, boxGroup = '';
+        for (const fd of spec.fields) {
+            let target = f;
+            if (fd.group) {
+                if (!box || boxGroup !== fd.group) {
+                    box = el('fieldset', 'assess');
+                    box.style.gridColumn = '1 / -1';
+                    box.append(el('legend', '', fd.group));
+                    f.append(box);
+                    boxGroup = fd.group;
+                }
+                target = box;
+            }
+            else
+                box = null;
+            field(target, fd.label, fieldControl(fd));
+        }
+        restoreDraft(f, spec.draftKey);
         if (planError) {
             const e = el('p', 'err', planError);
             e.setAttribute('role', 'alert');
@@ -577,152 +530,224 @@ function mountPlanner(root, options = {}) {
             e.style.gridColumn = '1 / -1';
             f.append(e);
         }
-        const ok = el('button', 'primary', 'Speichern');
+        if (spec.actions?.length) {
+            const acts = el('div', 'row');
+            acts.style.gridColumn = '1 / -1';
+            for (const a of spec.actions) {
+                const b = withIcon(el('button', 'quiet', a.label), 'plus');
+                b.type = 'button';
+                b.id = a.id;
+                b.onclick = () => { saveDraft(f, spec.draftKey); switchPanel(a.open()); };
+                acts.append(b);
+            }
+            f.append(acts);
+        }
+        const ok = withIcon(el('button', 'primary', spec.submitLabel), spec.kind.endsWith('-create') ? 'plus' : 'check');
         ok.type = 'submit';
         const cancel = el('button', '', 'Abbrechen');
         cancel.type = 'button';
-        cancel.onclick = closePanel;
+        cancel.onclick = requestClose;
         const row = el('div', 'row');
         row.append(ok, cancel);
         row.style.gridColumn = '1 / -1';
         f.append(row);
         f.onsubmit = ev => {
             ev.preventDefault();
-            saveDraft(f, `edit:${t.id}`);
+            saveDraft(f, spec.draftKey);
             try {
-                state = (0, plan_ts_1.updateTask)(state, t.id, {
-                    title: val(f, 'title'), objektId: val(f, 'objekt'), area: val(f, 'area'), level: val(f, 'level'), lvRef: val(f, 'lvRef'),
-                    sollStart: val(f, 'sollStart'), sollEnd: val(f, 'sollEnd'), istStart: val(f, 'istStart'), istEnd: val(f, 'istEnd'),
-                    progress: Number(val(f, 'progress')), requiredHeads: Number(val(f, 'required')), status: val(f, 'status')
-                });
-                editTaskId = null;
-                planError = '';
-                delete drafts[`edit:${t.id}`];
-                returnFocus = t.planKey;
+                spec.submit(n => val(f, n));
             }
             catch (x) {
                 planError = x instanceof Error ? x.message : String(x);
                 focusTarget = 'error';
+                render();
+                return;
             }
+            delete drafts[spec.draftKey];
+            if (spec.back) {
+                switchPanel(spec.back());
+                return;
+            }
+            returnFocus = spec.opener;
+            panel = null;
+            planError = '';
             render();
         };
         return f;
     }
-    function closePanel() {
-        const t = state.tasks.find(x => x.id === editTaskId);
-        if (t) {
-            returnFocus = t.planKey;
-            delete drafts[`edit:${t.id}`];
+    function requestClose() {
+        if (!panel)
+            return;
+        const f = root.querySelector('#edit-form');
+        if (!confirmDiscard && f && isDirty()) {
+            saveDraft(f, panel.draftKey);
+            confirmDiscard = true;
+            focusTarget = 'confirm';
+            render();
+            return;
         }
-        editTaskId = null;
+        closePanelNow();
+    }
+    function closePanelNow() {
+        const spec = panel;
+        if (!spec)
+            return;
+        delete drafts[spec.draftKey];
+        confirmDiscard = false;
         planError = '';
+        if (spec.back) {
+            switchPanel(spec.back());
+            return;
+        }
+        returnFocus = spec.opener;
+        panel = null;
         render();
     }
-    function drawTaskEditPanel() {
-        const f = buildTaskEditForm();
-        const t = state.tasks.find(x => x.id === editTaskId);
-        if (!f || !t)
+    function drawPanel() {
+        if (!panel)
             return null;
+        const spec = panel;
         const wrap = el('div', 'pl-panel-wrap');
         const scrim = el('div', 'pl-scrim');
-        scrim.onclick = closePanel;
+        scrim.onclick = requestClose;
         const aside = el('aside', `pl-panel${panelEnter ? ' enter' : ''}`);
-        aside.id = 'task-edit-panel';
+        aside.id = 'edit-panel';
         aside.setAttribute('role', 'dialog');
         aside.setAttribute('aria-modal', 'true');
-        aside.setAttribute('aria-labelledby', 'task-edit-title');
+        aside.setAttribute('aria-labelledby', 'edit-title');
         const head = el('header', 'pl-panel-head');
-        const h = el('h2', '', `Planvorgang bearbeiten: ${t.planKey}`);
-        h.id = 'task-edit-title';
-        const x = el('button', 'quiet', 'Schließen');
+        const h = el('h2', '', spec.title);
+        h.id = 'edit-title';
+        const x = withIcon(el('button', 'quiet', 'Schließen'), 'x');
         x.type = 'button';
         x.setAttribute('aria-label', 'Bearbeiten schließen');
-        x.onclick = closePanel;
+        x.onclick = requestClose;
         head.append(h, x);
-        aside.append(head, f);
+        aside.append(head);
+        if (session.info.status === 'conflict' || session.info.status === 'error') {
+            const b = el('div');
+            fillSync(b, session.info);
+            aside.append(b);
+        }
+        if (confirmDiscard) {
+            const c = el('div', 'pl-confirm');
+            c.id = 'discard-confirm';
+            c.setAttribute('role', 'alert');
+            c.append(el('span', '', 'Ungespeicherte Eingaben verwerfen?'));
+            const keep = el('button', 'primary', 'Weiter bearbeiten');
+            keep.type = 'button';
+            keep.id = 'discard-no';
+            keep.onclick = () => { confirmDiscard = false; focusTarget = 'panel'; render(); };
+            const drop = el('button', '', 'Verwerfen');
+            drop.type = 'button';
+            drop.id = 'discard-yes';
+            drop.onclick = closePanelNow;
+            c.append(keep, drop);
+            aside.append(c);
+        }
+        aside.append(buildPanelForm(spec));
         wrap.append(scrim, aside);
         panelEnter = false;
         return wrap;
     }
+    const planKeyOpener = (planKey) => `button[aria-label="Planvorgang ${planKey} bearbeiten"]`;
+    function taskEditSpec(taskId) {
+        const t = state.tasks.find(x => x.id === taskId);
+        return {
+            kind: 'task-edit', draftKey: `edit:${t.id}`, title: `Planvorgang bearbeiten: ${t.planKey}`, submitLabel: 'Speichern', opener: planKeyOpener(t.planKey),
+            intro: 'Nachfolger, Zuordnungen und bestehende Ereignisse werden nicht verschoben; die Abhängigkeitsprüfung zeigt nur, was nicht mehr passt. Der Planschlüssel bleibt unverändert.',
+            fields: [
+                { name: 'title', label: 'Titel', kind: 'text', value: t.title },
+                { name: 'objekt', label: 'Objekt', kind: 'select', options: objektOptions(), value: t.objektId },
+                { name: 'area', label: 'Bereich', kind: 'text', value: t.area },
+                { name: 'level', label: 'Ebene', kind: 'text', value: t.level },
+                { name: 'lvRef', label: 'LV-Bezug', kind: 'text', value: t.lvRef },
+                { name: 'sollStart', label: 'Soll-Beginn', kind: 'date', value: t.sollStart },
+                { name: 'sollEnd', label: 'Soll-Ende', kind: 'date', value: t.sollEnd },
+                { name: 'istStart', label: 'Ist-Beginn', kind: 'date', value: t.istStart },
+                { name: 'istEnd', label: 'Ist-Ende', kind: 'date', value: t.istEnd },
+                { name: 'progress', label: 'Fortschritt (%)', kind: 'number', value: String(t.progress), min: '0', max: '100', step: '1' },
+                { name: 'required', label: 'Soll-Besetzung (Personen, 0 = offen)', kind: 'number', value: String(t.requiredHeads), min: '0', step: '1' },
+                { name: 'status', label: 'Status', kind: 'select', options: STATUS_LIST.map(x => [x, x]), value: t.status },
+            ],
+            actions: [
+                { id: 'task-add-assign', label: 'Zuordnung hinzufügen', open: () => ({ ...assignmentCreateSpec(t.id), back: () => taskEditSpec(t.id) }) },
+                { id: 'task-add-dep', label: 'Abhängigkeit hinzufügen', open: () => ({ ...dependencyCreateSpec(t.id), back: () => taskEditSpec(t.id) }) },
+            ],
+            submit: v => {
+                state = (0, plan_ts_1.updateTask)(state, t.id, {
+                    title: v('title'), objektId: v('objekt'), area: v('area'), level: v('level'), lvRef: v('lvRef'),
+                    sollStart: v('sollStart'), sollEnd: v('sollEnd'), istStart: v('istStart'), istEnd: v('istEnd'),
+                    progress: Number(v('progress')), requiredHeads: Number(v('required')), status: v('status'),
+                });
+            },
+        };
+    }
+    function taskCreateSpec() {
+        return {
+            kind: 'task-create', draftKey: 'create:task', title: 'Planvorgang anlegen', submitLabel: 'Anlegen', opener: '#open-task',
+            intro: 'Ein neuer Planvorgang verschiebt nichts im bestehenden Plan. Der Planschlüssel wird vorgeschlagen und kann geändert werden.',
+            fields: [
+                { name: 'planKey', label: 'Planschlüssel', kind: 'text', value: (0, plan_ts_1.suggestPlanKey)(state) },
+                { name: 'title', label: 'Titel', kind: 'text' },
+                { name: 'objekt', label: 'Objekt', kind: 'select', options: objektOptions() },
+                { name: 'area', label: 'Bereich', kind: 'text' },
+                { name: 'level', label: 'Ebene', kind: 'text' },
+                { name: 'lvRef', label: 'LV-Bezug', kind: 'text' },
+                { name: 'sollStart', label: 'Soll-Beginn', kind: 'date' },
+                { name: 'sollEnd', label: 'Soll-Ende', kind: 'date' },
+                { name: 'required', label: 'Soll-Besetzung (Personen, 0 = offen)', kind: 'number', value: '0', min: '0', step: '1' },
+            ],
+            submit: v => {
+                state = (0, plan_ts_1.addTask)(state, { planKey: v('planKey').trim(), title: v('title'), objektId: v('objekt'), area: v('area'), level: v('level'), lvRef: v('lvRef'), sollStart: v('sollStart'), sollEnd: v('sollEnd'), requiredHeads: Number(v('required')) });
+            },
+        };
+    }
+    function resourceCreateSpec() {
+        return {
+            kind: 'resource-create', draftKey: 'create:resource', title: 'Ressource anlegen', submitLabel: 'Anlegen', opener: '#open-res',
+            intro: 'Eine Kolonne (mit Köpfen) oder ein Gerät, das Planvorgängen zugeordnet werden kann.',
+            fields: [
+                { name: 'type', label: 'Art', kind: 'select', options: RESOURCE_TYPES },
+                { name: 'label', label: 'Bezeichnung', kind: 'text' },
+                { name: 'heads', label: 'Köpfe', kind: 'number', value: '1', min: '1', step: '1' },
+            ],
+            submit: v => { state = (0, plan_ts_1.addResource)(state, v('type'), v('label'), Number(v('heads'))); },
+        };
+    }
+    function assignmentCreateSpec(taskId) {
+        return {
+            kind: 'assignment-create', draftKey: 'create:assignment', title: 'Zuordnung anlegen', submitLabel: 'Zuordnen', opener: '#open-assign',
+            intro: 'Ordnet eine Ressource einem Planvorgang für einen Zeitraum zu. Doppelbelegung wird nur angezeigt, nicht verhindert.',
+            fields: [
+                { name: 'task', label: 'Planvorgang', kind: 'select', options: state.tasks.map(t => [t.id, `${t.planKey} · ${t.title}`]), value: taskId },
+                { name: 'res', label: 'Ressource', kind: 'select', options: state.resources.map(r => [r.id, r.label]) },
+                { name: 'from', label: 'Von', kind: 'date' },
+                { name: 'to', label: 'Bis', kind: 'date' },
+                { name: 'hours', label: 'Planstunden', kind: 'number', value: '0', min: '0', step: '1' },
+            ],
+            submit: v => { state = (0, plan_ts_1.assign)(state, v('task'), v('res'), v('from'), v('to'), Number(v('hours'))); },
+        };
+    }
     function drawPlanEditor() {
         const wrap = el('div');
-        const details = (id, title) => {
-            const d = el('details', 'add');
-            d.id = id;
-            d.open = planOpen === id;
-            d.addEventListener('toggle', () => { if (d.open)
-                planOpen = id;
-            else if (planOpen === id)
-                planOpen = ''; });
-            d.append(el('summary', '', title));
-            return d;
-        };
-        const errLine = (f, id) => { restoreDraft(f, id); if (planOpen === id && planError) {
-            const e = el('p', 'err', planError);
-            e.style.gridColumn = '1 / -1';
-            f.append(e);
-        } };
-        const submit = (f, id, label, run) => {
-            const ok = el('button', 'primary', label);
-            ok.type = 'submit';
-            f.append(ok);
-            f.addEventListener('submit', ev => { ev.preventDefault(); planOpen = id; saveDraft(f, id); try {
-                run();
-                planError = '';
-                delete drafts[id];
-            }
-            catch (x) {
-                planError = x instanceof Error ? x.message : String(x);
-            } render(); });
-        };
-        const dt = details('add-task', 'Planvorgang anlegen');
-        const ft = el('form', 'frm');
-        ft.id = 'task-form';
-        field(ft, 'Planschlüssel', input('planKey', 'text', (0, plan_ts_1.suggestPlanKey)(state)));
-        field(ft, 'Titel', input('title'));
-        field(ft, 'Objekt', select('objekt', objektOptions()));
-        field(ft, 'Bereich', input('area'));
-        field(ft, 'Ebene', input('level'));
-        field(ft, 'LV-Bezug', input('lvRef'));
-        field(ft, 'Soll-Beginn', input('sollStart', 'date'));
-        field(ft, 'Soll-Ende', input('sollEnd', 'date'));
-        const rq = input('required', 'number', '0');
-        rq.min = '0';
-        rq.step = '1';
-        field(ft, 'Soll-Besetzung (Personen, 0 = offen)', rq);
-        errLine(ft, 'add-task');
-        submit(ft, 'add-task', 'Anlegen', () => { state = (0, plan_ts_1.addTask)(state, { planKey: val(ft, 'planKey').trim(), title: val(ft, 'title'), objektId: val(ft, 'objekt'), area: val(ft, 'area'), level: val(ft, 'level'), lvRef: val(ft, 'lvRef'), sollStart: val(ft, 'sollStart'), sollEnd: val(ft, 'sollEnd'), requiredHeads: Number(val(ft, 'required')) }); });
-        dt.append(ft);
-        wrap.append(dt);
-        const dr = details('add-res', 'Ressource anlegen');
-        const fr = el('form', 'frm');
-        fr.id = 'res-form';
-        field(fr, 'Art', select('type', RESOURCE_TYPES));
-        field(fr, 'Bezeichnung', input('label'));
-        const hc = input('heads', 'number', '1');
-        hc.min = '1';
-        hc.step = '1';
-        field(fr, 'Köpfe', hc);
-        errLine(fr, 'add-res');
-        submit(fr, 'add-res', 'Anlegen', () => { state = (0, plan_ts_1.addResource)(state, val(fr, 'type'), val(fr, 'label'), Number(val(fr, 'heads'))); });
-        dr.append(fr);
-        wrap.append(dr);
-        const da = details('add-assign', 'Zuordnung anlegen');
-        const fa = el('form', 'frm');
-        fa.id = 'assign-form';
-        field(fa, 'Planvorgang', select('task', state.tasks.map(t => [t.id, `${t.planKey} · ${t.title}`])));
-        field(fa, 'Ressource', select('res', state.resources.map(r => [r.id, r.label])));
-        field(fa, 'Von', input('from', 'date'));
-        field(fa, 'Bis', input('to', 'date'));
-        const hrs = input('hours', 'number', '0');
-        hrs.min = '0';
-        hrs.step = '1';
-        field(fa, 'Planstunden', hrs);
-        errLine(fa, 'add-assign');
-        submit(fa, 'add-assign', 'Zuordnen', () => { state = (0, plan_ts_1.assign)(state, val(fa, 'task'), val(fa, 'res'), val(fa, 'from'), val(fa, 'to'), Number(val(fa, 'hours'))); });
-        da.append(fa);
-        wrap.append(da);
+        const bar = el('div', 'row');
+        const bTask = withIcon(el('button', '', 'Planvorgang anlegen'), 'plus');
+        bTask.type = 'button';
+        bTask.id = 'open-task';
+        bTask.onclick = () => openPanel(taskCreateSpec());
+        const bRes = withIcon(el('button', '', 'Ressource anlegen'), 'plus');
+        bRes.type = 'button';
+        bRes.id = 'open-res';
+        bRes.onclick = () => openPanel(resourceCreateSpec());
+        const bAsg = withIcon(el('button', '', 'Zuordnung anlegen'), 'plus');
+        bAsg.type = 'button';
+        bAsg.id = 'open-assign';
+        bAsg.onclick = () => openPanel(assignmentCreateSpec());
+        bar.append(bTask, bRes, bAsg);
+        wrap.append(bar);
         if (state.assignments.length) {
+            wrap.append(el('h2', '', 'Zuordnungen'));
             const t = el('table');
             t.id = 'assignments';
             const head = el('tr');
@@ -734,7 +759,7 @@ function mountPlanner(root, options = {}) {
                 const r = state.resources.find(x => x.id === a.resourceId);
                 tr.append(el('td', '', r?.label ?? '?'), el('td', '', key(a.taskId)), el('td', '', `${fmt(a.from)} bis ${fmt(a.to)}`));
                 const act = el('td');
-                const rm = el('button', 'quiet', 'Entfernen');
+                const rm = withIcon(el('button', 'quiet', 'Entfernen'), 'trash');
                 rm.type = 'button';
                 rm.setAttribute('aria-label', `Zuordnung ${r?.label ?? ''} zu ${key(a.taskId)} entfernen`);
                 rm.onclick = () => { state = (0, plan_ts_1.removeAssignment)(state, a.id); render(); };
@@ -747,6 +772,71 @@ function mountPlanner(root, options = {}) {
             wrap.append(tw);
         }
         return wrap;
+    }
+    function dependencyCreateSpec(predId) {
+        const tasks = state.tasks.map(t => [t.id, `${t.planKey} · ${t.title}`]);
+        const pred = predId ?? tasks[0]?.[0];
+        const succ = tasks.find(([id]) => id !== pred)?.[0] ?? pred;
+        return {
+            kind: 'dependency-create', draftKey: 'create:dependency', title: 'Abhängigkeit anlegen', submitLabel: 'Hinzufügen', opener: '#open-dep',
+            intro: 'Die Abhängigkeit wird nur gegen die Soll-Termine geprüft. Es wird nichts verschoben.',
+            fields: [
+                { name: 'pred', label: 'Vorgänger', kind: 'select', options: tasks, value: pred },
+                { name: 'succ', label: 'Nachfolger', kind: 'select', options: tasks, value: succ },
+                { name: 'type', label: 'Typ', kind: 'select', options: Object.keys(TYPE_LABEL).map(k => [k, `${TYPE_LABEL[k]} (${k})`]) },
+                { name: 'lag', label: 'Versatz (Kalendertage)', kind: 'number', value: '0', step: '1' },
+            ],
+            submit: v => { state = (0, plan_ts_1.addDependency)(state, v('pred'), v('succ'), v('type'), Number(v('lag'))); },
+        };
+    }
+    const plain = (vals) => vals.map(v => [v, v]);
+    const withBlank = (vals) => [['', '– nicht angegeben'], ...plain(vals)];
+    const ASSESS_GROUP = 'Einschätzung (optional, nur Kategorien, keine Rechtsfolge)';
+    function assessmentFields(init) {
+        const nw = init?.nachweise[0];
+        const fs = [
+            { name: 'wirkung', label: 'Wirkung', kind: 'select', options: plain(plan_ts_1.WIRKUNGEN), value: init?.wirkung ?? 'noch nicht beurteilt' },
+            { name: 'vorh', label: 'Ausweichmöglichkeit vorhanden', kind: 'select', options: plain(plan_ts_1.VORHANDEN_WERTE), value: init?.ausweichmoeglichkeit.vorhanden ?? 'Unklar' },
+            { name: 'aBesch', label: 'Ausweichmöglichkeit: Beschreibung', kind: 'textarea', value: init?.ausweichmoeglichkeit.beschreibung ?? '' },
+            { name: 'genutzt', label: 'Ausweichmöglichkeit genutzt', kind: 'select', options: withBlank(plan_ts_1.GENUTZT_WERTE), value: init?.ausweichmoeglichkeit.genutzt ?? '' },
+            { name: 'moeglich', label: 'Gegenmaßnahme möglich', kind: 'select', options: withBlank(plan_ts_1.JA_NEIN_WERTE), value: init?.gegenmassnahme.moeglich ?? '' },
+            { name: 'gBesch', label: 'Gegenmaßnahme: Beschreibung', kind: 'textarea', value: init?.gegenmassnahme.beschreibung ?? '' },
+            { name: 'durch', label: 'Gegenmaßnahme durchgeführt', kind: 'select', options: withBlank(plan_ts_1.JA_NEIN_WERTE), value: init?.gegenmassnahme.durchgefuehrt ?? '' },
+            { name: 'wirksam', label: 'Gegenmaßnahme wirksam', kind: 'select', options: withBlank(plan_ts_1.JA_NEIN_WERTE), value: init?.gegenmassnahme.wirksam ?? '' },
+            { name: 'nArt', label: 'Nachweis (synthetisch)', kind: 'select', options: withBlank(plan_ts_1.NACHWEIS_ARTEN), value: nw?.art ?? '' },
+            { name: 'nBez', label: 'Nachweis: Bezeichnung (Text, kein Dateibezug)', kind: 'text', value: nw?.bezeichnung ?? '' },
+        ];
+        return fs.map(f => ({ ...f, group: ASSESS_GROUP }));
+    }
+    const readAssessment = (v) => ({
+        wirkung: v('wirkung'),
+        ausweichmoeglichkeit: { vorhanden: v('vorh'), beschreibung: v('aBesch'), genutzt: v('genutzt') },
+        gegenmassnahme: { moeglich: v('moeglich'), beschreibung: v('gBesch'), durchgefuehrt: v('durch'), wirksam: v('wirksam') },
+        nachweise: v('nArt') || v('nBez').trim() ? [{ art: (v('nArt') || plan_ts_1.NACHWEIS_ARTEN[plan_ts_1.NACHWEIS_ARTEN.length - 1]), bezeichnung: v('nBez') }] : [],
+    });
+    function eventCreateSpec(taskId) {
+        const t = state.tasks.find(x => x.id === taskId);
+        return {
+            kind: 'event-create', draftKey: `event:${t.id}`, title: `Ereignis aus ${t.planKey} · ${t.title}`, submitLabel: 'Ereignis anlegen', opener: `.taskbtn[data-task="${t.id}"]`,
+            intro: `Die Soll-Daten werden als Momentaufnahme übernommen: ${t.level}, ${t.area}, ${t.lvRef}, ${fmt(t.sollStart)} – ${fmt(t.sollEnd)} und die zugeordneten Ressourcen.`,
+            fields: [
+                { name: 'title', label: 'Titel', kind: 'text', placeholder: 'z. B. Vorleistung fehlt (fiktiv)', required: true },
+                { name: 'from', label: 'Beginn', kind: 'date', value: demo_plan_ts_1.DEMO_TODAY, required: true },
+                { name: 'ist', label: 'Ist-Zustand', kind: 'textarea' },
+                { name: 'ursache', label: 'Ursache', kind: 'textarea' },
+                ...assessmentFields(),
+            ],
+            submit: v => { state = (0, plan_ts_1.createEventFromTask)(state, t.id, { title: v('title'), from: v('from'), istZustand: v('ist'), ursache: v('ursache'), ...readAssessment(v) }, demo_plan_ts_1.DEMO_TODAY).state; },
+        };
+    }
+    function assessSpec(eventId) {
+        const e = state.events.find(x => x.id === eventId);
+        return {
+            kind: 'event-assess', draftKey: `assess:${e.id}`, title: `Einschätzung zu: ${e.title}`, submitLabel: 'Einschätzung speichern', opener: `button[data-assess="${e.id}"]`,
+            intro: 'Es werden nur die Einschätzungsfelder geändert. Soll-Momentaufnahme, Termine und Abhängigkeiten bleiben unverändert; kein Termin wird verschoben.',
+            fields: assessmentFields(e),
+            submit: v => { state = (0, plan_ts_1.assessEvent)(state, e.id, readAssessment(v)); },
+        };
     }
     function drawLetter() {
         if (!letterFor)
@@ -773,7 +863,7 @@ function mountPlanner(root, options = {}) {
             box.append(el('p', 'muted', `Noch offen: ${l.hints.join(' · ')}`));
         for (const n of l.notes)
             box.append(el('p', 'muted', n));
-        const close = el('button', '', 'Schließen');
+        const close = withIcon(el('button', '', 'Schließen'), 'x');
         close.type = 'button';
         close.onclick = () => { letterFor = null; render(); };
         const row = el('div', 'row');
@@ -781,129 +871,121 @@ function mountPlanner(root, options = {}) {
         box.append(row);
         return box;
     }
-    function drawForm() {
-        if (!formFor)
-            return null;
-        const t = state.tasks.find(x => x.id === formFor);
-        const f = el('form', 'evt');
-        f.append(el('h2', '', `Ereignis aus ${t.planKey} · ${t.title}`));
-        f.append(el('p', 'snap', `Die Soll-Daten werden als Momentaufnahme übernommen: ${t.level}, ${t.area}, ${t.lvRef}, ${fmt(t.sollStart)} – ${fmt(t.sollEnd)} und die zugeordneten Ressourcen.`));
-        const field = (label, input) => { const l = el('label', '', label); l.append(input); f.append(l); };
-        const title = el('input');
-        title.name = 'title';
-        title.required = true;
-        title.placeholder = 'z. B. Vorleistung fehlt (fiktiv)';
-        const from = el('input');
-        from.type = 'date';
-        from.name = 'from';
-        from.value = demo_plan_ts_1.DEMO_TODAY;
-        from.required = true;
-        const ist = el('textarea');
-        ist.name = 'ist';
-        ist.rows = 2;
-        const ursache = el('textarea');
-        ursache.name = 'ursache';
-        ursache.rows = 2;
-        field('Titel', title);
-        field('Beginn', from);
-        field('Ist-Zustand', ist);
-        field('Ursache', ursache);
-        const af = assessmentFields();
-        f.append(af.node);
-        if (error)
-            f.append(el('p', 'err', error));
-        const ok = el('button', 'primary', 'Ereignis anlegen');
-        ok.type = 'submit';
-        const cancel = el('button', '', 'Abbrechen');
-        cancel.type = 'button';
-        cancel.onclick = () => { formFor = null; render(); };
-        const row = el('div', 'row');
-        row.append(ok, cancel);
-        f.append(row);
-        f.onsubmit = ev => {
-            ev.preventDefault();
-            try {
-                state = (0, plan_ts_1.createEventFromTask)(state, t.id, { title: title.value, from: from.value, istZustand: ist.value, ursache: ursache.value, ...af.read() }, demo_plan_ts_1.DEMO_TODAY).state;
-                formFor = null;
-                error = '';
-            }
-            catch (e) {
-                error = e instanceof Error ? e.message : String(e);
-            }
-            render();
-        };
-        return f;
-    }
     function drawEvents() {
         if (!state.events.length)
             return el('p', 'empty', 'Noch keine Ereignisse.');
-        const ul = el('ul', 'list');
+        const ul = el('ul', 'list events');
         for (const e of state.events) {
             const li = el('li');
-            li.append(el('strong', '', e.title), el('span', 'muted', `${e.snapshot.planKey} · ab ${fmt(e.from)}${e.to ? ` bis ${fmt(e.to)}` : ' · dauert an'}`));
+            const head = el('div', 'evt-head');
+            head.append(el('strong', '', e.title), el('span', 'muted', `${e.snapshot.planKey} · ab ${fmt(e.from)}${e.to ? ` bis ${fmt(e.to)}` : ' · dauert an'}`));
+            li.append(head);
             const after = (0, plan_ts_1.downstreamTasks)(state, e.taskId);
             if (after.length)
                 li.append(el('span', 'muted', `Nachfolger im Plan (zu prüfen): ${after.map(t => t.planKey).join(', ')}`));
             const g = e.gegenmassnahme, a = e.ausweichmoeglichkeit;
             li.append(el('span', 'muted', `Wirkung: ${e.wirkung} · Ausweichmöglichkeit: ${a.vorhanden}${a.genutzt ? `, genutzt: ${a.genutzt}` : ''} · Gegenmaßnahme: ${g.moeglich || '–'}${g.durchgefuehrt ? `, durchgeführt: ${g.durchgefuehrt}` : ''}${g.wirksam ? `, wirksam: ${g.wirksam}` : ''} · Nachweise: ${e.nachweise.length ? e.nachweise.map(n => `${n.art} (${n.bezeichnung})`).join(', ') : '–'}`));
-            const ab = el('button', 'quiet', 'Einschätzung bearbeiten');
+            const acts = el('div', 'row');
+            const ab = withIcon(el('button', '', 'Einschätzung bearbeiten'), 'clipboard');
             ab.type = 'button';
-            ab.onclick = () => { assessFor = e.id; formFor = null; letterFor = null; editTaskId = null; error = ''; render(); };
-            li.append(ab);
-            const lb = el('button', 'quiet', 'Behinderungsanzeige-Entwurf');
+            ab.dataset.assess = e.id;
+            ab.onclick = () => openPanel(assessSpec(e.id));
+            acts.append(ab);
+            const lb = withIcon(el('button', '', 'Behinderungsanzeige-Entwurf'), 'file');
             lb.type = 'button';
-            lb.onclick = () => { letterFor = e.id; assessFor = null; formFor = null; editTaskId = null; error = ''; render(); };
-            li.append(lb);
+            lb.onclick = () => { letterFor = e.id; panel = null; confirmDiscard = false; render(); };
+            acts.append(lb);
             if (!e.to) {
-                const b = el('button', 'quiet', 'Wiederaufnahme heute');
-                b.type = 'button';
-                b.onclick = () => { state = (0, plan_ts_1.endEvent)(state, e.id, demo_plan_ts_1.DEMO_TODAY); render(); };
-                li.append(b);
+                const rb = withIcon(el('button', '', 'Wiederaufnahme heute'), 'play');
+                rb.type = 'button';
+                rb.onclick = () => { state = (0, plan_ts_1.endEvent)(state, e.id, demo_plan_ts_1.DEMO_TODAY); render(); };
+                acts.append(rb);
             }
+            li.append(acts);
             ul.append(li);
         }
         return ul;
+    }
+    function fillSync(box, info) {
+        box.className = `pl-sync ${info.status}`;
+        box.setAttribute('role', info.status === 'conflict' || info.status === 'error' ? 'alert' : 'status');
+        box.dataset.sync = info.status;
+        box.replaceChildren(el('span', '', info.message));
+        if (info.status === 'conflict' || info.status === 'error') {
+            const b = withIcon(el('button', '', 'Neu laden'), 'refresh');
+            b.type = 'button';
+            b.id = 'sync-reload';
+            b.onclick = () => { void reloadFromRepository(); };
+            box.append(b);
+        }
+    }
+    async function reloadFromRepository() {
+        state = await session.reload();
+        letterFor = null;
+        panel = null;
+        confirmDiscard = false;
+        planError = '';
+        render();
     }
     function render() {
         observer?.disconnect();
         const axis = (0, plan_ts_1.buildAxis)(AXIS_FROM, AXIS_TO, demo_plan_ts_1.DEMO_TODAY);
         root.replaceChildren();
         if (options.heading) {
-            root.append(el('h1', '', 'Termin- und Ressourcenplaner'), el('p', 'pl-note', 'Prototyp mit erfundenen Daten. Nichts wird gespeichert. Ein Ereignis begründet keinen Anspruch auf Nachtrag oder Rechnung.'));
+            root.append(el('h1', '', 'Termin- und Ressourcenplaner'), el('p', 'pl-note', 'Prototyp mit erfundenen Daten. Änderungen bleiben nur im Arbeitsspeicher und gehen beim Neuladen verloren. Ein Ereignis begründet keinen Anspruch auf Nachtrag oder Rechnung.'));
         }
+        const syncBox = el('div');
+        fillSync(syncBox, session.info);
+        root.append(syncBox);
         const scroll = el('div', 'pl-scroll');
         const grid = drawGrid(axis);
         scroll.append(grid, drawLegend());
-        const form = drawForm() ?? drawAssessForm() ?? drawLetter();
+        const form = drawLetter();
         const h = (t) => el('h2', '', t);
         root.append(scroll, h('Auffälligkeiten'), drawFindings(), h('Abhängigkeiten'), drawDependencies(), h('Plan bearbeiten'), drawPlanEditor(), ...(form ? [form] : []), h('Ereignisse'), drawEvents(), h('Personaldisposition über alle Leistungen (Wochenübersicht)'), drawLoad());
         drawArrows(grid);
         observer = new ResizeObserver(() => drawArrows(grid));
         observer.observe(grid);
-        const panel = drawTaskEditPanel();
-        if (panel) {
+        const pnl = drawPanel();
+        if (pnl) {
             for (const c of Array.from(root.children))
                 c.inert = true;
-            root.append(panel);
-            const p = panel.querySelector('#task-edit-panel');
+            root.append(pnl);
+            const p = pnl.querySelector('#edit-panel');
             if (focusTarget === 'panel')
-                p?.querySelector('input')?.focus();
+                p?.querySelector('#edit-form input, #edit-form select, #edit-form textarea')?.focus();
+            else if (focusTarget === 'confirm')
+                p?.querySelector('#discard-no')?.focus();
             else if (focusTarget === 'error')
                 p?.querySelector('.err')?.focus();
             focusTarget = '';
         }
         else if (returnFocus) {
-            Array.from(root.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === `Planvorgang ${returnFocus} bearbeiten`)?.focus();
+            root.querySelector(returnFocus)?.focus();
             returnFocus = '';
         }
+        if (opened)
+            void session.submit(state);
     }
-    const onKey = (e) => { if (e.key === 'Escape' && editTaskId) {
+    const onKey = (e) => { if (e.key === 'Escape' && panel) {
         e.stopPropagation();
-        closePanel();
+        if (confirmDiscard) {
+            confirmDiscard = false;
+            focusTarget = 'panel';
+            render();
+        }
+        else
+            requestClose();
     } };
     root.addEventListener('keydown', onKey);
-    render();
-    return { destroy: () => { root.removeEventListener('keydown', onKey); observer?.disconnect(); root.replaceChildren(); } };
+    const offSync = session.onChange(info => { for (const box of Array.from(root.querySelectorAll('.pl-sync')))
+        fillSync(box, info); });
+    root.replaceChildren(el('p', 'pl-note', 'Plan wird geladen …'));
+    void session.open().then(loaded => { if (destroyed)
+        return; state = loaded; opened = true; render(); })
+        .catch(e => { if (!destroyed)
+        root.replaceChildren(el('p', 'err', `Plan konnte nicht geladen werden: ${e instanceof Error ? e.message : String(e)}`)); });
+    return { destroy: () => { destroyed = true; offSync(); root.removeEventListener('keydown', onKey); observer?.disconnect(); root.replaceChildren(); } };
 }
 
 },
@@ -1355,6 +1437,158 @@ const buildDemoPlan = () => {
 exports.buildDemoPlan = buildDemoPlan;
 
 },
+"src/planner/in-memory-plan-repository.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.InMemoryPlanRepository = void 0;
+const plan_ts_1 = require("./plan.js");
+const plan_integrity_ts_1 = require("./plan-integrity.js");
+const plan_repository_ts_1 = require("./plan-repository.js");
+class InMemoryPlanRepository {
+    #items = new Map();
+    constructor(initial = (0, plan_ts_1.emptyPlan)()) {
+        for (const r of (0, plan_repository_ts_1.recordsOf)(initial))
+            this.#items.set(r.record.id, { kind: r.kind, record: structuredClone(r.record), version: 1, archived: false });
+    }
+    async load() {
+        const state = (0, plan_ts_1.emptyPlan)();
+        const versions = {};
+        for (const it of this.#items.values()) {
+            if (it.archived)
+                continue;
+            state[plan_repository_ts_1.KIND_STATE_KEY[it.kind]].push(structuredClone(it.record));
+            versions[it.record.id] = String(it.version);
+        }
+        const plan = state;
+        return { state: plan, versions, issues: (0, plan_integrity_ts_1.checkPlanIntegrity)(plan) };
+    }
+    async put(kind, record, expectedVersion) {
+        const current = this.#items.get(record.id);
+        if (expectedVersion === null) {
+            if (current)
+                throw new plan_repository_ts_1.VersionConflictError(kind, record.id, 'existiert bereits');
+            this.#items.set(record.id, { kind, record: structuredClone(record), version: 1, archived: false });
+            return '1';
+        }
+        if (!current || current.archived)
+            throw new plan_repository_ts_1.VersionConflictError(kind, record.id, 'unbekannt oder archiviert');
+        if (String(current.version) !== expectedVersion)
+            throw new plan_repository_ts_1.VersionConflictError(kind, record.id, `erwartet ${expectedVersion}, aktuell ${current.version}`);
+        if (kind === 'event' && JSON.stringify(current.record.snapshot) !== JSON.stringify(record.snapshot)) {
+            throw new RangeError('Der Soll-Snapshot eines Ereignisses wird nur einmal geschrieben (snapshot).');
+        }
+        current.record = structuredClone(record);
+        current.version += 1;
+        return String(current.version);
+    }
+    async archive(kind, id, expectedVersion) {
+        const current = this.#items.get(id);
+        if (!current || current.archived)
+            throw new plan_repository_ts_1.VersionConflictError(kind, id, 'unbekannt oder archiviert');
+        if (String(current.version) !== expectedVersion)
+            throw new plan_repository_ts_1.VersionConflictError(kind, id, `erwartet ${expectedVersion}, aktuell ${current.version}`);
+        current.archived = true;
+        current.version += 1;
+    }
+}
+exports.InMemoryPlanRepository = InMemoryPlanRepository;
+
+},
+"src/planner/plan-session.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.PlanSession = void 0;
+const plan_repository_ts_1 = require("./plan-repository.js");
+const plan_sync_ts_1 = require("./plan-sync.js");
+const MESSAGES = {
+    idle: 'Änderungen werden automatisch gesichert (Arbeitsspeicher, Prototyp).',
+    saving: 'Sichert …',
+    saved: 'Gesichert (Arbeitsspeicher, Prototyp).',
+};
+class PlanSession {
+    #repo;
+    #loaded = null;
+    #wanted = null;
+    #busy = false;
+    #current = Promise.resolve();
+    #info = { status: 'idle', message: MESSAGES.idle };
+    #listeners = new Set();
+    constructor(repo) { this.#repo = repo; }
+    get info() { return this.#info; }
+    get integrityIssues() { return this.#loaded?.issues ?? []; }
+    get hasUnsaved() { return Boolean(this.#loaded && this.#wanted && this.#differs(this.#loaded.state, this.#wanted)); }
+    onChange(listener) { this.#listeners.add(listener); return () => { this.#listeners.delete(listener); }; }
+    async open() {
+        const loaded = await this.#repo.load();
+        this.#loaded = loaded;
+        this.#wanted = loaded.state;
+        this.#set('idle', MESSAGES.idle);
+        return loaded.state;
+    }
+    reload() { return this.open(); }
+    submit(state) {
+        if (!this.#loaded)
+            throw new Error('PlanSession.open() muss zuerst aufgerufen werden.');
+        this.#wanted = state;
+        const blocked = this.#info.status === 'conflict' || this.#info.status === 'error';
+        if (this.#busy || blocked)
+            return this.#current;
+        this.#busy = true;
+        this.#current = this.#drain();
+        return this.#current;
+    }
+    whenIdle() { return this.#current; }
+    #differs(a, b) {
+        if (a === b)
+            return false;
+        const d = (0, plan_sync_ts_1.planDiff)(a, b);
+        return d.created.length + d.updated.length + d.removed.length > 0;
+    }
+    async #drain() {
+        try {
+            for (;;) {
+                const base = this.#loaded, want = this.#wanted;
+                if (!base || !want)
+                    return;
+                if (!this.#differs(base.state, want)) {
+                    if (this.#info.status === 'saving')
+                        this.#set('saved', MESSAGES.saved);
+                    return;
+                }
+                this.#set('saving', MESSAGES.saving);
+                try {
+                    this.#loaded = await (0, plan_sync_ts_1.savePlanChanges)(this.#repo, base, want);
+                }
+                catch (e) {
+                    if (e instanceof plan_repository_ts_1.VersionConflictError) {
+                        this.#set('conflict', `Konflikt: ${e.message}. Ihre letzten Änderungen sind nicht gesichert. „Neu laden“ übernimmt den Stand des Speichers und verwirft sie.`);
+                    }
+                    else {
+                        this.#set('error', `Sichern fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}. „Neu laden“ übernimmt den Stand des Speichers und verwirft ungesicherte Änderungen.`);
+                    }
+                    return;
+                }
+                if (this.#wanted === want) {
+                    this.#set('saved', MESSAGES.saved);
+                    return;
+                }
+            }
+        }
+        finally {
+            this.#busy = false;
+        }
+    }
+    #set(status, message) {
+        if (this.#info.status === status && this.#info.message === message)
+            return;
+        this.#info = { status, message };
+        for (const l of this.#listeners)
+            l(this.#info);
+    }
+}
+exports.PlanSession = PlanSession;
+
+},
 "src/behinderung/from-plan-event.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1500,6 +1734,137 @@ const nextId = (prefix) => `${prefix}-${uuid()}`;
 exports.nextId = nextId;
 
 },
+"src/planner/plan-integrity.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.checkPlanIntegrity = checkPlanIntegrity;
+function checkPlanIntegrity(s) {
+    const out = [];
+    const add = (code, severity, recordId, message) => out.push({ code, severity, recordId, message });
+    const objekte = new Set(s.objekte.map(o => o.id)), tasks = new Set(s.tasks.map(t => t.id)), resources = new Set(s.resources.map(r => r.id));
+    const keys = new Map();
+    for (const t of s.tasks) {
+        const first = keys.get(t.planKey);
+        if (first !== undefined)
+            add('duplicate-plankey', 'error', t.id, `Planschlüssel ${t.planKey} mehrfach vergeben (auch ${first})`);
+        else
+            keys.set(t.planKey, t.id);
+        if (t.objektId && !objekte.has(t.objektId))
+            add('dangling-objekt', 'error', t.id, `Planvorgang ${t.planKey}: unbekanntes Objekt`);
+    }
+    const ks = new Map();
+    for (const o of s.objekte) {
+        const first = ks.get(o.kostenstelle);
+        if (first !== undefined)
+            add('duplicate-kostenstelle', 'warning', o.id, `Kostenstelle ${o.kostenstelle} bei mehreren Objekten (auch ${first})`);
+        else
+            ks.set(o.kostenstelle, o.id);
+    }
+    for (const a of s.assignments) {
+        if (!tasks.has(a.taskId))
+            add('dangling-task', 'error', a.id, 'Zuordnung verweist auf einen unbekannten Planvorgang');
+        if (!resources.has(a.resourceId))
+            add('dangling-resource', 'error', a.id, 'Zuordnung verweist auf eine unbekannte Ressource');
+    }
+    for (const e of s.events)
+        if (!tasks.has(e.taskId))
+            add('dangling-task', 'error', e.id, 'Ereignis verweist auf einen unbekannten Planvorgang');
+    const edges = new Map();
+    for (const d of s.dependencies) {
+        if (d.predecessorId === d.successorId) {
+            add('self-dependency', 'error', d.id, 'Abhängigkeit zeigt auf sich selbst');
+            continue;
+        }
+        if (!tasks.has(d.predecessorId) || !tasks.has(d.successorId)) {
+            add('dangling-dependency', 'error', d.id, 'Abhängigkeit verweist auf einen unbekannten Planvorgang');
+            continue;
+        }
+        edges.set(d.predecessorId, [...(edges.get(d.predecessorId) ?? []), d.successorId]);
+    }
+    const color = new Map();
+    const visit = (n) => {
+        color.set(n, 1);
+        for (const m of edges.get(n) ?? []) {
+            if (color.get(m) === 1)
+                return true;
+            if (!color.has(m) && visit(m))
+                return true;
+        }
+        color.set(n, 2);
+        return false;
+    };
+    for (const n of edges.keys())
+        if (!color.has(n) && visit(n))
+            add('dependency-cycle', 'error', n, 'Abhängigkeiten bilden einen Zyklus');
+    return out;
+}
+
+},
+"src/planner/plan-repository.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.KIND_STATE_KEY = exports.VersionConflictError = void 0;
+exports.recordsOf = recordsOf;
+class VersionConflictError extends Error {
+    kind;
+    id;
+    constructor(kind, id, detail) {
+        super(`Versionskonflikt ${kind} ${id}: ${detail}`);
+        this.name = 'VersionConflictError';
+        this.kind = kind;
+        this.id = id;
+    }
+}
+exports.VersionConflictError = VersionConflictError;
+exports.KIND_STATE_KEY = {
+    objekt: 'objekte', task: 'tasks', resource: 'resources', assignment: 'assignments', dependency: 'dependencies', event: 'events',
+};
+function recordsOf(s) {
+    return [
+        ...s.objekte.map(record => ({ kind: 'objekt', record })),
+        ...s.tasks.map(record => ({ kind: 'task', record })),
+        ...s.resources.map(record => ({ kind: 'resource', record })),
+        ...s.assignments.map(record => ({ kind: 'assignment', record })),
+        ...s.dependencies.map(record => ({ kind: 'dependency', record })),
+        ...s.events.map(record => ({ kind: 'event', record })),
+    ];
+}
+
+},
+"src/planner/plan-sync.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.planDiff = planDiff;
+exports.savePlanChanges = savePlanChanges;
+const plan_repository_ts_1 = require("./plan-repository.js");
+function planDiff(before, after) {
+    const old = new Map((0, plan_repository_ts_1.recordsOf)(before).map(r => [r.record.id, r]));
+    const next = new Map((0, plan_repository_ts_1.recordsOf)(after).map(r => [r.record.id, r]));
+    const created = [], updated = [], removed = [];
+    for (const [id, r] of next) {
+        const was = old.get(id);
+        if (!was)
+            created.push(r);
+        else if (JSON.stringify(was.record) !== JSON.stringify(r.record))
+            updated.push(r);
+    }
+    for (const [id, r] of old)
+        if (!next.has(id))
+            removed.push(r);
+    return { created, updated, removed };
+}
+async function savePlanChanges(repo, loaded, edited) {
+    const diff = planDiff(loaded.state, edited);
+    for (const c of diff.created)
+        await repo.put(c.kind, c.record, null);
+    for (const u of diff.updated)
+        await repo.put(u.kind, u.record, loaded.versions[u.record.id]);
+    for (const r of diff.removed)
+        await repo.archive(r.kind, r.record.id, loaded.versions[r.record.id]);
+    return repo.load();
+}
+
+},
 "src/core/disruption.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
@@ -1573,5 +1938,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #73b99b;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), var(--day)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { box-shadow: inset 2px 0 0 var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: #fff; font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\nform.frm :is(select, input) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: #fff; } button.primary:hover { background: var(--teal-d); }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; opacity: .85; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }\n.pl-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.pl-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.38); }\n.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); }\n.pl-panel.enter { animation: pl-slide-in 0.2s ease-out; }\n@keyframes pl-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n.pl-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4); border-bottom: 1px solid var(--line); }\n.pl-panel-head h2 { margin: 0; font-size: 16px; }\n.pl-panel form.panel-form { display: grid; grid-template-columns: 1fr; gap: var(--s3); align-items: start; margin: 0; max-width: none; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; align-content: start; }\n.pl-panel form.panel-form .row { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; gap: var(--s3); margin: var(--s2) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--panel); border-top: 1px solid var(--line); }\n@media (prefers-reduced-motion: reduce) { .pl-panel.enter { animation: none; } }" }, { build: "sha256:ed74a1dd2e3aaece" }));
+  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #73b99b;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-sync { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; min-height: 32px; margin: 0 0 var(--s2); padding: var(--s1) 0; color: var(--muted); font-size: 13px; }\n.pl-panel .pl-sync { padding: var(--s2) var(--s4); margin: 0; }\n.pl-sync.saved { color: var(--ok-ink); }\n.pl-sync.conflict, .pl-sync.error { color: var(--stoer); font-weight: 600; background: var(--stoer-soft); padding-inline: var(--s3); border-radius: 6px; }\n.pl-sync button { font: inherit; font-weight: 600; padding: var(--s1) var(--s3); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), var(--day)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { box-shadow: inset 2px 0 0 var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: #fff; font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.list.events li { flex-direction: column; align-items: flex-start; padding: var(--s3) 0; }\n.evt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }\n.list.events .row { margin-top: var(--s2); }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\n.pl-app .row { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }\nform.frm :is(select, input, textarea) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: #fff; } button.primary:hover { background: var(--teal-d); }\nbutton.ico-btn { display: inline-flex; align-items: center; gap: var(--s2); }\n.ico { flex: none; width: 16px; height: 16px; }\nbutton.quiet .ico { width: 14px; height: 14px; }\n.pl-lab .nm button.quiet .ico { width: 14px; height: 14px; }\nbutton.icon-only { padding-inline: var(--s2); min-width: 28px; justify-content: center; }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; opacity: .85; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }\n.pl-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.pl-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.38); }\n.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); }\n.pl-panel.enter { animation: pl-slide-in 0.2s ease-out; }\n@keyframes pl-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n.pl-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4); border-bottom: 1px solid var(--line); }\n.pl-panel-head h2 { margin: 0; font-size: 16px; }\n.pl-panel form.panel-form { display: grid; grid-template-columns: 1fr; gap: var(--s3); align-items: start; margin: 0; max-width: none; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; align-content: start; }\n.pl-panel form.panel-form .row { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; gap: var(--s3); margin: var(--s2) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--panel); border-top: 1px solid var(--line); }\n.pl-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-bottom: 1px solid var(--note-line); font-weight: 600; }\n.pl-confirm span { flex: 1 1 100%; }\n@media (prefers-reduced-motion: reduce) { .pl-panel.enter { animation: none; } }" }, { build: "sha256:eff0ff22bf6adb74" }));
 })();
