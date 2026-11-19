@@ -1,5 +1,16 @@
 # Sicherheits- und Publikationscheckliste
 
+## Bestätigte Veröffentlichung s51 (Planer: Zeitraumauswahl) — 2026-11-19, Release-Token `2026-11-19-s51`
+
+- [x] Public static release committed as `7887cb5` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: a period selection above the chart (window of 2, 5 or 8 weeks, default 5; back, forward, today); the weekly overview follows the window; rows outside the window say so; the period is a view setting and changes no plan data. Fictional data, memory only.
+- [x] Allowlist unchanged (14 files in `site/`); `planner.bundle.js` generated with `--neutral-wording`; all other files untouched.
+- [x] Workflow rules replayed locally before the push (exact allowlist, no network/storage/dynamic code, only the SVG namespace URL, name/identifier/legal-wording scan: no hits, `node --check` of all scripts); GitHub Pages workflow `44561569941` (head `7887cb5`) succeeded.
+- [x] Version gate: all twelve referenced assets use `?v=2026-11-19-s51`.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` 47/47 against this exact package; private source: integration 46/46, ui-tests 62/62, SPFx 190/190, planner browser check 24/24.
+- [x] Live proof: SHA-256 of all 14 downloaded Pages files matches the local package.
+- [x] Live browser smoke (headless Chrome on the public URL, cache bypassed): default window 16.11.–20.12.2026 (35 day columns); "2 Wochen" gives 14 columns and PV-003 is marked as outside the window; "Weiter" and "Heute" change the label as expected; back to "5 Wochen" gives 35 columns; the side panel still opens; no console errors. Not a full test run on the live site.
+- [ ] Still unverified, not blockers: real iPhone/Safari, screen reader. The prototype is synthetic and memory-only; no SharePoint or operational approval.
+
 ## Bestätigte Veröffentlichung s50 (Planer: eine Seitenleiste für alle Bearbeitungen) — 2026-11-19, Release-Token `2026-11-19-s50`
 
 - [x] Public static release committed as `dffb09b` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: all creating and editing (Planvorgang, Ressource, Zuordnung, Abhängigkeit, Ereignis, Einschätzung) uses the one side panel; closing a panel with typed values asks first; from a Planvorgang a Zuordnung or Abhängigkeit can be added and the panel returns; edits are saved through an in-memory repository with a status line; small layout polish and hand-drawn button icons. Fictional data, memory only.
