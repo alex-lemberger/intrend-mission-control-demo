@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:ed7a312c3cae389c, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/planner/in-memory-plan-repository.js, src/planner/plan-session.js, src/planner/period.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/planner/plan-integrity.js, src/planner/plan-repository.js, src/planner/plan-sync.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:0786d3923abba9b2, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/planner/in-memory-plan-repository.js, src/planner/plan-session.js, src/planner/period.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/planner/plan-integrity.js, src/planner/plan-repository.js, src/planner/plan-sync.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry planner <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -30,6 +30,20 @@ function mountPlanner(root, options = {}) {
     let planError = '';
     let dispoView = 'personal';
     let confirmDiscard = false;
+    let drag = null;
+    const live = document.createElement('div');
+    live.className = 'pl-live';
+    live.id = 'pl-live';
+    live.setAttribute('role', 'status');
+    live.setAttribute('aria-live', 'polite');
+    live.setAttribute('aria-atomic', 'true');
+    let liveFlip = false;
+    const announce = (text) => { liveFlip = !liveFlip; live.textContent = text + (liveFlip ? '\u00a0' : ''); };
+    let rovingId = '';
+    let arrowFrame = 0;
+    const scheduleArrows = (g) => { if (arrowFrame)
+        return; arrowFrame = requestAnimationFrame(() => { arrowFrame = 0; drawArrows(g); }); };
+    let moveNote = null;
     let observer = null;
     let period = (0, period_ts_1.makePeriod)('2026-11-16', 5);
     const SVG = 'http://www.w3.org/2000/svg';
@@ -82,9 +96,227 @@ function mountPlanner(root, options = {}) {
         if (b.clippedEnd)
             bar.classList.add('clip-e');
     };
+    const ARROW_HELP = 'Enter öffnet die Bearbeitung; Pfeil links/rechts verschiebt um einen Tag, mit Umschalt um eine Woche; Alt+Pfeil ändert das Ende, Alt+Umschalt+Pfeil den Beginn; Strg+Z oder Cmd+Z macht die letzte Verschiebung rückgängig; Pfeil hoch/runter wechselt den Balken';
+    function commitSollMove(taskId, mode, days) {
+        const cur = state.tasks.find(x => x.id === taskId);
+        if (!cur || days === 0)
+            return;
+        try {
+            const next = (0, plan_ts_1.moveSoll)(state, taskId, mode, days);
+            const after = next.tasks.find(x => x.id === taskId);
+            const before = moveNote?.taskId === taskId && moveNote.before ? moveNote.before : { sollStart: cur.sollStart, sollEnd: cur.sollEnd };
+            moveNote = { text: `${cur.planKey}: Soll jetzt ${fmt(after.sollStart)} bis ${fmt(after.sollEnd)}.`, taskId, before, focusId: taskId };
+            state = next;
+        }
+        catch (x) {
+            moveNote = { text: x instanceof Error ? x.message : String(x), error: true, focusId: taskId };
+        }
+        if (moveNote)
+            announce(moveNote.text);
+        returnFocus = `[data-soll="${taskId}"]`;
+        render();
+    }
+    function undoSollMove() {
+        const n = moveNote;
+        if (!n?.taskId || !n.before)
+            return;
+        const t = state.tasks.find(x => x.id === n.taskId);
+        if (!t) {
+            moveNote = null;
+            render();
+            return;
+        }
+        try {
+            state = (0, plan_ts_1.updateTask)(state, n.taskId, n.before);
+            moveNote = { text: `${t.planKey}: Soll wieder ${fmt(n.before.sollStart)} bis ${fmt(n.before.sollEnd)}.`, focusId: n.taskId };
+        }
+        catch (x) {
+            moveNote = { text: x instanceof Error ? x.message : String(x), error: true };
+        }
+        if (moveNote)
+            announce(moveNote.text);
+        returnFocus = `[data-soll="${n.taskId}"]`;
+        render();
+    }
+    function endDragVisual(d) {
+        d.tip?.remove();
+        d.bar.classList.remove('dragging');
+        try {
+            d.bar.releasePointerCapture(d.pointerId);
+        }
+        catch { }
+    }
+    function cancelDrag() {
+        const d = drag;
+        if (!d)
+            return;
+        drag = null;
+        endDragVisual(d);
+        announce('Verschieben abgebrochen.');
+        render();
+    }
+    function makeSollInteractive(b, t, soll, axis, grid) {
+        const range = `${fmt(t.sollStart)} bis ${fmt(t.sollEnd)}`;
+        b.setAttribute('role', 'button');
+        b.tabIndex = rovingId === t.id ? 0 : -1;
+        b.onfocus = () => { rovingId = t.id; for (const o of Array.from(grid.querySelectorAll('.bar.soll')))
+            o.tabIndex = o === b ? 0 : -1; };
+        b.setAttribute('aria-label', `${t.planKey} Soll ${range}, bearbeiten`);
+        b.setAttribute('aria-description', ARROW_HELP);
+        b.title = `Soll ${fmt(t.sollStart)} – ${fmt(t.sollEnd)} · klicken: bearbeiten · ziehen: verschieben · Rand ziehen: Beginn/Ende`;
+        if (!soll.clippedStart) {
+            const g = el('span', 'grip');
+            g.dataset.edge = 's';
+            g.setAttribute('aria-hidden', 'true');
+            b.append(g);
+        }
+        if (!soll.clippedEnd) {
+            const g = el('span', 'grip');
+            g.dataset.edge = 'e';
+            g.setAttribute('aria-hidden', 'true');
+            b.append(g);
+        }
+        const openEdit = () => openPanel({ ...taskEditSpec(t.id), opener: `[data-soll="${t.id}"]` });
+        const preview = (d, days) => {
+            const nd = (0, plan_ts_1.sollAfterDrag)(t, d.mode, days);
+            const nb = (0, plan_ts_1.barOnAxis)(axis, nd.sollStart, nd.sollEnd);
+            if (!nb)
+                return false;
+            d.bar.style.gridColumn = `${nb.col + 2} / span ${nb.span}`;
+            d.bar.classList.toggle('clip-s', nb.clippedStart);
+            d.bar.classList.toggle('clip-e', nb.clippedEnd);
+            const len = (0, plan_ts_1.diffDays)(nd.sollStart, nd.sollEnd) + 1;
+            if (d.tip)
+                d.tip.textContent = `${t.planKey} Soll ${fmt(nd.sollStart)} – ${fmt(nd.sollEnd)} · ${plural(len)} (${days > 0 ? '+' : ''}${days} ${Math.abs(days) === 1 ? 'Tag' : 'Tage'})`;
+            scheduleArrows(grid);
+            return true;
+        };
+        b.onpointerdown = ev => {
+            if (ev.button !== 0 || panel || drag)
+                return;
+            const edge = ev.target.dataset?.edge;
+            const mode = edge === 's' ? 'start' : edge === 'e' ? 'end' : 'move';
+            const dayW = grid.querySelector('.pl-dd')?.getBoundingClientRect().width || 30;
+            drag = { taskId: t.id, mode, startX: ev.clientX, dayW, days: 0, moved: false, bar: b, pointerId: ev.pointerId, tip: null };
+            b.setPointerCapture(ev.pointerId);
+            b.focus();
+            ev.preventDefault();
+        };
+        b.onpointermove = ev => {
+            const d = drag;
+            if (!d || d.bar !== b || ev.pointerId !== d.pointerId)
+                return;
+            const dx = ev.clientX - d.startX;
+            if (!d.moved) {
+                if (Math.abs(dx) < 4)
+                    return;
+                d.moved = true;
+                b.classList.add('dragging');
+                d.tip = el('div', 'pl-dragtip');
+                d.tip.setAttribute('aria-hidden', 'true');
+                root.append(d.tip);
+            }
+            const days = Math.round(dx / d.dayW);
+            if (days !== d.days && preview(d, days))
+                d.days = days;
+            if (d.tip) {
+                d.tip.style.left = `${ev.clientX + 14}px`;
+                d.tip.style.top = `${ev.clientY - 34}px`;
+                if (!d.tip.textContent)
+                    preview(d, d.days);
+            }
+        };
+        b.onpointerup = ev => {
+            const d = drag;
+            if (!d || d.bar !== b || ev.pointerId !== d.pointerId)
+                return;
+            drag = null;
+            endDragVisual(d);
+            if (!d.moved) {
+                openEdit();
+                return;
+            }
+            if (d.days === 0) {
+                render();
+                return;
+            }
+            commitSollMove(d.taskId, d.mode, d.days);
+        };
+        b.onpointercancel = () => { if (drag?.bar === b)
+            cancelDrag(); };
+        b.onlostpointercapture = () => { if (drag?.bar === b)
+            cancelDrag(); };
+        b.onkeydown = ev => {
+            if (panel || drag)
+                return;
+            if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+                openEdit();
+                return;
+            }
+            if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === 'z') {
+                if (moveNote?.before && !moveNote.error) {
+                    ev.preventDefault();
+                    undoSollMove();
+                }
+                return;
+            }
+            if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
+                ev.preventDefault();
+                const bars = Array.from(grid.querySelectorAll('.bar.soll'));
+                bars[bars.indexOf(b) + (ev.key === 'ArrowDown' ? 1 : -1)]?.focus();
+                return;
+            }
+            if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight')
+                return;
+            ev.preventDefault();
+            const dir = ev.key === 'ArrowRight' ? 1 : -1;
+            const mode = ev.altKey ? (ev.shiftKey ? 'start' : 'end') : 'move';
+            const days = dir * (mode === 'move' && ev.shiftKey ? 7 : 1);
+            const cur = state.tasks.find(x => x.id === t.id) ?? t, nd = (0, plan_ts_1.sollAfterDrag)(cur, mode, days);
+            if (!(0, plan_ts_1.barOnAxis)(axis, nd.sollStart, nd.sollEnd)) {
+                moveNote = { text: `${t.planKey}: Der Balken würde den sichtbaren Zeitraum verlassen. Zeitraum wechseln oder in der Bearbeitung ändern.`, error: true, focusId: t.id };
+                announce(moveNote.text);
+                returnFocus = `[data-soll="${t.id}"]`;
+                render();
+                return;
+            }
+            commitSollMove(t.id, mode, days);
+        };
+    }
+    function dismissMoveNote() {
+        const id = moveNote?.focusId ?? moveNote?.taskId;
+        moveNote = null;
+        if (id)
+            returnFocus = `[data-soll="${id}"]`;
+        render();
+    }
+    function drawMoveNote() {
+        if (!moveNote)
+            return null;
+        const box = el('div', `pl-move${moveNote.error ? ' err' : ''}`);
+        box.id = 'move-note';
+        box.append(el('span', '', moveNote.text));
+        if (moveNote.taskId && moveNote.before && !moveNote.error) {
+            const u = withIcon(el('button', '', 'Rückgängig'), 'refresh');
+            u.type = 'button';
+            u.id = 'undo-move';
+            u.onclick = undoSollMove;
+            box.append(u);
+        }
+        const ok = withIcon(el('button', '', 'OK'), 'check');
+        ok.type = 'button';
+        ok.id = 'ok-move';
+        ok.onclick = dismissMoveNote;
+        box.append(ok);
+        return box;
+    }
     function drawGrid(axis) {
         const grid = el('div', 'pl-grid');
         grid.style.setProperty('--n', String(axis.length));
+        const visibleTasks = state.tasks.filter(x => (0, plan_ts_1.barOnAxis)(axis, x.sollStart, x.sollEnd));
+        if (!visibleTasks.some(x => x.id === rovingId))
+            rovingId = visibleTasks[0]?.id ?? '';
         let row = 3;
         const cellRow = (r, fill, kind = '', taskId = '') => {
             const lab = el('div', `pl-lab${kind ? ' ' + kind : ''}`);
@@ -151,9 +383,8 @@ function mountPlanner(root, options = {}) {
                 b.dataset.clipS = String(soll.clippedStart);
                 b.dataset.clipE = String(soll.clippedEnd);
                 b.title = `Soll ${fmt(t.sollStart)} – ${fmt(t.sollEnd)}`;
-                b.setAttribute('role', 'img');
-                b.setAttribute('aria-label', `${t.planKey} Soll ${fmt(t.sollStart)} bis ${fmt(t.sollEnd)}`);
                 place(b, soll, r);
+                makeSollInteractive(b, t, soll, axis, grid);
                 grid.append(b);
             }
             if (t.istStart) {
@@ -285,7 +516,7 @@ function mountPlanner(root, options = {}) {
         const a2 = el('span', 'it');
         a2.append(arrow(true), 'Abhängigkeit verletzt');
         lg.append(a2);
-        lg.append(el('span', 'it hint', 'Wochenende hinterlegt · Linie = heute · Planvorgang anklicken, um ein Ereignis zu erzeugen'));
+        lg.append(el('span', 'it hint', 'Wochenende hinterlegt · Linie = heute · Planvorgang anklicken, um ein Ereignis zu erzeugen · Soll-Balken: anklicken bearbeitet, ziehen verschiebt, an den Rändern ziehen ändert Beginn oder Ende (ganze Tage; Nachfolger bleiben stehen)'));
         return lg;
     }
     function drawFindings() {
@@ -451,6 +682,7 @@ function mountPlanner(root, options = {}) {
     };
     const val = (f, n) => f.elements.namedItem(n).value;
     function openPanel(spec) {
+        moveNote = null;
         panel = spec;
         planError = '';
         confirmDiscard = false;
@@ -968,19 +1200,27 @@ function mountPlanner(root, options = {}) {
         panel = null;
         confirmDiscard = false;
         planError = '';
+        moveNote = null;
         render();
     }
     function render() {
         observer?.disconnect();
         const range = (0, period_ts_1.rangeOf)(period);
         const axis = (0, plan_ts_1.buildAxis)(range.from, range.to, demo_plan_ts_1.DEMO_TODAY);
-        root.replaceChildren();
+        for (const c of Array.from(root.children))
+            if (c !== live)
+                c.remove();
+        if (live.parentElement !== root)
+            root.prepend(live);
         if (options.heading) {
             root.append(el('h1', '', 'Termin- und Ressourcenplaner'), el('p', 'pl-note', 'Prototyp mit erfundenen Daten. Änderungen bleiben nur im Arbeitsspeicher und gehen beim Neuladen verloren. Ein Ereignis begründet keinen Anspruch auf Nachtrag oder Rechnung.'));
         }
         const syncBox = el('div');
         fillSync(syncBox, session.info);
         root.append(syncBox, drawPeriod());
+        const mv = drawMoveNote();
+        if (mv)
+            root.append(mv);
         const scroll = el('div', 'pl-scroll');
         const grid = drawGrid(axis);
         scroll.append(grid, drawLegend());
@@ -992,7 +1232,8 @@ function mountPlanner(root, options = {}) {
         const pnl = drawPanel();
         if (pnl) {
             for (const c of Array.from(root.children))
-                c.inert = true;
+                if (c !== live)
+                    c.inert = true;
             root.append(pnl);
             const p = pnl.querySelector('#edit-panel');
             if (focusTarget === 'panel')
@@ -1010,7 +1251,11 @@ function mountPlanner(root, options = {}) {
         if (opened)
             void session.submit(state);
     }
-    const onKey = (e) => { if (e.key === 'Escape' && panel) {
+    const onKey = (e) => { if (e.key === 'Escape' && drag) {
+        e.stopPropagation();
+        cancelDrag();
+        return;
+    } if (e.key === 'Escape' && panel) {
         e.stopPropagation();
         if (confirmDiscard) {
             confirmDiscard = false;
@@ -1023,19 +1268,20 @@ function mountPlanner(root, options = {}) {
     root.addEventListener('keydown', onKey);
     const offSync = session.onChange(info => { for (const box of Array.from(root.querySelectorAll('.pl-sync')))
         fillSync(box, info); });
-    root.replaceChildren(el('p', 'pl-note', 'Plan wird geladen …'));
+    root.replaceChildren(live, el('p', 'pl-note', 'Plan wird geladen …'));
     void session.open().then(loaded => { if (destroyed)
         return; state = loaded; opened = true; render(); })
         .catch(e => { if (!destroyed)
         root.replaceChildren(el('p', 'err', `Plan konnte nicht geladen werden: ${e instanceof Error ? e.message : String(e)}`)); });
-    return { destroy: () => { destroyed = true; offSync(); root.removeEventListener('keydown', onKey); observer?.disconnect(); root.replaceChildren(); } };
+    return { destroy: () => { destroyed = true; offSync(); root.removeEventListener('keydown', onKey); observer?.disconnect(); if (arrowFrame)
+            cancelAnimationFrame(arrowFrame); root.replaceChildren(); } };
 }
 
 },
 "src/planner/plan.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.downstreamTasks = exports.checkDependency = exports.removeDependency = exports.addDependency = exports.wouldCreateCycle = exports.endEvent = exports.assessEvent = exports.createEventFromTask = exports.dispositionByObjekt = exports.weeklyDisposition = exports.occupancyOn = exports.findConflicts = exports.assign = exports.addResource = exports.suggestPlanKey = exports.removeAssignment = exports.findUnderstaffing = exports.updateTask = exports.addTask = exports.addObjekt = exports.taskProblems = exports.emptyPlan = exports.barOnAxis = exports.buildAxis = exports.mondayOf = exports.isoWeek = exports.weekdayOf = exports.diffDays = exports.addDays = exports.isIsoDay = exports.NACHWEIS_ARTEN = exports.JA_NEIN_WERTE = exports.GENUTZT_WERTE = exports.VORHANDEN_WERTE = exports.WIRKUNGEN = exports.OBJEKT_NAME = void 0;
+exports.downstreamTasks = exports.checkDependency = exports.removeDependency = exports.addDependency = exports.wouldCreateCycle = exports.endEvent = exports.assessEvent = exports.createEventFromTask = exports.dispositionByObjekt = exports.weeklyDisposition = exports.occupancyOn = exports.findConflicts = exports.assign = exports.addResource = exports.suggestPlanKey = exports.removeAssignment = exports.findUnderstaffing = exports.moveSoll = exports.sollAfterDrag = exports.updateTask = exports.addTask = exports.addObjekt = exports.taskProblems = exports.emptyPlan = exports.barOnAxis = exports.buildAxis = exports.mondayOf = exports.isoWeek = exports.weekdayOf = exports.diffDays = exports.addDays = exports.isIsoDay = exports.NACHWEIS_ARTEN = exports.JA_NEIN_WERTE = exports.GENUTZT_WERTE = exports.VORHANDEN_WERTE = exports.WIRKUNGEN = exports.OBJEKT_NAME = void 0;
 const ids_ts_1 = require("../core/ids.js");
 exports.OBJEKT_NAME = /^(\d{4}) (\S.*)$/;
 exports.WIRKUNGEN = ['Hemmung', 'Unterbrechung', 'Anfangsverschiebung', 'Leistungserweiterung', 'Kombination', 'noch nicht beurteilt'];
@@ -1166,6 +1412,28 @@ const updateTask = (s, taskId, patch) => {
     return { ...s, tasks: s.tasks.map(x => x.id === taskId ? next : x) };
 };
 exports.updateTask = updateTask;
+const sollAfterDrag = (t, mode, days) => {
+    if (!Number.isInteger(days))
+        throw new RangeError('whole days only');
+    if (mode === 'move')
+        return { sollStart: (0, exports.addDays)(t.sollStart, days), sollEnd: (0, exports.addDays)(t.sollEnd, days) };
+    if (mode === 'start') {
+        const s = (0, exports.addDays)(t.sollStart, days);
+        return { sollStart: (0, exports.diffDays)(s, t.sollEnd) < 0 ? t.sollEnd : s, sollEnd: t.sollEnd };
+    }
+    const e = (0, exports.addDays)(t.sollEnd, days);
+    return { sollStart: t.sollStart, sollEnd: (0, exports.diffDays)(t.sollStart, e) < 0 ? t.sollStart : e };
+};
+exports.sollAfterDrag = sollAfterDrag;
+const moveSoll = (s, taskId, mode, days) => {
+    const t = s.tasks.find(x => x.id === taskId);
+    if (!t)
+        throw new RangeError('unknown task');
+    if (days === 0)
+        return s;
+    return (0, exports.updateTask)(s, taskId, (0, exports.sollAfterDrag)(t, mode, days));
+};
+exports.moveSoll = moveSoll;
 const findUnderstaffing = (s) => {
     const out = [];
     for (const t of s.tasks) {
@@ -2012,5 +2280,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #0a665e; --on-teal: #fff; --on-stoer: #fff;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b; --on-teal: #0b1d1a; --on-stoer: #2a0d07;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-sync { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; min-height: 32px; margin: 0 0 var(--s2); padding: var(--s1) 0; color: var(--muted); font-size: 13px; }\n.pl-panel .pl-sync { padding: var(--s2) var(--s4); margin: 0; }\n.pl-period { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); }\n.pl-period .seg { margin: 0 0 0 auto; }\n.pl-period-label { font-size: 14px; min-width: 15ch; text-align: center; }\n@media (max-width: 640px) { .pl-period .seg { margin-left: 0; } .pl-period-label { flex: 1 1 100%; text-align: left; } }\n.pl-sync.saved { color: var(--ok-ink); }\n.pl-sync.conflict, .pl-sync.error { color: var(--stoer); font-weight: 600; background: var(--stoer-soft); padding-inline: var(--s3); border-radius: 6px; }\n.pl-sync button { font: inherit; font-weight: 600; padding: var(--s1) var(--s3); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), minmax(var(--day), 1fr)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { position: relative; }\n.pl-cell.today::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 2px; background: var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: var(--on-stoer); font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.list.events li { flex-direction: column; align-items: flex-start; padding: var(--s3) 0; }\n.evt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }\n.list.events .row { margin-top: var(--s2); }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\n.pl-app .row { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }\nform.frm :is(select, input, textarea) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: var(--on-teal); } button.primary:hover { background: var(--teal-d); }\nbutton.ico-btn { display: inline-flex; align-items: center; gap: var(--s2); }\n.ico { flex: none; width: 16px; height: 16px; }\nbutton.quiet .ico { width: 14px; height: 14px; }\n.pl-lab .nm button.quiet .ico { width: 14px; height: 14px; }\nbutton.icon-only { padding-inline: var(--s2); min-width: 28px; justify-content: center; }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\n.tw.wide { max-width: none; }\n.tw.wide table { width: 100%; table-layout: fixed; min-width: calc(180px + var(--n, 5) * 120px); }\n.tw.wide th:first-child { width: 180px; }\n.tw.wide td, .tw.wide th { white-space: normal; overflow-wrap: break-word; vertical-align: top; }\n@media (max-width: 640px) { .tw.wide th:first-child { width: 130px; } .tw.wide table { min-width: calc(130px + var(--n, 5) * 120px); } }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; opacity: .85; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px), (pointer: coarse) {\n  button, .segbtn, input, select { min-height: 44px; }\n  .pl-lab .nm button.quiet, .pl-lab .nm .taskbtn { position: relative; min-height: 24px; }\n  .pl-lab .nm button.quiet::after, .pl-lab .nm .taskbtn::after { content: ''; position: absolute; inset: -10px -4px; }\n}\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }\n.pl-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.pl-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.38); }\n.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); }\n.pl-panel.enter { animation: pl-slide-in 0.2s ease-out; }\n@keyframes pl-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n.pl-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4); border-bottom: 1px solid var(--line); }\n.pl-panel-head h2 { margin: 0; font-size: 16px; }\n.pl-panel .pl-letter { display: grid; gap: var(--s3); align-content: start; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; }\n.pl-panel .pl-letter p, .pl-panel .pl-letter ul { margin: 0; }\n.pl-panel form.panel-form { display: grid; grid-template-columns: 1fr; gap: var(--s3); align-items: start; margin: 0; max-width: none; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; align-content: start; }\n.pl-panel form.panel-form .row { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; gap: var(--s3); margin: var(--s2) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--panel); border-top: 1px solid var(--line); }\n.pl-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-bottom: 1px solid var(--note-line); font-weight: 600; }\n.pl-confirm span { flex: 1 1 100%; }\n@media (prefers-reduced-motion: reduce) { .pl-panel.enter { animation: none; } }" }, { build: "sha256:ed7a312c3cae389c" }));
+  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #0a665e; --on-teal: #fff; --on-stoer: #fff;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b; --on-teal: #0b1d1a; --on-stoer: #2a0d07;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-sync { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; min-height: 32px; margin: 0 0 var(--s2); padding: var(--s1) 0; color: var(--muted); font-size: 13px; }\n.pl-panel .pl-sync { padding: var(--s2) var(--s4); margin: 0; }\n.pl-period { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); }\n.pl-period .seg { margin: 0 0 0 auto; }\n.pl-period-label { font-size: 14px; min-width: 15ch; text-align: center; }\n@media (max-width: 640px) { .pl-period .seg { margin-left: 0; } .pl-period-label { flex: 1 1 100%; text-align: left; } }\n.pl-sync.saved { color: var(--ok-ink); }\n.pl-sync.conflict, .pl-sync.error { color: var(--stoer); font-weight: 600; background: var(--stoer-soft); padding-inline: var(--s3); border-radius: 6px; }\n.pl-sync button { font: inherit; font-weight: 600; padding: var(--s1) var(--s3); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), minmax(var(--day), 1fr)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { position: relative; }\n.pl-cell.today::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 2px; background: var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.soll { position: relative; cursor: grab; touch-action: pan-y; }\n.bar.soll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.bar.soll.dragging { cursor: grabbing; z-index: 5; opacity: .92; }\n.grip { position: absolute; top: -4px; bottom: -1px; width: 10px; cursor: ew-resize; touch-action: pan-y; }\n.grip[data-edge=\"s\"] { inset-inline-start: -3px; } .grip[data-edge=\"e\"] { inset-inline-end: -3px; }\n.grip::after { content: ''; position: absolute; top: 5px; bottom: 2px; inset-inline-start: 3px; width: 3px; border-radius: 2px; background: var(--panel); opacity: 0; transition: opacity .12s; }\n.bar.soll:hover .grip::after, .bar.soll:focus-visible .grip::after, .bar.soll.dragging .grip::after { opacity: 1; }\n@media (prefers-reduced-motion: reduce) { .grip::after { transition: none; } }\n@media (max-width: 640px), (hover: none), (pointer: coarse) {\n  .grip { width: 16px; top: -9px; bottom: -3px; }\n  .grip::after { opacity: 1; top: 8px; bottom: 5px; }\n  .bar.soll::before { content: ''; position: absolute; inset: -9px 0 -3px; }\n}\n.pl-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.pl-dragtip { position: fixed; z-index: 1200; pointer-events: none; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--paper); font-size: 12px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }\n.pl-move { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); padding: var(--s2) var(--s3); border-radius: 6px; background: var(--ok-bg); color: var(--ok-ink); }\n.pl-move.err { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n.pl-move button { background: var(--panel); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: var(--on-stoer); font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.list.events li { flex-direction: column; align-items: flex-start; padding: var(--s3) 0; }\n.evt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }\n.list.events .row { margin-top: var(--s2); }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\n.pl-app .row { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }\nform.frm :is(select, input, textarea) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: var(--on-teal); } button.primary:hover { background: var(--teal-d); }\nbutton.ico-btn { display: inline-flex; align-items: center; gap: var(--s2); }\n.ico { flex: none; width: 16px; height: 16px; }\nbutton.quiet .ico { width: 14px; height: 14px; }\n.pl-lab .nm button.quiet .ico { width: 14px; height: 14px; }\nbutton.icon-only { padding-inline: var(--s2); min-width: 28px; justify-content: center; }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\n.tw.wide { max-width: none; }\n.tw.wide table { width: 100%; table-layout: fixed; min-width: calc(180px + var(--n, 5) * 120px); }\n.tw.wide th:first-child { width: 180px; }\n.tw.wide td, .tw.wide th { white-space: normal; overflow-wrap: break-word; vertical-align: top; }\n@media (max-width: 640px) { .tw.wide th:first-child { width: 130px; } .tw.wide table { min-width: calc(130px + var(--n, 5) * 120px); } }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; opacity: .85; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px), (pointer: coarse) {\n  button, .segbtn, input, select { min-height: 44px; }\n  .pl-lab .nm button.quiet, .pl-lab .nm .taskbtn { position: relative; min-height: 24px; }\n  .pl-lab .nm button.quiet::after, .pl-lab .nm .taskbtn::after { content: ''; position: absolute; inset: -10px -4px; }\n}\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }\n.pl-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.pl-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.38); }\n.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); }\n.pl-panel.enter { animation: pl-slide-in 0.2s ease-out; }\n@keyframes pl-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n.pl-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4); border-bottom: 1px solid var(--line); }\n.pl-panel-head h2 { margin: 0; font-size: 16px; }\n.pl-panel .pl-letter { display: grid; gap: var(--s3); align-content: start; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; }\n.pl-panel .pl-letter p, .pl-panel .pl-letter ul { margin: 0; }\n.pl-panel form.panel-form { display: grid; grid-template-columns: 1fr; gap: var(--s3); align-items: start; margin: 0; max-width: none; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; align-content: start; }\n.pl-panel form.panel-form .row { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; gap: var(--s3); margin: var(--s2) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--panel); border-top: 1px solid var(--line); }\n.pl-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-bottom: 1px solid var(--note-line); font-weight: 600; }\n.pl-confirm span { flex: 1 1 100%; }\n@media (prefers-reduced-motion: reduce) { .pl-panel.enter { animation: none; } }" }, { build: "sha256:0786d3923abba9b2" }));
 })();
