@@ -1,5 +1,16 @@
 # Sicherheits- und Publikationscheckliste
 
+## Bestätigte Veröffentlichung s50 (Planer: eine Seitenleiste für alle Bearbeitungen) — 2026-11-19, Release-Token `2026-11-19-s50`
+
+- [x] Public static release committed as `dffb09b` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: all creating and editing (Planvorgang, Ressource, Zuordnung, Abhängigkeit, Ereignis, Einschätzung) uses the one side panel; closing a panel with typed values asks first; from a Planvorgang a Zuordnung or Abhängigkeit can be added and the panel returns; edits are saved through an in-memory repository with a status line; small layout polish and hand-drawn button icons. Fictional data, memory only.
+- [x] Allowlist unchanged (14 files in `site/`); `ac01-core.bundle.js` and `stundenzettel.bundle.js` untouched; `planner.bundle.js` generated with `--neutral-wording`.
+- [x] Workflow rules replayed locally before the push (exact allowlist, no network/storage/dynamic code, only the SVG namespace URL, name/identifier/legal-wording scan: no hits, `node --check` of all scripts); GitHub Pages workflow `44558263505` (head `dffb09b`) succeeded.
+- [x] Version gate: all twelve referenced assets use `?v=2026-11-19-s50`.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` 47/47 against this exact package (the planner scenario was updated from the old inline forms to the panel); private source: integration 46/46, ui-tests 62/62, SPFx 186/186, planner browser check 23/23.
+- [x] Live proof: SHA-256 of all 14 downloaded Pages files matches the local package.
+- [x] Live browser smoke (headless Chrome on the public URL, cache bypassed): "Planer" opens with the three plan items; the create buttons carry icons; "Ressource anlegen" opens the panel (dialog, background inactive); closing with a typed value asks "Ungespeicherte Eingaben verwerfen?", "Verwerfen" closes it; no console errors. Not a full test run on the live site.
+- [ ] Still unverified, not blockers: real iPhone/Safari, screen reader. Dark mode and phone width of the panels were checked locally (headless Chrome), not on the live site. The prototype is synthetic and memory-only; no SharePoint or operational approval.
+
 ## Bestätigte Veröffentlichung s49 (Planer: Bearbeiten im Slide-out-Panel) — 2026-11-18, Release-Token `2026-11-18-s49`
 
 - [x] Public static release committed as `9442a1e` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: editing a plan item opens in a slide-out panel on the right (dialog, background inactive while open, focus moves in and back, Escape / click outside / cancel discard, a refused entry keeps the panel and the typed values). Fictional data, memory only.
