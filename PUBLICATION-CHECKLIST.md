@@ -1,5 +1,16 @@
 # Sicherheits- und Publikationscheckliste
 
+## Bestätigte Veröffentlichung s52 (Planer: Briefentwurf in der Seitenleiste, Zugänglichkeit, Wochenübersicht in voller Breite) — 2026-11-19, Release-Token `2026-11-19-s52`
+
+- [x] Public static release committed as `f8436fe` and pushed normally to `origin/main`. It changes `site/index.html` (token only), `site/vendor/planner.bundle.js` and `site/vendor/stundenzettel.bundle.js`: the letter draft of an event opens in the one side panel (view only: no form, nothing to discard, focus on the close button, Escape closes and returns the focus); keyboard focus ring with at least 3:1 contrast; the planner font stack no longer lists a font that is not shipped; readable text on filled buttons and event bars in the dark scheme; accessible names for the Soll, Ist and resource bars; larger touch targets on phones; the "today" line is drawn as its own line; the weekly overview (Personal / Objekte) uses the full width and wraps long entries instead of scrolling sideways; in the Stundenzettel the selection buttons keep a gap above the entry list. Fictional data, memory only.
+- [x] Allowlist unchanged (14 files in `site/`); `ac01-core.bundle.js` untouched; `planner.bundle.js` generated with `--neutral-wording`; `stundenzettel.bundle.js` rebuilt from the same sources as the private build (it contains no neutral-wording variant).
+- [x] Workflow rules replayed locally before the push (exact allowlist, no network/storage/dynamic code, only the SVG namespace URL, name/identifier/legal-wording scan: no hits, `node --check` of all scripts); GitHub Pages workflow `44598867839` (head `f8436fe`) succeeded.
+- [x] Version gate: all twelve referenced assets use `?v=2026-11-19-s52`.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` 47/47 against this exact package; private source: integration 46/46, ui-tests 62/62, store 9/9, SPFx 190/190, planner browser check 25/25, Stundenzettel check 15/15.
+- [x] Live proof: SHA-256 of all 14 downloaded Pages files matches the local package.
+- [x] Live browser smoke (headless Chrome on the public URL, cache bypassed): "Planer" opens; the letter draft opens inside the side panel without a form, the focus is on the close button, Escape closes it; the weekly overview is wider than 700 px and does not scroll sideways in both views; "2 Wochen" still works; no console errors. Not a full test run on the live site. The Stundenzettel spacing was **not** checked on the live site (automated check and local screenshots only).
+- [ ] Still unverified, not blockers: real iPhone/Safari (the larger touch targets were checked only with an emulated phone width), screen reader. The prototype is synthetic and memory-only; no SharePoint or operational approval.
+
 ## Bestätigte Veröffentlichung s51 (Planer: Zeitraumauswahl) — 2026-11-19, Release-Token `2026-11-19-s51`
 
 - [x] Public static release committed as `7887cb5` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: a period selection above the chart (window of 2, 5 or 8 weeks, default 5; back, forward, today); the weekly overview follows the window; rows outside the window say so; the period is a view setting and changes no plan data. Fictional data, memory only.
