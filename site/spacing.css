@@ -144,7 +144,7 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline:3px solid #2f8f78;outline-offset:2px}
 .rail a:focus-visible,.rail button:focus-visible,.mobile-nav button:focus-visible{outline-color:#d5f28a}
 .skip:focus-visible{outline-offset:0}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important;scroll-behavior:auto!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}}
 
 /* ---- Foto / Plan / Grund fold-out: explicit confirmation ---- */
 .ac01-evidence-foot{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-top:var(--sp-3);padding:var(--sp-3) 0 0;background:#fff;border-top:1px solid var(--line-soft)}
@@ -212,7 +212,7 @@ strong .ic-wrap{margin-right:.3em}
 [data-state="saved"] .st-mark{background:#0a665e}
 [data-state="saved"] .st-note{color:#205c3e;font-weight:800}
 .st-state{flex:none;padding:4px var(--sp-3);border:1px solid #b8cbbf;border-radius:999px;background:#f3f7f4;color:#33493e;font-size:12px;font-weight:800;white-space:nowrap}
-.st-state[data-mode="dirty"]{background:#fff6e5;border-color:#ecc88c;color:#7a3a10}
+.st-state[data-mode="dirty"]{background:var(--warn-bg);border-color:var(--warn-line);color:#7a3a10}
 .st-state[data-mode="dirty"]::before{content:"● ";color:#b4600e}
 .st-state[data-mode="saved"]{background:#e3f2e6;border-color:#abd3b3;color:#205c3e}
 #ac01-view :is(#ac01-ctx-title,#ac01-crew-title,#ac01-events-title,#ac01-draft-title){scroll-margin-top:calc(var(--ac-steps-h,56px) + var(--ac-strip-on,0px) + var(--sp-4))}
@@ -261,3 +261,5 @@ strong .ic-wrap{margin-right:.3em}
 }
 @media(max-width:760px){.sc-mem{display:none}}
 @media(max-width:760px){.save-confirmation{padding:var(--sp-3);margin-bottom:var(--sp-3)}}
+/* Touch: disclosure rows of the older form reach 44 px on phones and coarse pointers (padding keeps the marker). */
+@media(max-width:760px),(pointer:coarse){.optional summary,.crew-override summary{min-height:44px;padding-block:13px}}
