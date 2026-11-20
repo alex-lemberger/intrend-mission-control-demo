@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:0786d3923abba9b2, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/planner/in-memory-plan-repository.js, src/planner/plan-session.js, src/planner/period.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/planner/plan-integrity.js, src/planner/plan-repository.js, src/planner/plan-sync.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:b3aa8bd1851aeacc, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/planner/in-memory-plan-repository.js, src/planner/plan-session.js, src/planner/period.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/planner/plan-integrity.js, src/planner/plan-repository.js, src/planner/plan-sync.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry planner <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -45,6 +45,11 @@ function mountPlanner(root, options = {}) {
         return; arrowFrame = requestAnimationFrame(() => { arrowFrame = 0; drawArrows(g); }); };
     let moveNote = null;
     let observer = null;
+    const toastHost = document.createElement('div');
+    toastHost.className = 'pl-toasts';
+    toastHost.id = 'pl-toasts';
+    let toast = null;
+    let toastTimer = 0;
     let period = (0, period_ts_1.makePeriod)('2026-11-16', 5);
     const SVG = 'http://www.w3.org/2000/svg';
     const TYPE_LABEL = { EA: 'Ende → Anfang', AA: 'Anfang → Anfang', EE: 'Ende → Ende', AE: 'Anfang → Ende' };
@@ -74,6 +79,7 @@ function mountPlanner(root, options = {}) {
         file: [['path', { d: 'M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z' }], ['path', { d: 'M14 2v6h6M16 13H8M16 17H8M10 9H8' }]],
         clipboard: [['rect', { x: '8', y: '2', width: '8', height: '4', rx: '1' }], ['path', { d: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2' }], ['path', { d: 'm9 14 2 2 4-4' }]],
         play: [['path', { d: 'M6 3 20 12 6 21Z' }]],
+        undo: [['path', { d: 'M3 7v6h6' }], ['path', { d: 'M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13' }]],
         refresh: [['path', { d: 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8' }], ['path', { d: 'M21 3v5h-5' }], ['path', { d: 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16' }], ['path', { d: 'M3 16h5v5' }]],
     };
     function icon(name) {
@@ -97,6 +103,93 @@ function mountPlanner(root, options = {}) {
             bar.classList.add('clip-e');
     };
     const ARROW_HELP = 'Enter öffnet die Bearbeitung; Pfeil links/rechts verschiebt um einen Tag, mit Umschalt um eine Woche; Alt+Pfeil ändert das Ende, Alt+Umschalt+Pfeil den Beginn; Strg+Z oder Cmd+Z macht die letzte Verschiebung rückgängig; Pfeil hoch/runter wechselt den Balken';
+    const TOAST_MS = 12000;
+    const hasUndo = (t) => Boolean(t?.actions.some(a => a.id === 'undo'));
+    function armToast() { clearTimeout(toastTimer); if (hasUndo(toast))
+        return; toastTimer = window.setTimeout(dismissToast, TOAST_MS); }
+    const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+    function dismissToast() { clearTimeout(toastTimer); toast = null; toastHost.replaceChildren(); }
+    function showToast(text, actions) {
+        toast = { text, actions, after: state };
+        announce(actions.some(a => a.id === 'undo') ? `${text} Rückgängig mit ${IS_MAC ? 'Cmd+Z' : 'Strg+Z'}.` : text);
+        const box = el('div', 'pl-toast');
+        box.id = 'pl-toast';
+        box.setAttribute('role', 'group');
+        box.setAttribute('aria-label', 'Meldung');
+        box.append(el('span', 'pl-toast-text', text));
+        for (const a of actions) {
+            const b = withIcon(el('button', 'quiet', a.label), a.icon);
+            b.type = 'button';
+            b.dataset.toast = a.id;
+            b.onclick = () => { dismissToast(); a.run(); };
+            if (a.id === 'undo') {
+                b.setAttribute('aria-keyshortcuts', 'Control+Z Meta+Z');
+                b.title = `${a.label} (${IS_MAC ? 'Cmd+Z' : 'Strg+Z'})`;
+                b.append(el('kbd', 'pl-kbd', IS_MAC ? '⌘Z' : 'Strg+Z'));
+            }
+            box.append(b);
+        }
+        const x = withIcon(el('button', 'quiet icon-only', ''), 'x');
+        x.type = 'button';
+        x.setAttribute('aria-label', 'Meldung schließen');
+        x.dataset.toast = 'close';
+        x.onclick = () => { dismissToast(); };
+        box.append(x);
+        box.addEventListener('mouseenter', () => clearTimeout(toastTimer));
+        box.addEventListener('focusin', () => clearTimeout(toastTimer));
+        box.addEventListener('mouseleave', () => { if (!box.contains(document.activeElement))
+            armToast(); });
+        box.addEventListener('focusout', () => { if (!box.matches(':hover'))
+            armToast(); });
+        box.addEventListener('keydown', e => { if (e.key === 'Escape') {
+            e.stopPropagation();
+            dismissToast();
+        } });
+        toastHost.replaceChildren(box);
+        armToast();
+    }
+    const undoAction = (before, text, focus) => ({ id: 'undo', label: 'Rückgängig', icon: 'undo', run: () => { state = before; returnFocus = focus; announce(text); render(); } });
+    const addedItem = (before, after) => after.find(x => !before.some(b => b.id === x.id));
+    function toastAfterSave(kind, before) {
+        const after = state;
+        if (after === before)
+            return;
+        if (kind === 'task-create') {
+            const t = addedItem(before.tasks, after.tasks);
+            if (!t)
+                return;
+            showToast(`${t.planKey} angelegt.`, [
+                { id: 'add-assign', label: 'Zuordnung hinzufügen', icon: 'plus', run: () => openPanel(assignmentCreateSpec(t.id)) },
+                { id: 'add-dep', label: 'Abhängigkeit hinzufügen', icon: 'plus', run: () => openPanel(dependencyCreateSpec(t.id)) },
+            ]);
+        }
+        else if (kind === 'resource-create') {
+            const r = addedItem(before.resources, after.resources);
+            if (r)
+                showToast(`Ressource ${r.label} angelegt.`, []);
+        }
+        else if (kind === 'assignment-create') {
+            const a = addedItem(before.assignments, after.assignments);
+            if (a)
+                showToast(`Zuordnung angelegt: ${after.resources.find(x => x.id === a.resourceId)?.label ?? '?'} → ${key(a.taskId)}.`, []);
+        }
+        else if (kind === 'dependency-create') {
+            const d = addedItem(before.dependencies, after.dependencies);
+            if (d)
+                showToast(`Abhängigkeit angelegt: ${depText(d)}.`, []);
+        }
+        else if (kind === 'event-create') {
+            const e = addedItem(before.events, after.events);
+            if (!e)
+                return;
+            showToast(`Ereignis ${e.title} angelegt.`, [
+                { id: 'assess', label: 'Einschätzung bearbeiten', icon: 'clipboard', run: () => openPanel(assessSpec(e.id)) },
+                { id: 'letter', label: 'Behinderungsanzeige-Entwurf', icon: 'file', run: () => openPanel(letterSpec(e.id)) },
+            ]);
+        }
+        else if (kind === 'event-assess')
+            showToast('Einschätzung gespeichert.', []);
+    }
     function commitSollMove(taskId, mode, days) {
         const cur = state.tasks.find(x => x.id === taskId);
         if (!cur || days === 0)
@@ -420,7 +513,12 @@ function mountPlanner(root, options = {}) {
                 const bar = (0, plan_ts_1.barOnAxis)(axis, c.from, c.to);
                 if (!bar)
                     continue;
-                const b = el('div', 'bar res doppelt', bar.span >= 3 ? 'doppelt' : '');
+                const b = el('div', 'bar res doppelt');
+                if (bar.span >= 3) {
+                    const chip = el('span', 'dbl-chip', 'doppelt');
+                    chip.setAttribute('aria-hidden', 'true');
+                    b.append(chip);
+                }
                 b.title = `Doppelt belegt: ${fmt(c.from)} – ${fmt(c.to)}`;
                 b.setAttribute('role', 'img');
                 b.setAttribute('aria-label', `Doppelt belegt ${fmt(c.from)} bis ${fmt(c.to)}`);
@@ -519,6 +617,24 @@ function mountPlanner(root, options = {}) {
         lg.append(el('span', 'it hint', 'Wochenende hinterlegt · Linie = heute · Planvorgang anklicken, um ein Ereignis zu erzeugen · Soll-Balken: anklicken bearbeitet, ziehen verschiebt, an den Rändern ziehen ändert Beginn oder Ende (ganze Tage; Nachfolger bleiben stehen)'));
         return lg;
     }
+    function card(title, id, parts = {}) {
+        const sec = el('section', 'pl-card');
+        sec.id = id;
+        sec.setAttribute('aria-labelledby', `${id}-h`);
+        const head = el('header', 'pl-card-head');
+        const h = el('h2', '', title);
+        h.id = `${id}-h`;
+        head.append(h);
+        if (parts.head)
+            head.append(parts.head);
+        const body = el('div', 'pl-card-body');
+        sec.append(head, body);
+        if (parts.foot) {
+            parts.foot.classList.add('pl-card-foot');
+            sec.append(parts.foot);
+        }
+        return { sec, body };
+    }
     function drawFindings() {
         const items = [];
         for (const c of (0, plan_ts_1.findConflicts)(state)) {
@@ -569,7 +685,7 @@ function mountPlanner(root, options = {}) {
                 const rm = withIcon(el('button', 'quiet', 'Entfernen'), 'trash');
                 rm.type = 'button';
                 rm.setAttribute('aria-label', `Abhängigkeit ${depText(d)} entfernen`);
-                rm.onclick = () => { state = (0, plan_ts_1.removeDependency)(state, d.id); render(); };
+                rm.onclick = () => { const before = state, text = `Abhängigkeit ${depText(d)} entfernt.`; state = (0, plan_ts_1.removeDependency)(state, d.id); returnFocus = '#open-dep'; render(); showToast(text, [undoAction(before, `${text} Rückgängig gemacht.`, '#open-dep')]); };
                 act.append(rm);
                 tr.append(act);
                 t.append(tr);
@@ -578,14 +694,16 @@ function mountPlanner(root, options = {}) {
             tw.append(t);
             wrap.append(tw);
         }
-        const bar = el('div', 'row');
+        return wrap;
+    }
+    function drawCheckActions() {
+        const bar = el('div', 'pl-card-actions');
         const bd = withIcon(el('button', '', 'Abhängigkeit anlegen'), 'plus');
         bd.type = 'button';
         bd.id = 'open-dep';
         bd.onclick = () => openPanel(dependencyCreateSpec());
         bar.append(bd);
-        wrap.append(bar);
-        return wrap;
+        return bar;
     }
     function drawLoad() {
         const wrap = el('div');
@@ -600,7 +718,6 @@ function mountPlanner(root, options = {}) {
             b.onclick = () => { dispoView = v; render(); };
             tabs.append(b);
         }
-        wrap.append(tabs);
         const weeks = (0, period_ts_1.rangeOf)(period).weekStarts;
         const t = el('table');
         t.id = 'dispo';
@@ -645,7 +762,7 @@ function mountPlanner(root, options = {}) {
         const tw = el('div', 'tw wide');
         tw.append(t);
         wrap.append(tw);
-        return wrap;
+        return { tabs, table: wrap };
     }
     const STATUS_LIST = ['geplant', 'in Arbeit', 'in Prüfung', 'ausgeführt'];
     const RESOURCE_TYPES = [['kolonne', 'Kolonne'], ['mitarbeiter', 'Mitarbeiter'], ['geraet', 'Gerät']];
@@ -793,6 +910,7 @@ function mountPlanner(root, options = {}) {
         f.onsubmit = ev => {
             ev.preventDefault();
             saveDraft(f, spec.draftKey);
+            const before = state;
             try {
                 spec.submit(n => val(f, n));
             }
@@ -811,6 +929,7 @@ function mountPlanner(root, options = {}) {
             panel = null;
             planError = '';
             render();
+            toastAfterSave(spec.kind, before);
         };
         return f;
     }
@@ -968,9 +1087,8 @@ function mountPlanner(root, options = {}) {
             submit: v => { state = (0, plan_ts_1.assign)(state, v('task'), v('res'), v('from'), v('to'), Number(v('hours'))); },
         };
     }
-    function drawPlanEditor() {
-        const wrap = el('div');
-        const bar = el('div', 'row');
+    function drawPlanActions() {
+        const bar = el('div', 'pl-card-actions');
         const bTask = withIcon(el('button', '', 'Planvorgang anlegen'), 'plus');
         bTask.type = 'button';
         bTask.id = 'open-task';
@@ -979,38 +1097,44 @@ function mountPlanner(root, options = {}) {
         bRes.type = 'button';
         bRes.id = 'open-res';
         bRes.onclick = () => openPanel(resourceCreateSpec());
+        bar.append(bTask, bRes);
+        return bar;
+    }
+    function drawAssignmentsCard() {
         const bAsg = withIcon(el('button', '', 'Zuordnung anlegen'), 'plus');
         bAsg.type = 'button';
         bAsg.id = 'open-assign';
         bAsg.onclick = () => openPanel(assignmentCreateSpec());
-        bar.append(bTask, bRes, bAsg);
-        wrap.append(bar);
-        if (state.assignments.length) {
-            wrap.append(el('h2', '', 'Zuordnungen'));
-            const t = el('table');
-            t.id = 'assignments';
-            const head = el('tr');
-            for (const h of ['Ressource', 'Planvorgang', 'Zeitraum', ''])
-                head.append(el('th', '', h));
-            t.append(head);
-            for (const a of state.assignments) {
-                const tr = el('tr');
-                const r = state.resources.find(x => x.id === a.resourceId);
-                tr.append(el('td', '', r?.label ?? '?'), el('td', '', key(a.taskId)), el('td', '', `${fmt(a.from)} bis ${fmt(a.to)}`));
-                const act = el('td');
-                const rm = withIcon(el('button', 'quiet', 'Entfernen'), 'trash');
-                rm.type = 'button';
-                rm.setAttribute('aria-label', `Zuordnung ${r?.label ?? ''} zu ${key(a.taskId)} entfernen`);
-                rm.onclick = () => { state = (0, plan_ts_1.removeAssignment)(state, a.id); render(); };
-                act.append(rm);
-                tr.append(act);
-                t.append(tr);
-            }
-            const tw = el('div', 'tw');
-            tw.append(t);
-            wrap.append(tw);
+        const actions = el('div', 'pl-card-actions');
+        actions.append(bAsg);
+        const { sec, body } = card('Zuordnungen', 'card-assign', { foot: actions });
+        if (!state.assignments.length) {
+            body.append(el('p', 'empty', 'Noch keine Zuordnungen.'));
+            return sec;
         }
-        return wrap;
+        const t = el('table');
+        t.id = 'assignments';
+        const head = el('tr');
+        for (const h of ['Ressource', 'Planvorgang', 'Zeitraum', ''])
+            head.append(el('th', '', h));
+        t.append(head);
+        for (const a of state.assignments) {
+            const tr = el('tr');
+            const r = state.resources.find(x => x.id === a.resourceId);
+            tr.append(el('td', '', r?.label ?? '?'), el('td', '', key(a.taskId)), el('td', '', `${fmt(a.from)} bis ${fmt(a.to)}`));
+            const act = el('td');
+            const rm = withIcon(el('button', 'quiet', 'Entfernen'), 'trash');
+            rm.type = 'button';
+            rm.setAttribute('aria-label', `Zuordnung ${r?.label ?? ''} zu ${key(a.taskId)} entfernen`);
+            rm.onclick = () => { const before = state, text = `Zuordnung ${r?.label ?? ''} → ${key(a.taskId)} entfernt.`; state = (0, plan_ts_1.removeAssignment)(state, a.id); returnFocus = '#open-assign'; render(); showToast(text, [undoAction(before, `${text} Rückgängig gemacht.`, '#open-assign')]); };
+            act.append(rm);
+            tr.append(act);
+            t.append(tr);
+        }
+        const tw = el('div', 'tw');
+        tw.append(t);
+        body.append(tw);
+        return sec;
     }
     function dependencyCreateSpec(predId) {
         const tasks = state.tasks.map(t => [t.id, `${t.planKey} · ${t.title}`]);
@@ -1054,18 +1178,20 @@ function mountPlanner(root, options = {}) {
         nachweise: v('nArt') || v('nBez').trim() ? [{ art: (v('nArt') || plan_ts_1.NACHWEIS_ARTEN[plan_ts_1.NACHWEIS_ARTEN.length - 1]), bezeichnung: v('nBez') }] : [],
     });
     function eventCreateSpec(taskId) {
-        const t = state.tasks.find(x => x.id === taskId);
+        const pick = taskId === undefined;
+        const t = state.tasks.find(x => x.id === (taskId ?? state.tasks[0]?.id));
         return {
-            kind: 'event-create', draftKey: `event:${t.id}`, title: `Ereignis aus ${t.planKey} · ${t.title}`, submitLabel: 'Ereignis anlegen', opener: `.taskbtn[data-task="${t.id}"]`,
-            intro: `Die Soll-Daten werden als Momentaufnahme übernommen: ${t.level}, ${t.area}, ${t.lvRef}, ${fmt(t.sollStart)} – ${fmt(t.sollEnd)} und die zugeordneten Ressourcen.`,
+            kind: 'event-create', draftKey: pick ? 'event:new' : `event:${t.id}`, title: pick ? 'Ereignis anlegen' : `Ereignis aus ${t.planKey} · ${t.title}`, submitLabel: 'Ereignis anlegen', opener: pick ? '#open-event' : `.taskbtn[data-task="${t.id}"]`,
+            intro: pick ? 'Ein Ereignis gehört zu einem Planvorgang. Dessen Soll-Daten und die zugeordneten Ressourcen werden als Momentaufnahme übernommen.' : `Die Soll-Daten werden als Momentaufnahme übernommen: ${t.level}, ${t.area}, ${t.lvRef}, ${fmt(t.sollStart)} – ${fmt(t.sollEnd)} und die zugeordneten Ressourcen.`,
             fields: [
+                ...(pick ? [{ name: 'task', label: 'Planvorgang', kind: 'select', options: state.tasks.map(x => [x.id, `${x.planKey} · ${x.title}`]), value: t.id }] : []),
                 { name: 'title', label: 'Titel', kind: 'text', placeholder: 'z. B. Vorleistung fehlt (fiktiv)', required: true },
                 { name: 'from', label: 'Beginn', kind: 'date', value: demo_plan_ts_1.DEMO_TODAY, required: true },
                 { name: 'ist', label: 'Ist-Zustand', kind: 'textarea' },
                 { name: 'ursache', label: 'Ursache', kind: 'textarea' },
                 ...assessmentFields(),
             ],
-            submit: v => { state = (0, plan_ts_1.createEventFromTask)(state, t.id, { title: v('title'), from: v('from'), istZustand: v('ist'), ursache: v('ursache'), ...readAssessment(v) }, demo_plan_ts_1.DEMO_TODAY).state; },
+            submit: v => { state = (0, plan_ts_1.createEventFromTask)(state, pick ? v('task') : t.id, { title: v('title'), from: v('from'), istZustand: v('ist'), ursache: v('ursache'), ...readAssessment(v) }, demo_plan_ts_1.DEMO_TODAY).state; },
         };
     }
     function assessSpec(eventId) {
@@ -1113,31 +1239,46 @@ function mountPlanner(root, options = {}) {
     function drawEvents() {
         if (!state.events.length)
             return el('p', 'empty', 'Noch keine Ereignisse.');
-        const ul = el('ul', 'list events');
+        const ul = el('ul', 'evt-list');
+        ul.id = 'events';
         for (const e of state.events) {
-            const li = el('li');
-            const head = el('div', 'evt-head');
+            const li = el('li', 'evt-card');
+            li.dataset.event = e.id;
+            const head = el('div', 'evt-card-head');
             head.append(el('strong', '', e.title), el('span', 'muted', `${e.snapshot.planKey} · ab ${fmt(e.from)}${e.to ? ` bis ${fmt(e.to)}` : ' · dauert an'}`));
             li.append(head);
             const after = (0, plan_ts_1.downstreamTasks)(state, e.taskId);
-            if (after.length)
-                li.append(el('span', 'muted', `Nachfolger im Plan (zu prüfen): ${after.map(t => t.planKey).join(', ')}`));
             const g = e.gegenmassnahme, a = e.ausweichmoeglichkeit;
-            li.append(el('span', 'muted', `Wirkung: ${e.wirkung} · Ausweichmöglichkeit: ${a.vorhanden}${a.genutzt ? `, genutzt: ${a.genutzt}` : ''} · Gegenmaßnahme: ${g.moeglich || '–'}${g.durchgefuehrt ? `, durchgeführt: ${g.durchgefuehrt}` : ''}${g.wirksam ? `, wirksam: ${g.wirksam}` : ''} · Nachweise: ${e.nachweise.length ? e.nachweise.map(n => `${n.art} (${n.bezeichnung})`).join(', ') : '–'}`));
-            const acts = el('div', 'row');
+            const facts = [
+                ['Wirkung', e.wirkung],
+                ['Ausweichmöglichkeit', `${a.vorhanden}${a.genutzt ? `, genutzt: ${a.genutzt}` : ''}`],
+                ['Gegenmaßnahme', `${g.moeglich || '–'}${g.durchgefuehrt ? `, durchgeführt: ${g.durchgefuehrt}` : ''}${g.wirksam ? `, wirksam: ${g.wirksam}` : ''}`],
+                ['Nachweise', e.nachweise.length ? e.nachweise.map(n => `${n.art} (${n.bezeichnung})`).join(', ') : '–'],
+            ];
+            if (after.length)
+                facts.push(['Nachfolger im Plan (zu prüfen)', after.map(x => x.planKey).join(', ')]);
+            const dl = el('dl', 'evt-facts');
+            for (const [k, v] of facts) {
+                dl.append(el('dt', '', `${k}: `), el('dd', '', v));
+            }
+            li.append(dl);
+            const acts = el('div', 'pl-card-actions evt-card-actions');
             const ab = withIcon(el('button', '', 'Einschätzung bearbeiten'), 'clipboard');
             ab.type = 'button';
             ab.dataset.assess = e.id;
+            ab.setAttribute('aria-label', `Einschätzung bearbeiten: ${e.title}`);
             ab.onclick = () => openPanel(assessSpec(e.id));
             acts.append(ab);
             const lb = withIcon(el('button', '', 'Behinderungsanzeige-Entwurf'), 'file');
             lb.type = 'button';
             lb.dataset.letter = e.id;
+            lb.setAttribute('aria-label', `Behinderungsanzeige-Entwurf: ${e.title}`);
             lb.onclick = () => openPanel(letterSpec(e.id));
             acts.append(lb);
             if (!e.to) {
                 const rb = withIcon(el('button', '', 'Wiederaufnahme heute'), 'play');
                 rb.type = 'button';
+                rb.setAttribute('aria-label', `Wiederaufnahme heute: ${e.title}`);
                 rb.onclick = () => { state = (0, plan_ts_1.endEvent)(state, e.id, demo_plan_ts_1.DEMO_TODAY); render(); };
                 acts.append(rb);
             }
@@ -1145,6 +1286,19 @@ function mountPlanner(root, options = {}) {
             ul.append(li);
         }
         return ul;
+    }
+    function drawEventActions() {
+        const bar = el('div', 'pl-card-actions');
+        const b = withIcon(el('button', '', 'Ereignis anlegen'), 'plus');
+        b.type = 'button';
+        b.id = 'open-event';
+        if (!state.tasks.length) {
+            b.disabled = true;
+            b.title = 'Zuerst einen Planvorgang anlegen';
+        }
+        b.onclick = () => openPanel(eventCreateSpec());
+        bar.append(b);
+        return bar;
     }
     function drawPeriod() {
         const bar = el('div', 'pl-period');
@@ -1207,8 +1361,10 @@ function mountPlanner(root, options = {}) {
         observer?.disconnect();
         const range = (0, period_ts_1.rangeOf)(period);
         const axis = (0, plan_ts_1.buildAxis)(range.from, range.to, demo_plan_ts_1.DEMO_TODAY);
+        if (toast && (panel || toast.after !== state))
+            dismissToast();
         for (const c of Array.from(root.children))
-            if (c !== live)
+            if (c !== live && c !== toastHost)
                 c.remove();
         if (live.parentElement !== root)
             root.prepend(live);
@@ -1217,22 +1373,37 @@ function mountPlanner(root, options = {}) {
         }
         const syncBox = el('div');
         fillSync(syncBox, session.info);
-        root.append(syncBox, drawPeriod());
+        const plan = card('Plan', 'card-plan', { foot: drawPlanActions() });
+        plan.body.append(syncBox, drawPeriod());
         const mv = drawMoveNote();
         if (mv)
-            root.append(mv);
+            plan.body.append(mv);
         const scroll = el('div', 'pl-scroll');
         const grid = drawGrid(axis);
         scroll.append(grid, drawLegend());
-        const h = (t) => el('h2', '', t);
-        root.append(scroll, h('Auffälligkeiten'), drawFindings(), h('Abhängigkeiten'), drawDependencies(), h('Plan bearbeiten'), drawPlanEditor(), h('Ereignisse'), drawEvents(), h('Personaldisposition über alle Leistungen (Wochenübersicht)'), drawLoad());
+        plan.body.append(scroll);
+        const check = card('Prüfung', 'card-check', { foot: drawCheckActions() });
+        const sub = (t) => el('h3', '', t);
+        check.body.append(sub('Auffälligkeiten'), drawFindings(), sub('Abhängigkeiten'), drawDependencies());
+        const events = card('Ereignisse', 'card-events', { foot: drawEventActions() });
+        events.body.append(drawEvents());
+        const load = drawLoad();
+        const dispo = card('Wochenübersicht Personal und Objekte', 'card-load', { head: load.tabs });
+        dispo.body.append(load.table);
+        const cols1 = el('div', 'pl-cols');
+        cols1.append(check.sec, events.sec);
+        const cols2 = el('div', 'pl-cols');
+        cols2.append(drawAssignmentsCard(), dispo.sec);
+        root.append(plan.sec, cols1, cols2);
+        if (root.lastElementChild !== toastHost)
+            root.append(toastHost);
         drawArrows(grid);
         observer = new ResizeObserver(() => drawArrows(grid));
         observer.observe(grid);
         const pnl = drawPanel();
         if (pnl) {
             for (const c of Array.from(root.children))
-                if (c !== live)
+                if (c !== live && c !== toastHost)
                     c.inert = true;
             root.append(pnl);
             const p = pnl.querySelector('#edit-panel');
@@ -1251,20 +1422,39 @@ function mountPlanner(root, options = {}) {
         if (opened)
             void session.submit(state);
     }
-    const onKey = (e) => { if (e.key === 'Escape' && drag) {
-        e.stopPropagation();
-        cancelDrag();
-        return;
-    } if (e.key === 'Escape' && panel) {
-        e.stopPropagation();
-        if (confirmDiscard) {
-            confirmDiscard = false;
-            focusTarget = 'panel';
-            render();
+    const onKey = (e) => {
+        if (toast && !panel && !drag && !e.defaultPrevented) {
+            const typing = e.target?.closest?.('input, textarea, select, [contenteditable="true"]');
+            if (e.key === 'Escape') {
+                dismissToast();
+                return;
+            }
+            if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'z' && !typing) {
+                const u = toast.actions.find(a => a.id === 'undo');
+                if (u) {
+                    e.preventDefault();
+                    dismissToast();
+                    u.run();
+                    return;
+                }
+            }
         }
-        else
-            requestClose();
-    } };
+        if (e.key === 'Escape' && drag) {
+            e.stopPropagation();
+            cancelDrag();
+            return;
+        }
+        if (e.key === 'Escape' && panel) {
+            e.stopPropagation();
+            if (confirmDiscard) {
+                confirmDiscard = false;
+                focusTarget = 'panel';
+                render();
+            }
+            else
+                requestClose();
+        }
+    };
     root.addEventListener('keydown', onKey);
     const offSync = session.onChange(info => { for (const box of Array.from(root.querySelectorAll('.pl-sync')))
         fillSync(box, info); });
@@ -1273,7 +1463,7 @@ function mountPlanner(root, options = {}) {
         return; state = loaded; opened = true; render(); })
         .catch(e => { if (!destroyed)
         root.replaceChildren(el('p', 'err', `Plan konnte nicht geladen werden: ${e instanceof Error ? e.message : String(e)}`)); });
-    return { destroy: () => { destroyed = true; offSync(); root.removeEventListener('keydown', onKey); observer?.disconnect(); if (arrowFrame)
+    return { destroy: () => { destroyed = true; dismissToast(); offSync(); root.removeEventListener('keydown', onKey); observer?.disconnect(); if (arrowFrame)
             cancelAnimationFrame(arrowFrame); root.replaceChildren(); } };
 }
 
@@ -2280,5 +2470,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #0a665e; --on-teal: #fff; --on-stoer: #fff;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b; --on-teal: #0b1d1a; --on-stoer: #2a0d07;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-sync { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; min-height: 32px; margin: 0 0 var(--s2); padding: var(--s1) 0; color: var(--muted); font-size: 13px; }\n.pl-panel .pl-sync { padding: var(--s2) var(--s4); margin: 0; }\n.pl-period { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); }\n.pl-period .seg { margin: 0 0 0 auto; }\n.pl-period-label { font-size: 14px; min-width: 15ch; text-align: center; }\n@media (max-width: 640px) { .pl-period .seg { margin-left: 0; } .pl-period-label { flex: 1 1 100%; text-align: left; } }\n.pl-sync.saved { color: var(--ok-ink); }\n.pl-sync.conflict, .pl-sync.error { color: var(--stoer); font-weight: 600; background: var(--stoer-soft); padding-inline: var(--s3); border-radius: 6px; }\n.pl-sync button { font: inherit; font-weight: 600; padding: var(--s1) var(--s3); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), minmax(var(--day), 1fr)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { position: relative; }\n.pl-cell.today::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 2px; background: var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.soll { position: relative; cursor: grab; touch-action: pan-y; }\n.bar.soll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.bar.soll.dragging { cursor: grabbing; z-index: 5; opacity: .92; }\n.grip { position: absolute; top: -4px; bottom: -1px; width: 10px; cursor: ew-resize; touch-action: pan-y; }\n.grip[data-edge=\"s\"] { inset-inline-start: -3px; } .grip[data-edge=\"e\"] { inset-inline-end: -3px; }\n.grip::after { content: ''; position: absolute; top: 5px; bottom: 2px; inset-inline-start: 3px; width: 3px; border-radius: 2px; background: var(--panel); opacity: 0; transition: opacity .12s; }\n.bar.soll:hover .grip::after, .bar.soll:focus-visible .grip::after, .bar.soll.dragging .grip::after { opacity: 1; }\n@media (prefers-reduced-motion: reduce) { .grip::after { transition: none; } }\n@media (max-width: 640px), (hover: none), (pointer: coarse) {\n  .grip { width: 16px; top: -9px; bottom: -3px; }\n  .grip::after { opacity: 1; top: 8px; bottom: 5px; }\n  .bar.soll::before { content: ''; position: absolute; inset: -9px 0 -3px; }\n}\n.pl-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.pl-dragtip { position: fixed; z-index: 1200; pointer-events: none; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--paper); font-size: 12px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }\n.pl-move { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); padding: var(--s2) var(--s3); border-radius: 6px; background: var(--ok-bg); color: var(--ok-ink); }\n.pl-move.err { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n.pl-move button { background: var(--panel); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 16%, transparent) 6px 7px), var(--stoer-soft); border: 1.5px solid var(--stoer); color: var(--stoer); font-weight: 600; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: var(--on-stoer); font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.list.events li { flex-direction: column; align-items: flex-start; padding: var(--s3) 0; }\n.evt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }\n.list.events .row { margin-top: var(--s2); }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\n.pl-app .row { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }\nform.frm :is(select, input, textarea) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: var(--on-teal); } button.primary:hover { background: var(--teal-d); }\nbutton.ico-btn { display: inline-flex; align-items: center; gap: var(--s2); }\n.ico { flex: none; width: 16px; height: 16px; }\nbutton.quiet .ico { width: 14px; height: 14px; }\n.pl-lab .nm button.quiet .ico { width: 14px; height: 14px; }\nbutton.icon-only { padding-inline: var(--s2); min-width: 28px; justify-content: center; }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\n.tw.wide { max-width: none; }\n.tw.wide table { width: 100%; table-layout: fixed; min-width: calc(180px + var(--n, 5) * 120px); }\n.tw.wide th:first-child { width: 180px; }\n.tw.wide td, .tw.wide th { white-space: normal; overflow-wrap: break-word; vertical-align: top; }\n@media (max-width: 640px) { .tw.wide th:first-child { width: 130px; } .tw.wide table { min-width: calc(130px + var(--n, 5) * 120px); } }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; opacity: .85; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px), (pointer: coarse) {\n  button, .segbtn, input, select { min-height: 44px; }\n  .pl-lab .nm button.quiet, .pl-lab .nm .taskbtn { position: relative; min-height: 24px; }\n  .pl-lab .nm button.quiet::after, .pl-lab .nm .taskbtn::after { content: ''; position: absolute; inset: -10px -4px; }\n}\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }\n.pl-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.pl-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.38); }\n.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); }\n.pl-panel.enter { animation: pl-slide-in 0.2s ease-out; }\n@keyframes pl-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n.pl-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4); border-bottom: 1px solid var(--line); }\n.pl-panel-head h2 { margin: 0; font-size: 16px; }\n.pl-panel .pl-letter { display: grid; gap: var(--s3); align-content: start; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; }\n.pl-panel .pl-letter p, .pl-panel .pl-letter ul { margin: 0; }\n.pl-panel form.panel-form { display: grid; grid-template-columns: 1fr; gap: var(--s3); align-items: start; margin: 0; max-width: none; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; align-content: start; }\n.pl-panel form.panel-form .row { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; gap: var(--s3); margin: var(--s2) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--panel); border-top: 1px solid var(--line); }\n.pl-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-bottom: 1px solid var(--note-line); font-weight: 600; }\n.pl-confirm span { flex: 1 1 100%; }\n@media (prefers-reduced-motion: reduce) { .pl-panel.enter { animation: none; } }" }, { build: "sha256:0786d3923abba9b2" }));
+  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #0a665e; --on-teal: #fff; --on-stoer: #fff;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b; --on-teal: #0b1d1a; --on-stoer: #2a0d07;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-sync { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; min-height: 32px; margin: 0 0 var(--s2); padding: var(--s1) 0; color: var(--muted); font-size: 13px; }\n.pl-panel .pl-sync { padding: var(--s2) var(--s4); margin: 0; }\n.pl-period { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); }\n.pl-period .seg { margin: 0 0 0 auto; }\n.pl-period-label { font-size: 14px; min-width: 15ch; text-align: center; }\n@media (max-width: 640px) { .pl-period .seg { margin-left: 0; } .pl-period-label { flex: 1 1 100%; text-align: left; } }\n.pl-sync.saved { color: var(--ok-ink); }\n.pl-sync.conflict, .pl-sync.error { color: var(--stoer); font-weight: 600; background: var(--stoer-soft); padding-inline: var(--s3); border-radius: 6px; }\n.pl-sync button { font: inherit; font-weight: 600; padding: var(--s1) var(--s3); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), minmax(var(--day), 1fr)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { position: relative; }\n.pl-cell.today::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 2px; background: var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.soll { position: relative; cursor: grab; touch-action: pan-y; }\n.bar.soll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.bar.soll.dragging { cursor: grabbing; z-index: 5; opacity: .92; }\n.grip { position: absolute; top: -4px; bottom: -1px; width: 10px; cursor: ew-resize; touch-action: pan-y; }\n.grip[data-edge=\"s\"] { inset-inline-start: -3px; } .grip[data-edge=\"e\"] { inset-inline-end: -3px; }\n.grip::after { content: ''; position: absolute; top: 5px; bottom: 2px; inset-inline-start: 3px; width: 3px; border-radius: 2px; background: var(--panel); opacity: 0; transition: opacity .12s; }\n.bar.soll:hover .grip::after, .bar.soll:focus-visible .grip::after, .bar.soll.dragging .grip::after { opacity: 1; }\n@media (prefers-reduced-motion: reduce) { .grip::after { transition: none; } }\n@media (max-width: 640px), (hover: none), (pointer: coarse) {\n  .grip { width: 16px; top: -9px; bottom: -3px; }\n  .grip::after { opacity: 1; top: 8px; bottom: 5px; }\n  .bar.soll::before { content: ''; position: absolute; inset: -9px 0 -3px; }\n}\n.pl-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.pl-dragtip { position: fixed; z-index: 1200; pointer-events: none; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--paper); font-size: 12px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }\n.pl-move { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); padding: var(--s2) var(--s3); border-radius: 6px; background: var(--ok-bg); color: var(--ok-ink); }\n.pl-move.err { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n.pl-move button { background: var(--panel); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; display: flex; align-items: center; justify-content: flex-end; padding-inline: 2px; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 30%, transparent) 6px 7px); border: 1.5px solid var(--stoer); }\n.dbl-chip { padding: 0 6px; border-radius: 3px; background: var(--stoer-soft); color: var(--stoer); font-weight: 600; line-height: 16px; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: var(--on-stoer); font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.list.events li { flex-direction: column; align-items: flex-start; padding: var(--s3) 0; }\n.evt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }\n.list.events .row { margin-top: var(--s2); }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\n.pl-app .row { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }\nform.frm :is(select, input, textarea) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: var(--on-teal); } button.primary:hover { background: var(--teal-d); }\nbutton.ico-btn { display: inline-flex; align-items: center; gap: var(--s2); }\n.ico { flex: none; width: 16px; height: 16px; }\nbutton.quiet .ico { width: 14px; height: 14px; }\n.pl-lab .nm button.quiet .ico { width: 14px; height: 14px; }\nbutton.icon-only { padding-inline: var(--s2); min-width: 28px; justify-content: center; }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\n.tw.wide { max-width: none; }\n.tw.wide table { width: 100%; table-layout: fixed; min-width: calc(180px + var(--n, 5) * 120px); }\n.tw.wide th:first-child { width: 180px; }\n.tw.wide td, .tw.wide th { white-space: normal; overflow-wrap: break-word; vertical-align: top; }\n@media (max-width: 640px) { .tw.wide th:first-child { width: 130px; } .tw.wide table { min-width: calc(130px + var(--n, 5) * 120px); } }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px), (pointer: coarse) {\n  button, .segbtn, input, select { min-height: 44px; }\n  button.quiet { min-height: 44px; }\n  .pl-lab .nm button.quiet, .pl-lab .nm .taskbtn { position: relative; min-height: 24px; }\n  .pl-lab .nm button.quiet::after, .pl-lab .nm .taskbtn::after { content: ''; position: absolute; inset: -10px -4px; }\n}\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }\n.pl-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.pl-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.38); }\n.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); }\n.pl-panel.enter { animation: pl-slide-in 0.2s ease-out; }\n@keyframes pl-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n.pl-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4); border-bottom: 1px solid var(--line); }\n.pl-panel-head h2 { margin: 0; font-size: 16px; }\n.pl-panel .pl-letter { display: grid; gap: var(--s3); align-content: start; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; }\n.pl-panel .pl-letter p, .pl-panel .pl-letter ul { margin: 0; }\n.pl-panel form.panel-form { display: grid; grid-template-columns: 1fr; gap: var(--s3); align-items: start; margin: 0; max-width: none; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; align-content: start; }\n.pl-panel form.panel-form .row { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; gap: var(--s3); margin: var(--s2) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--panel); border-top: 1px solid var(--line); }\n.pl-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-bottom: 1px solid var(--note-line); font-weight: 600; }\n.pl-confirm span { flex: 1 1 100%; }\n@media (prefers-reduced-motion: reduce) { .pl-panel.enter { animation: none; } }\n.pl-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 var(--s4); min-width: 0; }\n.pl-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s2) var(--s3); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line-soft); }\n.pl-card-head h2 { margin: 0; font-size: 16px; }\n.pl-card-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }\n.pl-card-head .seg { margin: 0; }\n.pl-card-body { padding: var(--s4); min-width: 0; }\n.pl-card-body h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin: var(--s5) 0 var(--s2); }\n.pl-card-body > h3:first-child { margin-top: 0; }\n.pl-card .pl-scroll { border: 0; border-radius: 0; margin-inline: calc(-1 * var(--s4)); border-top: 1px solid var(--line-soft); }\n.pl-card .pl-scroll:last-child { margin-bottom: calc(-1 * var(--s4)); border-radius: 0 0 10px 10px; }\n.pl-card .pl-period { margin-bottom: var(--s3); }\n.pl-card .pl-sync { margin: 0 0 var(--s1); }\n.pl-card .list li { max-width: none; }\n.pl-card .tw, .pl-card .tw.wide { max-width: none; }\n.pl-card table { max-width: none; min-width: 0; }\n.pl-card .tw:not(.wide) table { min-width: 480px; }\n.pl-card .pl-card-body > .row { margin-top: var(--s3); }\n.pl-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s4); align-items: start; }\n.pl-card .list.events { display: grid; gap: var(--s3); }\n.pl-card .list.events li { padding: var(--s3); border: 1px solid var(--line-soft); border-radius: 8px; background: var(--band); gap: var(--s1); }\n.pl-card .list.events .row { margin-top: var(--s2); }\n@media (max-width: 640px) { .pl-card-head, .pl-card-body { padding-inline: var(--s3); } .pl-card .pl-scroll { margin-inline: calc(-1 * var(--s3)); } }\n.pl-card .tw:not(.wide) table { min-width: 0; }\n.pl-card .tw:not(.wide) :is(td, th) { white-space: normal; }\n.pl-card .tw:not(.wide) td:last-child { white-space: nowrap; }\n.pl-toasts { position: fixed; z-index: 1100; inset-inline: var(--s3); bottom: var(--s4); display: flex; justify-content: center; pointer-events: none; }\n.pl-toast { pointer-events: auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); max-width: min(760px, 100%); padding: var(--s2) var(--s3) var(--s2) var(--s4); border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28); animation: pl-toast-in 0.18s ease-out; }\n.pl-toast-text { font-weight: 600; margin-right: var(--s2); }\n.pl-toast button { color: var(--paper); border: 1px solid color-mix(in srgb, var(--paper) 55%, transparent); background: transparent; min-height: 32px; font-weight: 600; }\n.pl-toast button:hover { background: color-mix(in srgb, var(--paper) 16%, transparent); }\n.pl-toast button.icon-only { border-color: transparent; }\n.pl-toast :is(button):focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }\n@keyframes pl-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }\n@media (prefers-reduced-motion: reduce) { .pl-toast { animation: none; } }\n@media (max-width: 640px), (pointer: coarse) { .pl-toast button { min-height: 44px; } }\n.pl-card-foot { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); background: var(--band); border-radius: 0 0 10px 10px; }\n.pl-card .pl-scroll:last-child { margin-bottom: calc(-1 * var(--s4)); border-radius: 0; }\n@media (max-width: 640px) { .pl-card-foot { padding-inline: var(--s3); } .pl-card-foot .pl-card-actions { width: 100%; } }\n.evt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }\n.evt-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }\n.evt-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s3) var(--s4); background: var(--band); border-bottom: 1px solid var(--line-soft); }\n.evt-card-head strong { font-size: 15px; }\n.evt-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s2) var(--s4); margin: 0; padding: var(--s3) var(--s4); }\n.evt-facts dt { color: var(--muted); font-size: 13px; }\n.evt-facts dd { margin: 0; overflow-wrap: anywhere; }\n.evt-card-actions { padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); }\n@media (max-width: 640px) { .evt-facts { grid-template-columns: minmax(0, 1fr); gap: 0; } .evt-facts dd { margin-bottom: var(--s2); } .evt-card-head, .evt-facts, .evt-card-actions { padding-inline: var(--s3); } }\n.pl-kbd { margin-left: var(--s2); padding: 0 6px; border: 1px solid color-mix(in srgb, var(--paper) 55%, transparent); border-radius: 4px; font: inherit; font-size: 12px; font-weight: 500; }" }, { build: "sha256:b3aa8bd1851aeacc" }));
 })();
