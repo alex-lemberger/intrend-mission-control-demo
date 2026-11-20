@@ -4,7 +4,7 @@
  *   inside a component 8-16 · between components 16-24 · between sections 32+ · gap between touch targets >= 8
  *   text >= 12px (uppercase micro-labels >= 11px) · desktop inputs 40px, touch inputs 44px
  */
-:root{--muted:#56656b;--eyebrow:#4a6a60;--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--line-soft:#edf0ed}
+:root{--muted:#56656b;--eyebrow:#4a6a60;--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--line-soft:#edf0ed;--surface-soft:#f8faf7;--surface-hover:#eff8f0;--line-accent:#9dc2ad;--danger-soft:#fff6f2}
 
 /* ---- legibility floor: nothing below 12px (micro-labels 11px) ---- */
 small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard-foot,.ac01-demo-line,.metric small,.metric span{font-size:12px}
@@ -19,7 +19,7 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .planner-link{display:none}
 @media(max-width:760px){.planner-link{display:inline-flex;margin-top:12px}}
 .metric small{margin-bottom:var(--sp-3)}
-@media(max-width:760px){.metric small{font-size:11px}.badge{font-size:11px}}
+@media(max-width:760px){.metric small{font-size:11px}}   /* badges keep the 12px floor (audit 2026-11-21) */
 
 /* ---- page rhythm ---- */
 .page-head{margin-bottom:var(--sp-6);gap:var(--sp-5)}
@@ -44,7 +44,7 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .wd-open-row{gap:var(--sp-3);margin-top:var(--sp-4)}
 .wd-open-row .primary,.wd-open-row .outline{width:auto}
 /* Project context groups the existing day cards without changing their order or their actions. */
-.wd-project{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);padding:var(--sp-5) var(--sp-5) var(--sp-3);margin-top:var(--sp-5);border-top:1px solid var(--line-soft);background:#f8faf7}
+.wd-project{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-4);padding:var(--sp-5) var(--sp-5) var(--sp-3);margin-top:var(--sp-5);border-top:1px solid var(--line-soft);background:var(--surface-soft)}
 .wd-project:first-child{margin-top:var(--sp-4);border-top:0}
 .wd-project h3{margin:0 0 var(--sp-1);font-size:16px;letter-spacing:-.3px}
 .wd-project-sub{display:block;color:var(--muted);font-size:12px}
@@ -54,10 +54,10 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .wd-event-row{display:block;border-top:1px solid var(--line-soft)}
 .wd-event-row .list-item{border-top:0}
 .wd-doc-row{padding:0 var(--sp-5) var(--sp-4);background:#fff}
-.wd-doc{padding:8px 14px;min-height:40px;font-size:13px;line-height:1.2;max-width:none;width:auto}
+.wd-doc{padding:8px 14px;min-height:44px;font-size:13px;line-height:1.2;max-width:none;width:auto}
 /* Card quick action: compact 44x44 icon (label in aria-label/title). Only the card action group is narrowed; the Ereignisse panel keeps its labelled button. */
 .wd-open-row{column-gap:var(--sp-2)}
-.wd-open-row .outline,.wd-open-row .primary{padding:0 6px}
+.wd-open-row .outline,.wd-open-row .primary{padding:0 var(--sp-4)}   /* labelled row actions: room left and right of the text */
 .wd-open-row .wd-doc-icon{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;margin:0;flex:0 0 44px;justify-content:center}
 .wd-open-row .wd-doc-icon .ic-wrap{margin:0}
 
@@ -263,3 +263,91 @@ strong .ic-wrap{margin-right:.3em}
 @media(max-width:760px){.save-confirmation{padding:var(--sp-3);margin-bottom:var(--sp-3)}}
 /* Touch: disclosure rows of the older form reach 44 px on phones and coarse pointers (padding keeps the marker). */
 @media(max-width:760px),(pointer:coarse){.optional summary,.crew-override summary{min-height:44px;padding-block:13px}}
+
+/* ---- Erfasste Tage as a table (2026-11-21): one row per saved day, figures in columns, actions at the row end,
+   everything else (reasons, people, activities, places, extras) in a collapsible detail row.
+   Wide containers show a table; narrow ones (container query, independent of the rail) stack each day as a card. ---- */
+#dashboard-view .dashboard-grid{grid-template-columns:1fr}   /* the table needs the full width; Ereignisse follow below */
+.wd-table-wrap{container-type:inline-size;container-name:wd}
+.wd-table{width:100%;border-collapse:collapse}
+.wd-table caption{text-align:left}
+.wd-table thead th{padding:var(--sp-2);text-align:left;font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--line)}
+.wd-table :is(td,tbody th){padding:var(--sp-3) var(--sp-2);text-align:left;vertical-align:middle;font-weight:inherit;font-size:14px}
+.wd-table .wd-num{text-align:right;font-variant-numeric:tabular-nums}
+.wd-table thead .wd-num{text-align:right}
+.wd-table .wd-c-date{font-weight:700;white-space:nowrap}
+.wd-c-date .wd-day-date,.wd-c-date .wd-c-time{display:block}
+.wd-c-date .wd-c-time{margin-top:2px;font-weight:400;font-size:13px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.wd-day>.wd-main>*{border-top:1px solid var(--line-soft)}
+.wd-day>.wd-main:hover,.wd-day>.wd-main:focus-within{background:var(--surface-soft)}
+.wd-day .wd-status{display:flex;flex-direction:column;align-items:flex-start;gap:var(--sp-1);border-top:0}
+.wd-day>.wd-main>.wd-status{border-top:1px solid var(--line-soft)}   /* flex cell: keep the row line */
+.wd-c-toggle{width:44px;padding-right:0!important;padding-left:var(--sp-3)!important}
+.wd-table .wd-c-actions{width:1%;white-space:nowrap}
+.wd-day .wd-open-row :is(.primary,.outline){white-space:nowrap}
+.wd-toggle{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-height:44px;padding:0;border:1px solid transparent;border-radius:11px;background:transparent;color:var(--teal);cursor:pointer}
+.wd-toggle:hover{background:var(--surface-hover);border-color:var(--line-accent)}
+.wd-toggle .ic-wrap{margin:0}
+.wd-toggle .ic-wrap svg{transition:transform .18s}
+.wd-toggle[aria-expanded="true"] .ic-wrap svg{transform:rotate(180deg)}
+.wd-day .wd-open-row{margin-top:0;justify-content:flex-start;flex-wrap:nowrap}   /* wide table: actions stay in one row */
+.wd-detail>td{padding:0;background:var(--surface-soft)}
+.wd-detail-body{padding:var(--sp-3) var(--sp-5) var(--sp-4) calc(44px + var(--sp-5))}
+.wd-detail-body .item-meta{margin:0 0 var(--sp-3)}
+.wd-detail-body .wd-preview{margin:0}
+.wd-detail-body .wd-preview>div{grid-template-columns:200px minmax(0,1fr)}
+.wd-detail-body .wd-open-hint{margin:var(--sp-3) 0 0}
+@media(prefers-reduced-motion:reduce){.wd-toggle .ic-wrap svg{transition:none}}
+.wd-table .wd-detail[hidden]{display:none}   /* must beat the display:block of the stacked layout below */
+/* narrow container: each saved day becomes a card with labelled figures */
+@container wd (max-width:900px){
+  .wd-table thead{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+  .wd-table,.wd-table tbody,.wd-table tr,.wd-table td,.wd-table th{display:block}
+  .wd-day{padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--line-soft)}
+  .wd-day>.wd-main{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2) var(--sp-4);align-items:start}
+  .wd-day>.wd-main:hover{background:transparent}
+  .wd-day>.wd-main>*{border-top:0;padding:0!important;width:auto}
+  .wd-day>.wd-main>.wd-status{border-top:0}
+  .wd-main .wd-c-date{grid-column:1;grid-row:1;align-self:center;font-size:15px}
+  .wd-main .wd-c-toggle{grid-column:2;grid-row:1;justify-self:end}
+  .wd-main :is(.wd-c-people,.wd-c-lines,.wd-c-events){text-align:left}
+  .wd-main [data-label]::before{content:attr(data-label);display:block;font-size:12px;font-weight:700;color:var(--muted)}
+  .wd-main .wd-status,.wd-main .wd-c-actions{grid-column:1/-1}
+  .wd-main .wd-c-actions{margin-top:var(--sp-1);width:auto;white-space:normal}
+  .wd-day .wd-open-row{flex-wrap:wrap}
+  .wd-detail>td{background:transparent}
+  .wd-detail-body{padding:var(--sp-3) 0 0}
+  .wd-detail-body .wd-preview>div{grid-template-columns:1fr}
+}
+/* medium container (cards, but room for the four figures in one row; status and actions side by side) */
+@container wd (min-width:560px) and (max-width:900px){
+  .wd-day>.wd-main{grid-template-columns:repeat(4,1fr)}
+  .wd-main .wd-c-date{grid-column:1/4}
+  .wd-main .wd-c-toggle{grid-column:4}
+  .wd-main .wd-c-people{grid-column:1}.wd-main .wd-c-lines{grid-column:2}.wd-main .wd-c-events{grid-column:3}
+  .wd-main .wd-status{grid-column:1/3}
+  .wd-main .wd-c-actions{grid-column:3/5;margin-top:0}
+}
+
+/* Kopieren: compact icon action next to the others; "Gespeicherte Tage löschen" asks twice (armed state) */
+.wd-open-row .wd-copy,.wd-open-row .wd-icon-btn{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;margin:0;flex:0 0 44px;justify-content:center}
+.wd-open-row .wd-copy .ic-wrap,.wd-open-row .wd-icon-btn .ic-wrap{margin:0}
+#wd-clear{margin-top:var(--sp-2);min-height:44px;font-size:12px}
+.planner-link + #wd-clear{margin-left:var(--sp-2)}
+#wd-clear.armed{border-color:var(--red);color:var(--red);background:var(--danger-soft)}
+.wd-clear-hint{display:block;margin-top:var(--sp-2);font-size:12px;color:var(--muted)}
+.planner-link{min-height:44px}
+
+/* ---- Breadcrumbs in the top bar (replace the small label above the title): where am I ---- */
+.crumbs{min-width:0}
+.crumbs ol{display:flex;align-items:center;margin:0;padding:0;list-style:none;min-width:0}
+.crumbs li{display:flex;align-items:center;min-width:0}
+.crumbs li+li::before{content:"›" / "";flex:none;margin:0 var(--sp-2);color:var(--muted);font-size:18px;line-height:1}
+.crumbs #top-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px}
+.crumb-link{max-width:28ch;min-height:40px;padding:0 var(--sp-2);margin:0 calc(-1 * var(--sp-2));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;border-radius:8px;background:transparent;color:var(--teal);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.crumb-link:hover{background:var(--surface-hover);text-decoration:underline;text-underline-offset:3px}
+@media(max-width:760px){
+  .crumbs li:not(:nth-last-child(-n+2)){display:none}      /* phone: the parent and the current page only */
+  .crumbs li:nth-last-child(2)::before{content:none}
+  .crumb-link{min-height:44px;max-width:20ch}
+}

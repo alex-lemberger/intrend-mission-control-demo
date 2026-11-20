@@ -21,7 +21,6 @@
 .ac01-stat.ac01-save.is-replace{background:var(--red);border-color:var(--red)}
 .wd-metrics{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
 .wd-metrics em{font-size:.55em;font-style:normal;color:var(--muted)}
-.wd-day{display:block;text-align:left}
 .wd-preview{display:grid;gap:6px;margin:12px 0 4px}.wd-preview>div{display:grid;grid-template-columns:150px minmax(0,1fr);gap:2px 12px;align-items:baseline}
 .wd-preview dt{font-size:.72rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}.wd-preview dd{margin:0;font-size:.92rem;overflow-wrap:anywhere}.wd-preview em{font-style:normal;color:var(--muted)}
 .wd-open-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:10px}.wd-open{min-height:44px}.wd-open-hint{font-size:.8rem;color:var(--muted)}

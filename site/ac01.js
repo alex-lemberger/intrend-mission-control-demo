@@ -825,7 +825,7 @@
     else if (existing && !sameKey(editingKey, key)) text = `Achtung: Für ${label} ist bereits ein Tag gespeichert. Speichern ersetzt ihn erst nach Bestätigung; geöffnet wird er über Mission Control.`;
     else if (editingKey) text = dirty ? `Gespeicherter Tag ${open} wird bearbeitet · ungespeicherte Änderungen.` : `Gespeicherter Tag ${open} geöffnet · keine ungespeicherten Änderungen.`;
     else text = dirty ? 'Neuer Tag · noch nicht gespeichert.' : 'Neuer, leerer Tag.';
-    statusEl.textContent = `${text} Nur im Arbeitsspeicher dieser Demo: nach dem Neuladen der Seite ist alles weg.`;
+    statusEl.textContent = `${text} ${workdays.isPersistent() ? 'Gespeicherte Tage bleiben nur in diesem Browser auf diesem Gerät erhalten; nichts wird gesendet.' : 'Nur im Arbeitsspeicher dieser Demo: nach dem Neuladen der Seite ist alles weg.'}`;
     statusEl.classList.toggle('is-warning', replacePending || Boolean(existing && !sameKey(editingKey, key)));
     statusEl.dataset.dirty = String(dirty);               // drives the visible "Ungespeichert" marker
     renderSteps();
@@ -856,7 +856,7 @@
   }
 
   // Opens a saved day for editing. Business data comes back exactly as saved; UI-only row state starts fresh.
-  function openDay(report) {
+  function openDay(report, { copyOf = '' } = {}) {
     const copy = structuredClone(report);
     employees = copy.employees.length ? copy.employees.map(employee => ({ ...employee, collapsed: copy.employees.length > 1, selected: false, prefill: '' })) : [newEmployee()];
     events = copy.events;
@@ -868,13 +868,27 @@
     suggestions = [];
     renderSuggestions();
     setMessage('');
-    editingKey = { projectId: copy.projectId, date: copy.date };
+    editingKey = copyOf ? null : { projectId: copy.projectId, date: copy.date };   // a copy is a NEW day: saving never "replaces" the original
     reviewRequested = false;
     toolsMessage.textContent = toolsDefault;
     renderEmployees();
     renderEvents();
-    savedSnapshot = snapshot();
+    savedSnapshot = copyOf ? '' : snapshot();                                       // '' = never equal to a real snapshot: unsaved by definition
+    if (copyOf) setMessage(`Kopie von ${copyOf}: Mitarbeitende, Arbeiten, Orte und Tagesangaben sind übernommen. Ereignisse und Fotos wurden nicht übernommen. Bitte das Datum prüfen und dann speichern.`);
     renderSaveStatus();
+  }
+
+  // Copy of a saved day as a new, unsaved day: people, activities (times, break, group, LV note, places) and the day's extras
+  // are taken over; events and photo names are specific to the original day and are NOT. New row ids: the copy is its own day.
+  function openCopy(report, date, label) {
+    const copy = structuredClone(report);
+    copy.date = date;
+    copy.events = [];
+    copy.employees = copy.employees.map(({ id, assignments, ...employee }) => newEmployee({
+      ...employee,
+      assignments: assignments.map(({ id: assignmentId, ...assignment }) => newAssignment({ ...assignment, photos: [], locationDraft: '' }))
+    }));
+    openDay(copy, { copyOf: label });
   }
 
   function newDay() {
@@ -904,7 +918,7 @@
   $('#ac01-view').addEventListener('click', event => { if (event.target.closest('[data-action="save-day"]')) saveDay(); });
   // "＋ Baustellentag erfassen" outside the navigation: a saved day with no unsaved changes becomes a new empty day.
   // Unsaved input, or a new day already open, is left alone (the caller only switches the view).
-  root.AC01Workday = { open: openDay, isDirty, startNew: () => { if (editingKey && !isDirty()) newDay(); }, draftKey: () => ({ projectId: $('#ac01-project').value, date: $('#ac01-date').value }), currentKey: () => (editingKey ? { ...editingKey } : null) };
+  root.AC01Workday = { open: openDay, openCopy, isDirty, startNew: () => { if (editingKey && !isDirty()) newDay(); }, draftKey: () => ({ projectId: $('#ac01-project').value, date: $('#ac01-date').value }), currentKey: () => (editingKey ? { ...editingKey } : null) };
 
   renderEmployees();
   renderEvents();
