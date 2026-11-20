@@ -96,15 +96,57 @@ function switchView(view, { confirmed = false } = {}) {
 // Planner (Pilot 02): generated bundle vendor/planner.bundle.js, mounted once in a shadow root so its styles and the shell's stay apart.
 // It keeps its own plan while the page lives (memory only, fictional demo plan) and is not connected to the saved Baustellentage.
 let plannerApi = null;
+let plannerMount = null;
+let plannerCaseKey = 'demo';
+let clearArmed = 0;
+// The planner offers examples (the original demo plan and the invented disruption case in three stages). Each example keeps its
+// own state in this browser's local storage on this device (nothing is sent anywhere); "Beispiel zurücksetzen" and "Alle
+// gespeicherten Pläne löschen" forget it. Without usable browser storage the plan lives in memory only and the note says so.
+function mountPlannerCase(key, lead) {
+  const PA = window.PlannerApp;
+  if (plannerApi) plannerApi.destroy();
+  const chosen = PA.planCase(key);
+  plannerCaseKey = chosen.key;
+  const opts = PA.plannerCaseOptions(chosen.key, { persist: true });
+  plannerApi = PA.mountPlanner(plannerMount, Object.assign({ scheme: 'light' }, opts));
+  for (const b of document.querySelectorAll('#planner-case button')) b.setAttribute('aria-pressed', String(b.dataset.case === chosen.key));
+  const keeps = opts.persistent
+    ? ' Dieses Beispiel merkt sich seinen Stand in diesem Browser; „Beispiel zurücksetzen“ stellt den Ausgangsstand wieder her. Bitte nur erfundene Daten eingeben.'
+    : ' Der Browser-Speicher ist nicht verfügbar: nach dem Neuladen der Seite ist alles weg.';
+  $('#planner-case-note').textContent = (lead ? lead + ' ' : '') + chosen.note + keeps;
+}
+function disarmClear() {
+  clearArmed = 0;
+  const b = $('#planner-clear'); b.textContent = 'Alle gespeicherten Pläne löschen'; b.classList.remove('armed');
+}
 function renderPlanner() {
   const host = $('#planner-host');
   if (!window.PlannerApp) { host.innerHTML = '<div class="panel"><div class="empty">Der Planer-Baustein fehlt (vendor/planner.bundle.js).</div></div>'; return; }
   if (plannerApi) return;
   const sr = host.attachShadow({ mode: 'open' });
   const style = document.createElement('style'); style.textContent = window.PlannerApp.css;
-  const mount = document.createElement('div');
-  sr.append(style, mount);
-  plannerApi = window.PlannerApp.mountPlanner(mount, { scheme: 'light' });
+  plannerMount = document.createElement('div');
+  sr.append(style, plannerMount);
+  const chooser = $('#planner-case');
+  for (const c of window.PlannerApp.PLAN_CASES) {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.case = c.key; b.textContent = c.label;
+    b.onclick = () => { disarmClear(); if (b.getAttribute('aria-pressed') !== 'true') mountPlannerCase(c.key); };
+    chooser.append(b);
+  }
+  $('#planner-reset').onclick = () => { disarmClear(); window.PlannerApp.resetPlanCase(plannerCaseKey); mountPlannerCase(plannerCaseKey, 'Beispiel zurückgesetzt.'); };
+  // Two steps: the first click asks, the second one deletes; the question lapses after a few seconds or on any other choice.
+  $('#planner-clear').onclick = () => {
+    const b = $('#planner-clear');
+    if (!clearArmed) {
+      clearArmed = window.setTimeout(disarmClear, 6000);
+      b.textContent = 'Wirklich alle löschen? Nochmal klicken'; b.classList.add('armed');
+      return;
+    }
+    window.clearTimeout(clearArmed); disarmClear();
+    const n = window.PlannerApp.clearSavedPlans();
+    mountPlannerCase(plannerCaseKey, n === 1 ? '1 gespeicherter Plan gelöscht.' : `${n} gespeicherte Pläne gelöscht.`);
+  };
+  mountPlannerCase('demo');
 }
 // Title and lead of the editor follow the saved day it holds: "erfassen" for a new day, "bearbeiten" for a saved day.
 function renderEditorTitle() {
