@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:b3aa8bd1851aeacc, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/planner/in-memory-plan-repository.js, src/planner/plan-session.js, src/planner/period.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/planner/plan-integrity.js, src/planner/plan-repository.js, src/planner/plan-sync.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:e2dee1ec280be4e7, preview/planner-app.js, src/planner/plan.js, src/planner/demo-plan.js, src/planner/in-memory-plan-repository.js, src/planner/plan-session.js, src/planner/period.js, src/behinderung/from-plan-event.js, src/behinderung/behinderungsanzeige.js, src/core/ids.js, src/planner/plan-integrity.js, src/planner/plan-repository.js, src/planner/plan-sync.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry planner <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -39,6 +39,9 @@ function mountPlanner(root, options = {}) {
     live.setAttribute('aria-atomic', 'true');
     let liveFlip = false;
     const announce = (text) => { liveFlip = !liveFlip; live.textContent = text + (liveFlip ? '\u00a0' : ''); };
+    let pan = null;
+    let wheelPan = 0, wheelZoom = 0, lastZoomAt = -Infinity;
+    const TIME_HELP = 'Pfeiltasten links und rechts verschieben die Zeitachse um einen Tag, mit Umschalt um eine Woche. Plus und Minus ändern den Maßstab, Pos1 springt zu heute.';
     let rovingId = '';
     let arrowFrame = 0;
     const scheduleArrows = (g) => { if (arrowFrame)
@@ -50,7 +53,8 @@ function mountPlanner(root, options = {}) {
     toastHost.id = 'pl-toasts';
     let toast = null;
     let toastTimer = 0;
-    let period = (0, period_ts_1.makePeriod)('2026-11-16', 5);
+    const TODAY = options.today ?? demo_plan_ts_1.DEMO_TODAY;
+    let period = (0, period_ts_1.makePeriod)(options.periodFrom ?? TODAY, options.periodWeeks ?? 5);
     const SVG = 'http://www.w3.org/2000/svg';
     const TYPE_LABEL = { EA: 'Ende → Anfang', AA: 'Anfang → Anfang', EE: 'Ende → Ende', AE: 'Anfang → Ende' };
     const el = (tag, cls = '', text = '') => {
@@ -72,6 +76,7 @@ function mountPlanner(root, options = {}) {
         'chevron-right': [['path', { d: 'm9 18 6-6-6-6' }]],
         calendar: [['rect', { x: '3', y: '4', width: '18', height: '18', rx: '2' }], ['path', { d: 'M16 2v4M8 2v4M3 10h18' }]],
         plus: [['path', { d: 'M12 5v14M5 12h14' }]],
+        minus: [['path', { d: 'M5 12h14' }]],
         pencil: [['path', { d: 'M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z' }], ['path', { d: 'm15 5 4 4' }]],
         trash: [['path', { d: 'M3 6h18' }], ['path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6' }], ['path', { d: 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' }], ['path', { d: 'M10 11v6M14 11v6' }]],
         x: [['path', { d: 'M18 6 6 18M6 6l12 12' }]],
@@ -407,6 +412,9 @@ function mountPlanner(root, options = {}) {
     function drawGrid(axis) {
         const grid = el('div', 'pl-grid');
         grid.style.setProperty('--n', String(axis.length));
+        grid.dataset.weeks = String(period.weeks);
+        if (period.weeks > 5)
+            grid.style.setProperty('--day', `${(0, period_ts_1.minDayWidth)(period.weeks)}px`);
         const visibleTasks = state.tasks.filter(x => (0, plan_ts_1.barOnAxis)(axis, x.sollStart, x.sollEnd));
         if (!visibleTasks.some(x => x.id === rovingId))
             rovingId = visibleTasks[0]?.id ?? '';
@@ -420,7 +428,7 @@ function mountPlanner(root, options = {}) {
             fill(lab);
             grid.append(lab);
             for (const [i, d] of axis.entries()) {
-                const c = el('div', `pl-cell${d.weekend ? ' we' : ''}${d.today ? ' today' : ''}${kind === 'sec' ? ' secbg' : ''}`);
+                const c = el('div', `pl-cell${d.weekend ? ' we' : ''}${d.today ? ' today' : ''}${d.weekday === 0 ? ' mon' : ''}${kind === 'sec' ? ' secbg' : ''}`);
                 c.style.gridRow = String(r);
                 c.style.gridColumn = String(i + 2);
                 grid.append(c);
@@ -434,7 +442,9 @@ function mountPlanner(root, options = {}) {
             let j = i;
             while (j + 1 < axis.length && axis[j + 1].kw === axis[i].kw)
                 j++;
-            const k = el('div', 'pl-kw', `KW ${axis[i].kw}`);
+            const k = el('div', 'pl-kw');
+            k.title = `KW ${axis[i].kw}`;
+            k.append(el('span', 'kwp', 'KW '), String(axis[i].kw));
             if (j - i >= 6)
                 k.append(el('span', 'rng', `${short(axis[i].date)}–${short(axis[j].date)}`));
             k.style.gridRow = '1';
@@ -443,7 +453,9 @@ function mountPlanner(root, options = {}) {
             i = j + 1;
         }
         for (const [n, d] of axis.entries()) {
-            const dd = el('div', `pl-dd${d.weekend ? ' we' : ''}${d.today ? ' today' : ''}`, `${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][d.weekday]}\n${+d.date.slice(8)}`);
+            const dd = el('div', `pl-dd${d.weekend ? ' we' : ''}${d.today ? ' today' : ''}${d.weekday === 0 ? ' mon' : ''}`);
+            dd.dataset.date = d.date;
+            dd.append(el('span', 'wd', ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'][d.weekday]), '\n', el('span', 'dn', String(+d.date.slice(8))));
             dd.style.gridRow = '2';
             dd.style.gridColumn = String(n + 2);
             if (d.today)
@@ -454,7 +466,7 @@ function mountPlanner(root, options = {}) {
         for (const t of state.tasks) {
             const r = row++;
             const soll = (0, plan_ts_1.barOnAxis)(axis, t.sollStart, t.sollEnd);
-            const istBar = t.istStart ? (0, plan_ts_1.barOnAxis)(axis, t.istStart, t.istEnd || demo_plan_ts_1.DEMO_TODAY) : null;
+            const istBar = t.istStart ? (0, plan_ts_1.barOnAxis)(axis, t.istStart, t.istEnd || TODAY) : null;
             cellRow(r, l => {
                 const b = el('button', 'taskbtn', `${t.planKey} · ${t.title}`);
                 b.type = 'button';
@@ -1186,12 +1198,12 @@ function mountPlanner(root, options = {}) {
             fields: [
                 ...(pick ? [{ name: 'task', label: 'Planvorgang', kind: 'select', options: state.tasks.map(x => [x.id, `${x.planKey} · ${x.title}`]), value: t.id }] : []),
                 { name: 'title', label: 'Titel', kind: 'text', placeholder: 'z. B. Vorleistung fehlt (fiktiv)', required: true },
-                { name: 'from', label: 'Beginn', kind: 'date', value: demo_plan_ts_1.DEMO_TODAY, required: true },
+                { name: 'from', label: 'Beginn', kind: 'date', value: TODAY, required: true },
                 { name: 'ist', label: 'Ist-Zustand', kind: 'textarea' },
                 { name: 'ursache', label: 'Ursache', kind: 'textarea' },
                 ...assessmentFields(),
             ],
-            submit: v => { state = (0, plan_ts_1.createEventFromTask)(state, pick ? v('task') : t.id, { title: v('title'), from: v('from'), istZustand: v('ist'), ursache: v('ursache'), ...readAssessment(v) }, demo_plan_ts_1.DEMO_TODAY).state; },
+            submit: v => { state = (0, plan_ts_1.createEventFromTask)(state, pick ? v('task') : t.id, { title: v('title'), from: v('from'), istZustand: v('ist'), ursache: v('ursache'), ...readAssessment(v) }, TODAY).state; },
         };
     }
     function assessSpec(eventId) {
@@ -1279,7 +1291,7 @@ function mountPlanner(root, options = {}) {
                 const rb = withIcon(el('button', '', 'Wiederaufnahme heute'), 'play');
                 rb.type = 'button';
                 rb.setAttribute('aria-label', `Wiederaufnahme heute: ${e.title}`);
-                rb.onclick = () => { state = (0, plan_ts_1.endEvent)(state, e.id, demo_plan_ts_1.DEMO_TODAY); render(); };
+                rb.onclick = () => { state = (0, plan_ts_1.endEvent)(state, e.id, TODAY); render(); };
                 acts.append(rb);
             }
             li.append(acts);
@@ -1300,6 +1312,29 @@ function mountPlanner(root, options = {}) {
         bar.append(b);
         return bar;
     }
+    const dayWidthOf = (grid) => grid.querySelector('.pl-dd')?.getBoundingClientRect().width || 30;
+    function axisPosition(clientX, grid) {
+        const box = grid.parentElement.getBoundingClientRect();
+        const lab = grid.querySelector('.pl-corner')?.getBoundingClientRect().width ?? 0;
+        const visible = grid.parentElement.clientWidth - lab;
+        return visible > 0 ? Math.min(1, Math.max(0, (clientX - box.left - lab) / visible)) : 0.5;
+    }
+    function dayUnder(clientX, grid) {
+        const first = grid.querySelector('.pl-dd')?.getBoundingClientRect();
+        const days = period.weeks * 7;
+        const i = first && first.width > 0 ? Math.floor((clientX - first.left) / first.width) : Math.floor(days / 2);
+        return (0, plan_ts_1.addDays)((0, period_ts_1.rangeOf)(period).from, Math.min(days - 1, Math.max(0, i)));
+    }
+    function setPeriod(next, say = true) {
+        if (next.start === period.start && next.weeks === period.weeks)
+            return;
+        if (document.activeElement?.id === 'plan-scroll')
+            returnFocus = '#plan-scroll';
+        period = next;
+        render();
+        if (say)
+            announce(`Zeitraum ${(0, period_ts_1.periodLabel)(period)}`);
+    }
     function drawPeriod() {
         const bar = el('div', 'pl-period');
         bar.setAttribute('role', 'group');
@@ -1319,23 +1354,140 @@ function mountPlanner(root, options = {}) {
         const today = withIcon(el('button', '', 'Heute'), 'calendar');
         today.type = 'button';
         today.id = 'period-today';
-        today.onclick = () => go((0, period_ts_1.periodAt)(period, demo_plan_ts_1.DEMO_TODAY), '#period-today');
+        today.onclick = () => go((0, period_ts_1.periodAt)(period, TODAY), '#period-today');
         const label = el('strong', 'pl-period-label', (0, period_ts_1.periodLabel)(period));
         label.id = 'period-label';
+        const zoom = el('div', 'seg zoomseg');
+        zoom.setAttribute('role', 'group');
+        zoom.setAttribute('aria-label', 'Maßstab der Zeitachse');
+        const zoomBtn = (dir, id, name, aria, hint) => {
+            const b = el('button', 'segbtn');
+            b.type = 'button';
+            b.id = id;
+            b.append(icon(name));
+            b.setAttribute('aria-label', aria);
+            b.title = hint;
+            b.disabled = !(0, period_ts_1.canZoom)(period, dir);
+            b.onclick = () => {
+                if (b.disabled)
+                    return;
+                period = (0, period_ts_1.zoomPeriod)(period, dir);
+                returnFocus = (0, period_ts_1.canZoom)(period, dir) ? `#${id}` : dir === 'in' ? '#zoom-out' : '#zoom-in';
+                render();
+            };
+            return b;
+        };
+        zoom.append(zoomBtn('out', 'zoom-out', 'minus', 'Maßstab verkleinern, mehr Wochen sichtbar', 'Verkleinern (Strg oder Cmd + Mausrad nach unten, Taste −)'), zoomBtn('in', 'zoom-in', 'plus', 'Maßstab vergrößern, weniger Wochen sichtbar', 'Vergrößern (Strg oder Cmd + Mausrad nach oben, Taste +)'));
         const seg = el('div', 'seg');
         seg.setAttribute('role', 'group');
         seg.setAttribute('aria-label', 'Länge des Zeitraums');
-        for (const w of period_ts_1.PERIOD_WEEKS) {
-            const b = el('button', 'segbtn', `${w} Wochen`);
+        for (const w of period_ts_1.ZOOM_WEEKS) {
+            const b = el('button', 'segbtn');
             b.type = 'button';
             b.dataset.weeks = String(w);
             b.setAttribute('aria-pressed', String(period.weeks === w));
+            b.append(el('span', 'n', String(w)), el('span', 'u', ' Wochen'));
             b.onclick = () => go((0, period_ts_1.resizePeriod)(period, w), `.segbtn[data-weeks="${w}"]`);
             seg.append(b);
         }
-        bar.append(prev, label, next, today, seg);
+        const scale = el('div', 'pl-scale');
+        scale.append(zoom, seg);
+        bar.append(prev, label, next, today, scale);
         return bar;
     }
+    function onChartWheel(ev, grid) {
+        if (panel || pan)
+            return;
+        const k = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1;
+        if (ev.ctrlKey || ev.metaKey) {
+            ev.preventDefault();
+            wheelZoom += ev.deltaY * k;
+            const now = performance.now();
+            if (Math.abs(wheelZoom) < 40 || now - lastZoomAt < 150)
+                return;
+            const direction = wheelZoom < 0 ? 'in' : 'out';
+            wheelZoom = 0;
+            lastZoomAt = now;
+            setPeriod((0, period_ts_1.zoomPeriod)(period, direction, dayUnder(ev.clientX, grid), axisPosition(ev.clientX, grid)), false);
+            return;
+        }
+        const dx = Math.abs(ev.deltaX) > Math.abs(ev.deltaY) ? ev.deltaX : ev.shiftKey ? ev.deltaY : 0;
+        if (!dx)
+            return;
+        ev.preventDefault();
+        wheelPan += dx * k;
+        const w = dayWidthOf(grid);
+        const days = Math.trunc(wheelPan / w);
+        if (days) {
+            wheelPan -= days * w;
+            setPeriod((0, period_ts_1.panPeriod)(period, days), false);
+        }
+    }
+    function onChartKey(ev, region) {
+        if (ev.target !== region || ev.altKey || ev.ctrlKey || ev.metaKey || panel)
+            return;
+        const step = ev.shiftKey ? 7 : 1;
+        if (ev.key === 'ArrowLeft') {
+            ev.preventDefault();
+            setPeriod((0, period_ts_1.panPeriod)(period, -step));
+        }
+        else if (ev.key === 'ArrowRight') {
+            ev.preventDefault();
+            setPeriod((0, period_ts_1.panPeriod)(period, step));
+        }
+        else if (ev.key === '+' || ev.key === '=') {
+            ev.preventDefault();
+            setPeriod((0, period_ts_1.zoomPeriod)(period, 'in'));
+        }
+        else if (ev.key === '-' || ev.key === '_') {
+            ev.preventDefault();
+            setPeriod((0, period_ts_1.zoomPeriod)(period, 'out'));
+        }
+        else if (ev.key === 'Home') {
+            ev.preventDefault();
+            setPeriod((0, period_ts_1.periodAt)(period, TODAY));
+        }
+    }
+    function onChartPointerDown(ev, grid) {
+        if (ev.button !== 0 || ev.pointerType === 'touch' || panel || drag || pan)
+            return;
+        const t = ev.target;
+        if (!t.closest('.pl-cell, .pl-kw, .pl-dd') || t.closest('.bar, button, .pl-lab'))
+            return;
+        pan = { pointerId: ev.pointerId, startX: ev.clientX, dayW: dayWidthOf(grid), base: period, shown: 0, moved: false };
+        root.setPointerCapture(ev.pointerId);
+        ev.preventDefault();
+    }
+    function onPanMove(ev) {
+        if (!pan || ev.pointerId !== pan.pointerId)
+            return;
+        const dx = ev.clientX - pan.startX;
+        if (!pan.moved && Math.abs(dx) < 4)
+            return;
+        if (!pan.moved) {
+            pan.moved = true;
+            root.classList.add('pl-panning');
+        }
+        const days = Math.round(-dx / pan.dayW);
+        if (days !== pan.shown) {
+            pan.shown = days;
+            setPeriod((0, period_ts_1.panPeriod)(pan.base, days), false);
+        }
+    }
+    function endPan(ev) {
+        if (!pan || ev.pointerId !== pan.pointerId)
+            return;
+        const moved = pan.moved;
+        pan = null;
+        root.classList.remove('pl-panning');
+        try {
+            root.releasePointerCapture(ev.pointerId);
+        }
+        catch { }
+        if (moved)
+            announce(`Zeitraum ${(0, period_ts_1.periodLabel)(period)}`);
+    }
+    function applyDensity(grid) { grid.dataset.density = (0, period_ts_1.densityOf)(dayWidthOf(grid)); }
     function fillSync(box, info) {
         box.className = `pl-sync ${info.status}`;
         box.setAttribute('role', info.status === 'conflict' || info.status === 'error' ? 'alert' : 'status');
@@ -1360,7 +1512,7 @@ function mountPlanner(root, options = {}) {
     function render() {
         observer?.disconnect();
         const range = (0, period_ts_1.rangeOf)(period);
-        const axis = (0, plan_ts_1.buildAxis)(range.from, range.to, demo_plan_ts_1.DEMO_TODAY);
+        const axis = (0, plan_ts_1.buildAxis)(range.from, range.to, TODAY);
         if (toast && (panel || toast.after !== state))
             dismissToast();
         for (const c of Array.from(root.children))
@@ -1381,6 +1533,14 @@ function mountPlanner(root, options = {}) {
         const scroll = el('div', 'pl-scroll');
         const grid = drawGrid(axis);
         scroll.append(grid, drawLegend());
+        scroll.id = 'plan-scroll';
+        scroll.tabIndex = 0;
+        scroll.setAttribute('role', 'region');
+        scroll.setAttribute('aria-label', 'Zeitachse');
+        scroll.setAttribute('aria-description', TIME_HELP);
+        scroll.addEventListener('wheel', ev => onChartWheel(ev, grid), { passive: false });
+        scroll.addEventListener('pointerdown', ev => onChartPointerDown(ev, grid));
+        scroll.addEventListener('keydown', ev => onChartKey(ev, scroll));
         plan.body.append(scroll);
         const check = card('Prüfung', 'card-check', { foot: drawCheckActions() });
         const sub = (t) => el('h3', '', t);
@@ -1397,8 +1557,9 @@ function mountPlanner(root, options = {}) {
         root.append(plan.sec, cols1, cols2);
         if (root.lastElementChild !== toastHost)
             root.append(toastHost);
+        applyDensity(grid);
         drawArrows(grid);
-        observer = new ResizeObserver(() => drawArrows(grid));
+        observer = new ResizeObserver(() => { applyDensity(grid); drawArrows(grid); });
         observer.observe(grid);
         const pnl = drawPanel();
         if (pnl) {
@@ -1456,6 +1617,9 @@ function mountPlanner(root, options = {}) {
         }
     };
     root.addEventListener('keydown', onKey);
+    root.addEventListener('pointermove', onPanMove);
+    root.addEventListener('pointerup', endPan);
+    root.addEventListener('pointercancel', endPan);
     const offSync = session.onChange(info => { for (const box of Array.from(root.querySelectorAll('.pl-sync')))
         fillSync(box, info); });
     root.replaceChildren(live, el('p', 'pl-note', 'Plan wird geladen …'));
@@ -1463,7 +1627,7 @@ function mountPlanner(root, options = {}) {
         return; state = loaded; opened = true; render(); })
         .catch(e => { if (!destroyed)
         root.replaceChildren(el('p', 'err', `Plan konnte nicht geladen werden: ${e instanceof Error ? e.message : String(e)}`)); });
-    return { destroy: () => { destroyed = true; dismissToast(); offSync(); root.removeEventListener('keydown', onKey); observer?.disconnect(); if (arrowFrame)
+    return { destroy: () => { destroyed = true; dismissToast(); offSync(); root.removeEventListener('keydown', onKey); root.removeEventListener('pointermove', onPanMove); root.removeEventListener('pointerup', endPan); root.removeEventListener('pointercancel', endPan); observer?.disconnect(); if (arrowFrame)
             cancelAnimationFrame(arrowFrame); root.replaceChildren(); } };
 }
 
@@ -2093,17 +2257,48 @@ exports.PlanSession = PlanSession;
 "src/planner/period.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.periodLabel = exports.containsDay = exports.periodAt = exports.resizePeriod = exports.shiftPeriod = exports.rangeOf = exports.makePeriod = exports.PERIOD_WEEKS = void 0;
+exports.periodLabel = exports.containsDay = exports.periodAt = exports.resizePeriod = exports.shiftPeriod = exports.densityOf = exports.minDayWidth = exports.zoomPeriod = exports.dayAtFraction = exports.canZoom = exports.panPeriod = exports.rangeOf = exports.makePeriod = exports.PERIOD_WEEKS = exports.ZOOM_WEEKS = void 0;
 const plan_ts_1 = require("./plan.js");
+exports.ZOOM_WEEKS = [2, 5, 8, 13, 26];
 exports.PERIOD_WEEKS = [2, 5, 8];
 const makePeriod = (anyDay, weeks) => ({ start: (0, plan_ts_1.mondayOf)(anyDay), weeks });
 exports.makePeriod = makePeriod;
-const rangeOf = (p) => ({
-    from: p.start,
-    to: (0, plan_ts_1.addDays)(p.start, p.weeks * 7 - 1),
-    weekStarts: Array.from({ length: p.weeks }, (_, i) => (0, plan_ts_1.addDays)(p.start, i * 7)),
-});
+const rangeOf = (p) => {
+    const to = (0, plan_ts_1.addDays)(p.start, p.weeks * 7 - 1);
+    const weekStarts = [];
+    for (let w = (0, plan_ts_1.mondayOf)(p.start); w <= to; w = (0, plan_ts_1.addDays)(w, 7))
+        weekStarts.push(w);
+    return { from: p.start, to, weekStarts };
+};
 exports.rangeOf = rangeOf;
+const panPeriod = (p, days) => (days === 0 ? p : { ...p, start: (0, plan_ts_1.addDays)(p.start, days) });
+exports.panPeriod = panPeriod;
+const canZoom = (p, direction) => {
+    const i = exports.ZOOM_WEEKS.indexOf(p.weeks);
+    return direction === 'in' ? i > 0 : i < exports.ZOOM_WEEKS.length - 1;
+};
+exports.canZoom = canZoom;
+const dayAtFraction = (p, fraction) => {
+    const days = p.weeks * 7;
+    const f = Math.min(1, Math.max(0, fraction));
+    return (0, plan_ts_1.addDays)(p.start, Math.min(days - 1, Math.floor(f * days)));
+};
+exports.dayAtFraction = dayAtFraction;
+const zoomPeriod = (p, direction, anchor, position) => {
+    if (!(0, exports.canZoom)(p, direction))
+        return p;
+    const weeks = exports.ZOOM_WEEKS[exports.ZOOM_WEEKS.indexOf(p.weeks) + (direction === 'in' ? -1 : 1)];
+    const oldDays = p.weeks * 7, newDays = weeks * 7;
+    const index = anchor === undefined ? Math.floor(oldDays / 2) : Math.min(oldDays - 1, Math.max(0, (0, plan_ts_1.diffDays)(p.start, anchor)));
+    const at = position === undefined ? index / oldDays : Math.min(1, Math.max(0, position));
+    const start = (0, plan_ts_1.addDays)((0, plan_ts_1.addDays)(p.start, index), -Math.round(at * newDays));
+    return { start, weeks };
+};
+exports.zoomPeriod = zoomPeriod;
+const minDayWidth = (weeks) => (weeks <= 5 ? 30 : weeks <= 8 ? 14 : weeks <= 13 ? 9 : 4);
+exports.minDayWidth = minDayWidth;
+const densityOf = (pxPerDay) => (pxPerDay >= 24 ? 'voll' : pxPerDay >= 14 ? 'kompakt' : 'dicht');
+exports.densityOf = densityOf;
 const shiftPeriod = (p, direction) => ({ ...p, start: (0, plan_ts_1.addDays)(p.start, direction * p.weeks * 7) });
 exports.shiftPeriod = shiftPeriod;
 const resizePeriod = (p, weeks) => ({ ...p, weeks });
@@ -2138,10 +2333,11 @@ function createDraftFromPlanEvent(s, eventId, today = '') {
         place && `Ort / Bauteil: ${place}`,
         snap.title.trim() && `Planvorgang: ${snap.planKey} ${snap.title.trim()}`,
         snap.lvRef.trim() && `LV-Bezug: ${snap.lvRef.trim()}`,
+        `Soll laut Plan (Stand der Erfassung): ${dateDe(snap.sollStart)} bis ${dateDe(snap.sollEnd)}`,
         e.istZustand.trim() && `Sachverhalt: ${e.istZustand.trim()}`,
         `Im Planer erfasst am: ${dateDe(snap.takenOn)}`,
         `Beginn: ${dateDe(e.from)}`,
-        e.to && `Wiederaufnahme: ${dateDe(e.to)}`,
+        e.to ? `Wiederaufnahme: ${dateDe(e.to)}` : 'Fortdauer: Wiederaufnahme noch nicht erfasst',
         e.nachweise.length > 0 && `Nachweise: ${e.nachweise.map(n => n.bezeichnung.trim()).join('; ')}`,
     ];
     return {
@@ -2470,5 +2666,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #0a665e; --on-teal: #fff; --on-stoer: #fff;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b; --on-teal: #0b1d1a; --on-stoer: #2a0d07;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) max(var(--s5), calc((100% - 1320px) / 2)) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-sync { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; min-height: 32px; margin: 0 0 var(--s2); padding: var(--s1) 0; color: var(--muted); font-size: 13px; }\n.pl-panel .pl-sync { padding: var(--s2) var(--s4); margin: 0; }\n.pl-period { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); }\n.pl-period .seg { margin: 0 0 0 auto; }\n.pl-period-label { font-size: 14px; min-width: 15ch; text-align: center; }\n@media (max-width: 640px) { .pl-period .seg { margin-left: 0; } .pl-period-label { flex: 1 1 100%; text-align: left; } }\n.pl-sync.saved { color: var(--ok-ink); }\n.pl-sync.conflict, .pl-sync.error { color: var(--stoer); font-weight: 600; background: var(--stoer-soft); padding-inline: var(--s3); border-radius: 6px; }\n.pl-sync button { font: inherit; font-weight: 600; padding: var(--s1) var(--s3); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), minmax(var(--day), 1fr)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); white-space: pre; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { position: relative; }\n.pl-cell.today::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 2px; background: var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.soll { position: relative; cursor: grab; touch-action: pan-y; }\n.bar.soll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.bar.soll.dragging { cursor: grabbing; z-index: 5; opacity: .92; }\n.grip { position: absolute; top: -4px; bottom: -1px; width: 10px; cursor: ew-resize; touch-action: pan-y; }\n.grip[data-edge=\"s\"] { inset-inline-start: -3px; } .grip[data-edge=\"e\"] { inset-inline-end: -3px; }\n.grip::after { content: ''; position: absolute; top: 5px; bottom: 2px; inset-inline-start: 3px; width: 3px; border-radius: 2px; background: var(--panel); opacity: 0; transition: opacity .12s; }\n.bar.soll:hover .grip::after, .bar.soll:focus-visible .grip::after, .bar.soll.dragging .grip::after { opacity: 1; }\n@media (prefers-reduced-motion: reduce) { .grip::after { transition: none; } }\n@media (max-width: 640px), (hover: none), (pointer: coarse) {\n  .grip { width: 16px; top: -9px; bottom: -3px; }\n  .grip::after { opacity: 1; top: 8px; bottom: 5px; }\n  .bar.soll::before { content: ''; position: absolute; inset: -9px 0 -3px; }\n}\n.pl-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.pl-dragtip { position: fixed; z-index: 1200; pointer-events: none; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--paper); font-size: 12px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }\n.pl-move { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); padding: var(--s2) var(--s3); border-radius: 6px; background: var(--ok-bg); color: var(--ok-ink); }\n.pl-move.err { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n.pl-move button { background: var(--panel); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; display: flex; align-items: center; justify-content: flex-end; padding-inline: 2px; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 30%, transparent) 6px 7px); border: 1.5px solid var(--stoer); }\n.dbl-chip { padding: 0 6px; border-radius: 3px; background: var(--stoer-soft); color: var(--stoer); font-weight: 600; line-height: 16px; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: var(--on-stoer); font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.list.events li { flex-direction: column; align-items: flex-start; padding: var(--s3) 0; }\n.evt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }\n.list.events .row { margin-top: var(--s2); }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\n.pl-app .row { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }\nform.frm :is(select, input, textarea) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: var(--on-teal); } button.primary:hover { background: var(--teal-d); }\nbutton.ico-btn { display: inline-flex; align-items: center; gap: var(--s2); }\n.ico { flex: none; width: 16px; height: 16px; }\nbutton.quiet .ico { width: 14px; height: 14px; }\n.pl-lab .nm button.quiet .ico { width: 14px; height: 14px; }\nbutton.icon-only { padding-inline: var(--s2); min-width: 28px; justify-content: center; }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\n.tw.wide { max-width: none; }\n.tw.wide table { width: 100%; table-layout: fixed; min-width: calc(180px + var(--n, 5) * 120px); }\n.tw.wide th:first-child { width: 180px; }\n.tw.wide td, .tw.wide th { white-space: normal; overflow-wrap: break-word; vertical-align: top; }\n@media (max-width: 640px) { .tw.wide th:first-child { width: 130px; } .tw.wide table { min-width: calc(130px + var(--n, 5) * 120px); } }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px), (pointer: coarse) {\n  button, .segbtn, input, select { min-height: 44px; }\n  button.quiet { min-height: 44px; }\n  .pl-lab .nm button.quiet, .pl-lab .nm .taskbtn { position: relative; min-height: 24px; }\n  .pl-lab .nm button.quiet::after, .pl-lab .nm .taskbtn::after { content: ''; position: absolute; inset: -10px -4px; }\n}\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }\n.pl-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.pl-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.38); }\n.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); }\n.pl-panel.enter { animation: pl-slide-in 0.2s ease-out; }\n@keyframes pl-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n.pl-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4); border-bottom: 1px solid var(--line); }\n.pl-panel-head h2 { margin: 0; font-size: 16px; }\n.pl-panel .pl-letter { display: grid; gap: var(--s3); align-content: start; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; }\n.pl-panel .pl-letter p, .pl-panel .pl-letter ul { margin: 0; }\n.pl-panel form.panel-form { display: grid; grid-template-columns: 1fr; gap: var(--s3); align-items: start; margin: 0; max-width: none; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; align-content: start; }\n.pl-panel form.panel-form .row { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; gap: var(--s3); margin: var(--s2) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--panel); border-top: 1px solid var(--line); }\n.pl-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-bottom: 1px solid var(--note-line); font-weight: 600; }\n.pl-confirm span { flex: 1 1 100%; }\n@media (prefers-reduced-motion: reduce) { .pl-panel.enter { animation: none; } }\n.pl-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 var(--s4); min-width: 0; }\n.pl-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s2) var(--s3); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line-soft); }\n.pl-card-head h2 { margin: 0; font-size: 16px; }\n.pl-card-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }\n.pl-card-head .seg { margin: 0; }\n.pl-card-body { padding: var(--s4); min-width: 0; }\n.pl-card-body h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin: var(--s5) 0 var(--s2); }\n.pl-card-body > h3:first-child { margin-top: 0; }\n.pl-card .pl-scroll { border: 0; border-radius: 0; margin-inline: calc(-1 * var(--s4)); border-top: 1px solid var(--line-soft); }\n.pl-card .pl-scroll:last-child { margin-bottom: calc(-1 * var(--s4)); border-radius: 0 0 10px 10px; }\n.pl-card .pl-period { margin-bottom: var(--s3); }\n.pl-card .pl-sync { margin: 0 0 var(--s1); }\n.pl-card .list li { max-width: none; }\n.pl-card .tw, .pl-card .tw.wide { max-width: none; }\n.pl-card table { max-width: none; min-width: 0; }\n.pl-card .tw:not(.wide) table { min-width: 480px; }\n.pl-card .pl-card-body > .row { margin-top: var(--s3); }\n.pl-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s4); align-items: start; }\n.pl-card .list.events { display: grid; gap: var(--s3); }\n.pl-card .list.events li { padding: var(--s3); border: 1px solid var(--line-soft); border-radius: 8px; background: var(--band); gap: var(--s1); }\n.pl-card .list.events .row { margin-top: var(--s2); }\n@media (max-width: 640px) { .pl-card-head, .pl-card-body { padding-inline: var(--s3); } .pl-card .pl-scroll { margin-inline: calc(-1 * var(--s3)); } }\n.pl-card .tw:not(.wide) table { min-width: 0; }\n.pl-card .tw:not(.wide) :is(td, th) { white-space: normal; }\n.pl-card .tw:not(.wide) td:last-child { white-space: nowrap; }\n.pl-toasts { position: fixed; z-index: 1100; inset-inline: var(--s3); bottom: var(--s4); display: flex; justify-content: center; pointer-events: none; }\n.pl-toast { pointer-events: auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); max-width: min(760px, 100%); padding: var(--s2) var(--s3) var(--s2) var(--s4); border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28); animation: pl-toast-in 0.18s ease-out; }\n.pl-toast-text { font-weight: 600; margin-right: var(--s2); }\n.pl-toast button { color: var(--paper); border: 1px solid color-mix(in srgb, var(--paper) 55%, transparent); background: transparent; min-height: 32px; font-weight: 600; }\n.pl-toast button:hover { background: color-mix(in srgb, var(--paper) 16%, transparent); }\n.pl-toast button.icon-only { border-color: transparent; }\n.pl-toast :is(button):focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }\n@keyframes pl-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }\n@media (prefers-reduced-motion: reduce) { .pl-toast { animation: none; } }\n@media (max-width: 640px), (pointer: coarse) { .pl-toast button { min-height: 44px; } }\n.pl-card-foot { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); background: var(--band); border-radius: 0 0 10px 10px; }\n.pl-card .pl-scroll:last-child { margin-bottom: calc(-1 * var(--s4)); border-radius: 0; }\n@media (max-width: 640px) { .pl-card-foot { padding-inline: var(--s3); } .pl-card-foot .pl-card-actions { width: 100%; } }\n.evt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }\n.evt-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }\n.evt-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s3) var(--s4); background: var(--band); border-bottom: 1px solid var(--line-soft); }\n.evt-card-head strong { font-size: 15px; }\n.evt-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s2) var(--s4); margin: 0; padding: var(--s3) var(--s4); }\n.evt-facts dt { color: var(--muted); font-size: 13px; }\n.evt-facts dd { margin: 0; overflow-wrap: anywhere; }\n.evt-card-actions { padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); }\n@media (max-width: 640px) { .evt-facts { grid-template-columns: minmax(0, 1fr); gap: 0; } .evt-facts dd { margin-bottom: var(--s2); } .evt-card-head, .evt-facts, .evt-card-actions { padding-inline: var(--s3); } }\n.pl-kbd { margin-left: var(--s2); padding: 0 6px; border: 1px solid color-mix(in srgb, var(--paper) 55%, transparent); border-radius: 4px; font: inherit; font-size: 12px; font-weight: 500; }" }, { build: "sha256:b3aa8bd1851aeacc" }));
+  globalThis.PlannerApp = Object.freeze(Object.assign({}, load("preview/planner-app.js"), { css: ":root, :host, .pl-app {\n  color-scheme: light;\n  --ink: #14252c; --muted: #40594e; --line: #b4c5ba; --line-soft: #e3ebe5; --line-strong: #6f8478;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  --teal: #0a665e; --teal-d: #084f47; --lime: #d5f28a; --focus: #0a665e; --on-teal: #fff; --on-stoer: #fff;\n  --soll: #5b8db0; --soll-soft: #dbe8f0; --soll-line: #5f8aa8; --ist: #0a665e;\n  --stoer: #a8321f; --stoer-soft: #f6d9d2; --gear: #e8e6df; --gear-line: #8b8573;\n  --weekend: #f4efe6; --note-bg: #fff6e8; --note-ink: #63380d; --note-line: #a86a1c; --ok-bg: #e5f3e9; --ok-ink: #1c573a;\n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  --day: 30px; --label: 268px; --row: 64px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (prefers-color-scheme: dark) {\n  .pl-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #e6efe9; --muted: #a9bdb1; --line: #43584d; --line-soft: #2a3832; --line-strong: #7e9488;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #4fb8a8; --teal-d: #3a9a8b; --lime: #b5d96a; --focus: #73b99b; --on-teal: #0b1d1a; --on-stoer: #2a0d07;\n    --soll: #6c9fc2; --soll-soft: #223846; --soll-line: #5d8aa8; --ist: #4fb8a8;\n    --stoer: #ec8b78; --stoer-soft: #4a2520; --gear: #2d2f2a; --gear-line: #85856f;\n    --weekend: #1f2321; --note-bg: #2b2418; --note-ink: #f1d8b0; --note-line: #a8742f; --ok-bg: #1f3a2c; --ok-ink: #bfe8cf;\n  }\n}\n* { box-sizing: border-box; }\n.pl-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.pl-app.standalone { min-height: 100vh; padding: var(--s5) var(--s3) var(--s6); }\n::selection { background: var(--lime); color: #14252c; }\n* { scrollbar-color: var(--line-strong) transparent; }\ninput, select, button, textarea { accent-color: var(--teal); }\n:is(input, select, textarea, button, summary):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\nh1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); text-wrap: balance; }\nh2 { font-size: 15px; margin: var(--s6) 0 var(--s2); }\n.pl-sync { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; min-height: 32px; margin: 0 0 var(--s2); padding: var(--s1) 0; color: var(--muted); font-size: 13px; }\n.pl-panel .pl-sync { padding: var(--s2) var(--s4); margin: 0; }\n.pl-period { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); }\n.pl-period .seg { margin: 0; }\n.pl-scale { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin-left: auto; }\n.pl-period-label { font-size: 14px; min-width: 15ch; text-align: center; }\n@media (max-width: 640px) { .pl-scale { margin-left: 0; } .pl-period-label { flex: 1 1 100%; text-align: left; } }\n.pl-sync.saved { color: var(--ok-ink); }\n.pl-sync.conflict, .pl-sync.error { color: var(--stoer); font-weight: 600; background: var(--stoer-soft); padding-inline: var(--s3); border-radius: 6px; }\n.pl-sync button { font: inherit; font-weight: 600; padding: var(--s1) var(--s3); border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; }\n.pl-note { margin: 0; color: var(--muted); max-width: 72ch; }\n.pl-scroll { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }\n.pl-grid { display: grid; grid-template-columns: var(--label) repeat(var(--n), minmax(var(--day), 1fr)); min-width: calc(var(--label) + var(--n) * var(--day)); position: relative; }\n.pl-lab { position: sticky; left: 0; z-index: 4; background: var(--panel); padding: var(--s2) var(--s3); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line-soft); display: flex; flex-direction: column; justify-content: center; gap: 1px; min-height: 36px; }\n.pl-lab.task { min-height: var(--row); }\n.pl-lab.sec { background: var(--band); min-height: 30px; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .01em; }\n.pl-lab small { color: var(--muted); font-size: 12px; line-height: 1.3; }\n.pl-lab .nm { font-weight: 600; display: flex; align-items: baseline; gap: var(--s2); }\n.pl-lab .nm .taskbtn { flex: 1 1 auto; min-width: 0; text-align: left; }\n.pl-lab .nm button.quiet { flex: none; min-height: 24px; font-size: 12px; }\n.pl-corner { position: sticky; left: 0; z-index: 4; background: var(--panel); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s3); color: var(--muted); font-size: 12px; display: flex; align-items: flex-end; }\n.pl-kw, .pl-dd { text-align: center; border-left: 1px solid var(--line-soft); background: var(--panel); }\n.pl-kw { font-size: 12px; font-weight: 600; padding: var(--s2) 0 var(--s1); }\n.pl-kw .rng { font-weight: 400; color: var(--muted); margin-left: var(--s1); }\n.pl-dd { font-size: 11px; line-height: 1.25; padding: 0 0 var(--s2); border-bottom: 1px solid var(--line); color: var(--muted); }\n.pl-dd span { display: block; }\n.pl-dd.we { background: var(--weekend); }\n.pl-dd.today { background: var(--lime); color: #14252c; font-weight: 700; }\n.pl-cell { border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }\n.pl-cell.we { background: var(--weekend); }\n.pl-cell.today { position: relative; }\n.pl-cell.today::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 2px; background: var(--teal); }\n.pl-cell.secbg { background: var(--band); }\n.bar { z-index: 2; margin-inline: 1px; border-radius: 4px; min-width: 0; }\n.bar.soll { align-self: center; transform: translateY(-8px); height: 12px; background: var(--soll); }\n.bar.soll { position: relative; cursor: grab; touch-action: pan-y; }\n.bar.soll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.bar.soll.dragging { cursor: grabbing; z-index: 5; opacity: .92; }\n.grip { position: absolute; top: -4px; bottom: -1px; width: 10px; cursor: ew-resize; touch-action: pan-y; }\n.grip[data-edge=\"s\"] { inset-inline-start: -3px; } .grip[data-edge=\"e\"] { inset-inline-end: -3px; }\n.grip::after { content: ''; position: absolute; top: 5px; bottom: 2px; inset-inline-start: 3px; width: 3px; border-radius: 2px; background: var(--panel); opacity: 0; transition: opacity .12s; }\n.bar.soll:hover .grip::after, .bar.soll:focus-visible .grip::after, .bar.soll.dragging .grip::after { opacity: 1; }\n@media (prefers-reduced-motion: reduce) { .grip::after { transition: none; } }\n@media (max-width: 640px), (hover: none), (pointer: coarse) {\n  .grip { width: 16px; top: -9px; bottom: -3px; }\n  .grip::after { opacity: 1; top: 8px; bottom: 5px; }\n  .bar.soll::before { content: ''; position: absolute; inset: -9px 0 -3px; }\n}\n.pl-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.pl-dragtip { position: fixed; z-index: 1200; pointer-events: none; padding: 4px 8px; border-radius: 6px; background: var(--ink); color: var(--paper); font-size: 12px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }\n.pl-move { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); margin: 0 0 var(--s3); padding: var(--s2) var(--s3); border-radius: 6px; background: var(--ok-bg); color: var(--ok-ink); }\n.pl-move.err { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n.pl-move button { background: var(--panel); }\n.bar.ist { align-self: center; transform: translateY(8px); height: 12px; background: var(--ist); }\n.bar.res { align-self: center; height: 22px; background: var(--soll-soft); border: 1px solid var(--soll-line); color: var(--ink); font-size: 11px; line-height: 20px; padding-inline: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.res.geraet { background: var(--gear); border-color: var(--gear-line); }\n.bar.res.doppelt { z-index: 3; display: flex; align-items: center; justify-content: flex-end; padding-inline: 2px; background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stoer) 30%, transparent) 6px 7px); border: 1.5px solid var(--stoer); }\n.dbl-chip { padding: 0 6px; border-radius: 3px; background: var(--stoer-soft); color: var(--stoer); font-weight: 600; line-height: 16px; }\n.bar.event { align-self: center; height: 22px; background: var(--stoer); color: var(--on-stoer); font-size: 11px; line-height: 22px; padding-inline: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }\n.bar.event.open { border-radius: 4px 0 0 4px; }\n.bar.clip-s { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }\n.bar.clip-e { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }\n.dep-layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }\n.dep-arrow { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }\n.dep-arrow.broken { stroke: var(--stoer); stroke-dasharray: 4 3; }\n.dep-head { fill: var(--muted); } .dep-head.broken { fill: var(--stoer); }\n.taskbtn { all: unset; cursor: pointer; font-weight: 600; border-radius: 3px; }\n.taskbtn:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--teal); }\n.taskbtn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.pl-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; align-items: center; }\n.pl-legend .it { display: inline-flex; align-items: center; gap: 6px; }\n.pl-legend .hint { flex-basis: 100%; }\n.pl-legend svg { display: block; }\n.sw { width: 18px; height: 8px; border-radius: 2px; display: inline-block; }\n.list { list-style: none; margin: 0; padding: 0; }\n.list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--line-soft); max-width: 900px; }\n.list li:last-child { border-bottom: 0; }\n.list.events li { flex-direction: column; align-items: flex-start; padding: var(--s3) 0; }\n.evt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); }\n.list.events .row { margin-top: var(--s2); }\n.tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; background: var(--ok-bg); color: var(--ok-ink); }\n.tag.warn { background: var(--note-bg); color: var(--note-ink); box-shadow: inset 0 0 0 1px var(--note-line); }\n.tag.stoer { background: var(--stoer-soft); color: var(--stoer); }\n.muted { color: var(--muted); }\n.empty { color: var(--muted); margin: 0; }\ndetails.add { margin-top: var(--s3); }\ndetails.add > summary { cursor: pointer; color: var(--teal); font-weight: 600; width: fit-content; border-radius: 3px; }\nform.frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: var(--s3); align-items: end; margin-top: var(--s3); max-width: 900px; }\nform.evt { display: grid; gap: var(--s3); margin: var(--s4) 0; max-width: 640px; padding: var(--s4) 0 0; border-top: 1px solid var(--line); }\nform label { display: grid; gap: var(--s1); font-size: 12px; color: var(--muted); }\nform .row { display: flex; gap: var(--s2); flex-wrap: wrap; }\n.pl-app .row { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }\nform.frm :is(select, input, textarea) { width: 100%; min-width: 0; }\ninput, select, textarea { font: inherit; color: var(--ink); background: var(--panel); padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 6px; min-height: 36px; }\nbutton { font: inherit; cursor: pointer; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--teal); background: transparent; color: var(--teal); min-height: 36px; font-weight: 600; }\nbutton:hover { background: var(--ok-bg); }\nbutton.primary { background: var(--teal); color: var(--on-teal); } button.primary:hover { background: var(--teal-d); }\nbutton.ico-btn { display: inline-flex; align-items: center; gap: var(--s2); }\n.ico { flex: none; width: 16px; height: 16px; }\nbutton.quiet .ico { width: 14px; height: 14px; }\n.pl-lab .nm button.quiet .ico { width: 14px; height: 14px; }\nbutton.icon-only { padding-inline: var(--s2); min-width: 28px; justify-content: center; }\nbutton.quiet { border-color: transparent; padding-inline: var(--s2); min-height: 28px; font-weight: 500; }\n.snap { color: var(--muted); font-size: 12px; margin: 0; max-width: 70ch; }\n.err { color: var(--stoer); margin: 0; font-weight: 600; }\ntable { border-collapse: collapse; width: 100%; max-width: 900px; min-width: 560px; }\n.tw { overflow-x: auto; max-width: 900px; }\n.tw table { max-width: none; }\n.tw.wide { max-width: none; }\n.tw.wide table { width: 100%; table-layout: fixed; min-width: calc(180px + var(--n, 5) * 120px); }\n.tw.wide th:first-child { width: 180px; }\n.tw.wide td, .tw.wide th { white-space: normal; overflow-wrap: break-word; vertical-align: top; }\n@media (max-width: 640px) { .tw.wide th:first-child { width: 130px; } .tw.wide table { min-width: calc(130px + var(--n, 5) * 120px); } }\ntd, th { white-space: nowrap; }\nth { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }\ntd { padding: var(--s2) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line-soft); }\ntd.cell { padding: var(--s2) var(--s3); }\n.cell-tasks { display: block; font-size: 12px; font-weight: 400; }\ntd.frei { color: var(--muted); } td.verplant { background: var(--ok-bg); color: var(--ok-ink); } td.doppelt { background: var(--stoer-soft); color: var(--stoer); font-weight: 600; }\n@media (max-width: 640px), (pointer: coarse) {\n  button, .segbtn, input, select { min-height: 44px; }\n  button.quiet { min-height: 44px; }\n  .pl-lab .nm button.quiet, .pl-lab .nm .taskbtn { position: relative; min-height: 24px; }\n  .pl-lab .nm button.quiet::after, .pl-lab .nm .taskbtn::after { content: ''; position: absolute; inset: -10px -4px; }\n}\n@media (max-width: 640px) {\n  :root { --label: 150px; --day: 26px; }\n  .pl-app.standalone { padding-inline: var(--s3); }\n}\nfieldset.assess { display: grid; gap: var(--s3); margin: 0; padding: var(--s3) var(--s4); border: 1px solid var(--line-strong); border-radius: 6px; }\nfieldset.assess legend { font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 var(--s2); }\nfieldset.assess label { display: grid; gap: var(--s1); }\n.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; margin: 0 0 var(--s3); }\n.segbtn { border: 0; border-right: 1px solid var(--line-strong); background: transparent; padding: var(--s2) var(--s4); font: inherit; font-size: 13px; cursor: pointer; color: var(--muted); }\n.segbtn:last-child { border-right: 0; }\n.segbtn[aria-pressed=\"true\"] { background: var(--band); color: inherit; font-weight: 600; }\n.segbtn:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }\n.cell-tasks.dbl { font-weight: 600; }\n.pl-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.pl-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.38); }\n.pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column; background: var(--panel); color: var(--ink); border-left: 1px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.18); }\n.pl-panel.enter { animation: pl-slide-in 0.2s ease-out; }\n@keyframes pl-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n.pl-panel-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4); border-bottom: 1px solid var(--line); }\n.pl-panel-head h2 { margin: 0; font-size: 16px; }\n.pl-panel .pl-letter { display: grid; gap: var(--s3); align-content: start; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; }\n.pl-panel .pl-letter p, .pl-panel .pl-letter ul { margin: 0; }\n.pl-panel form.panel-form { display: grid; grid-template-columns: 1fr; gap: var(--s3); align-items: start; margin: 0; max-width: none; padding: var(--s4); overflow-y: auto; flex: 1 1 auto; align-content: start; }\n.pl-panel form.panel-form .row { position: sticky; bottom: calc(-1 * var(--s4)); display: flex; gap: var(--s3); margin: var(--s2) calc(-1 * var(--s4)) calc(-1 * var(--s4)); padding: var(--s3) var(--s4); background: var(--panel); border-top: 1px solid var(--line); }\n.pl-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-bottom: 1px solid var(--note-line); font-weight: 600; }\n.pl-confirm span { flex: 1 1 100%; }\n@media (prefers-reduced-motion: reduce) { .pl-panel.enter { animation: none; } }\n.pl-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 0 0 var(--s4); min-width: 0; }\n.pl-card-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s2) var(--s3); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line-soft); }\n.pl-card-head h2 { margin: 0; font-size: 16px; }\n.pl-card-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }\n.pl-card-head .seg { margin: 0; }\n.pl-card-body { padding: var(--s4); min-width: 0; }\n.pl-card-body h3 { font-size: 13px; font-weight: 600; color: var(--muted); margin: var(--s5) 0 var(--s2); }\n.pl-card-body > h3:first-child { margin-top: 0; }\n.pl-card .pl-scroll { border: 0; border-radius: 0; margin-inline: calc(-1 * var(--s4)); border-top: 1px solid var(--line-soft); }\n.pl-card .pl-scroll:last-child { margin-bottom: calc(-1 * var(--s4)); border-radius: 0 0 10px 10px; }\n.pl-card .pl-period { margin-bottom: var(--s3); }\n.pl-card .pl-sync { margin: 0 0 var(--s1); }\n.pl-card .list li { max-width: none; }\n.pl-card .tw, .pl-card .tw.wide { max-width: none; }\n.pl-card table { max-width: none; min-width: 0; }\n.pl-card .tw:not(.wide) table { min-width: 480px; }\n.pl-card .pl-card-body > .row { margin-top: var(--s3); }\n.pl-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--s4); align-items: start; }\n.pl-card .list.events { display: grid; gap: var(--s3); }\n.pl-card .list.events li { padding: var(--s3); border: 1px solid var(--line-soft); border-radius: 8px; background: var(--band); gap: var(--s1); }\n.pl-card .list.events .row { margin-top: var(--s2); }\n@media (max-width: 640px) { .pl-card-head, .pl-card-body { padding-inline: var(--s3); } .pl-card .pl-scroll { margin-inline: calc(-1 * var(--s3)); } }\n.pl-card .tw:not(.wide) table { min-width: 0; }\n.pl-card .tw:not(.wide) :is(td, th) { white-space: normal; }\n.pl-card .tw:not(.wide) td:last-child { white-space: nowrap; }\n.pl-toasts { position: fixed; z-index: 1100; inset-inline: var(--s3); bottom: var(--s4); display: flex; justify-content: center; pointer-events: none; }\n.pl-toast { pointer-events: auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3); max-width: min(760px, 100%); padding: var(--s2) var(--s3) var(--s2) var(--s4); border-radius: 10px; background: var(--ink); color: var(--paper); font-size: 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28); animation: pl-toast-in 0.18s ease-out; }\n.pl-toast-text { font-weight: 600; margin-right: var(--s2); }\n.pl-toast button { color: var(--paper); border: 1px solid color-mix(in srgb, var(--paper) 55%, transparent); background: transparent; min-height: 32px; font-weight: 600; }\n.pl-toast button:hover { background: color-mix(in srgb, var(--paper) 16%, transparent); }\n.pl-toast button.icon-only { border-color: transparent; }\n.pl-toast :is(button):focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }\n@keyframes pl-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }\n@media (prefers-reduced-motion: reduce) { .pl-toast { animation: none; } }\n@media (max-width: 640px), (pointer: coarse) { .pl-toast button { min-height: 44px; } }\n.pl-card-foot { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--s2) var(--s4); padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); background: var(--band); border-radius: 0 0 10px 10px; }\n.pl-card .pl-scroll:last-child { margin-bottom: calc(-1 * var(--s4)); border-radius: 0; }\n@media (max-width: 640px) { .pl-card-foot { padding-inline: var(--s3); } .pl-card-foot .pl-card-actions { width: 100%; } }\n.evt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }\n.evt-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }\n.evt-card-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s1) var(--s3); padding: var(--s3) var(--s4); background: var(--band); border-bottom: 1px solid var(--line-soft); }\n.evt-card-head strong { font-size: 15px; }\n.evt-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: var(--s2) var(--s4); margin: 0; padding: var(--s3) var(--s4); }\n.evt-facts dt { color: var(--muted); font-size: 13px; }\n.evt-facts dd { margin: 0; overflow-wrap: anywhere; }\n.evt-card-actions { padding: var(--s3) var(--s4); border-top: 1px solid var(--line-soft); }\n@media (max-width: 640px) { .evt-facts { grid-template-columns: minmax(0, 1fr); gap: 0; } .evt-facts dd { margin-bottom: var(--s2); } .evt-card-head, .evt-facts, .evt-card-actions { padding-inline: var(--s3); } }\n.pl-kbd { margin-left: var(--s2); padding: 0 6px; border: 1px solid color-mix(in srgb, var(--paper) 55%, transparent); border-radius: 4px; font: inherit; font-size: 12px; font-weight: 500; }\n.pl-scroll { cursor: grab; }\n.pl-scroll:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }\n.pl-lab { cursor: default; }\n.pl-panning, .pl-panning * { cursor: grabbing !important; user-select: none; }\n.pl-grid[data-density=\"kompakt\"] .pl-dd .wd, .pl-grid[data-density=\"dicht\"] .pl-dd .wd { display: none; }\n.pl-grid[data-density=\"kompakt\"] .pl-kw .rng, .pl-grid[data-density=\"dicht\"] .pl-kw .rng { display: none; }\n.pl-grid[data-density=\"kompakt\"] .pl-dd { font-size: 10px; padding-top: var(--s1); }\n.pl-grid[data-density=\"dicht\"] .pl-dd { font-size: 10px; padding-top: var(--s1); border-left-color: transparent; }\n.pl-grid[data-density=\"dicht\"] .pl-dd .dn { visibility: hidden; }\n.pl-grid[data-density=\"dicht\"] .pl-dd.mon { position: relative; z-index: 1; border-left-color: var(--line-soft); }\n.pl-grid[data-density=\"dicht\"] .pl-dd.mon .dn { visibility: visible; position: absolute; inset-inline-start: 2px; white-space: nowrap; }\n.pl-grid[data-density=\"dicht\"] .pl-cell:not(.mon) { border-left-color: transparent; }\n.pl-grid[data-weeks=\"26\"] .pl-kw .kwp { display: none; }\n.pl-grid[data-density=\"dicht\"] { overflow: hidden; }       \n.zoomseg .segbtn { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; }\n.segbtn:disabled { opacity: .45; cursor: not-allowed; }\n.zoomseg .ico { width: 16px; height: 16px; }\n@media (max-width: 640px) { .segbtn .u { display: none; } .segbtn[data-weeks] { padding-inline: var(--s3); } }" }, { build: "sha256:e2dee1ec280be4e7" }));
 })();

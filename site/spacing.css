@@ -191,7 +191,7 @@ strong .ic-wrap{margin-right:.3em}
 @media print{.ic-wrap{display:none}}
 
 /* ---- Guided section navigation (Baustellentag): in-page links, sticky, derived from entered/validated data ---- */
-.ac01-steps{position:sticky;top:0;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);max-width:1560px;margin:0 auto var(--sp-3);padding:var(--sp-1) var(--sp-2);background:#fff;border:1.5px solid #7b9487;border-radius:12px;box-shadow:0 3px 10px #1b403014}
+.ac01-steps{position:sticky;top:0;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);max-width:none;margin:0 0 var(--sp-3);padding:var(--sp-1) var(--sp-2);background:#fff;border:1.5px solid #7b9487;border-radius:12px;box-shadow:0 3px 10px #1b403014}
 .ac01-steps ol{display:flex;gap:var(--sp-1);flex:1;min-width:0;margin:0;padding:0;list-style:none}
 .ac01-steps li{flex:1 1 0;min-width:0}
 .ac01-steps button{position:relative;display:flex;align-items:center;gap:var(--sp-2);width:100%;min-height:44px;padding:2px var(--sp-2);border:0;border-radius:8px;background:transparent;color:#16271e;text-align:left}
