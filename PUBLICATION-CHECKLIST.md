@@ -1,5 +1,16 @@
 # Sicherheits- und Publikationscheckliste
 
+## Bestätigte Veröffentlichung s56 (Planer: Verschieben und Maßstab der Zeitachse, volle Breite, Entwurf mit Soll und Fortdauer) — 2026-11-20, Release-Token `2026-11-20-s56`
+
+- [x] Public static release committed as `471d112` and pushed normally to `origin/main`. It changes `site/index.html` (token only), `site/styles.css`, `site/ac01.css`, `site/spacing.css` (all views use the full width, 32 px side padding) and `site/vendor/planner.bundle.js`: pan (swipe, Shift + wheel, drag on empty chart area), time scaling (Ctrl/Cmd + wheel, buttons, levels 2 / 5 / 8 / 13 / 26 weeks), keyboard region, header detail by column width; the letter draft of an event shows the Soll dates and "Fortdauer" until a resumption is recorded.
+- [x] Allowlist unchanged (14 files in `site/`); `planner.bundle.js` generated with `--neutral-wording`; `ac01-core.bundle.js` rebuilt neutral to a scratch file and byte-identical to the published one, not copied; the invented disruption case (a local preview page and test fixture) is not in the bundle (checked: no hit).
+- [x] Workflow rules replayed locally before the push (exact allowlist, no network/storage/dynamic code, only the SVG namespace URL, name/identifier/legal-wording scan: no hits, demo labels present).
+- [x] Version gate: all twelve referenced assets use `?v=2026-11-20-s56`.
+- [x] Functional gate: `PAGES_SITE_DIR=../intrend-mission-control-demo/site node integration-tests.mjs` 47/47 against this exact package; private source: integration 46/46, ui-tests 62/62; SPFx 208/208, planner browser check 31/31, Stundenzettel ui-check 15/15.
+- [x] Live proof: Pages run `44749577965` (commit `471d112`) succeeded; SHA-256 of all 14 downloaded Pages files matches the local package.
+- [x] Live browser smoke (headless Chrome on the public URL, shadow root of the planner): token `s56` present, chart region and zoom buttons present, five zoom presets, Ctrl + wheel gave 56 day columns, a horizontal wheel moved the window, no page overflow, no console errors.
+- [ ] Still unverified, not blockers: a real touch gesture (touch drag-pan and a two-finger pinch are not implemented), a real trackpad (only synthesized wheel events), screen readers, real iPhone/Safari.
+
 ## Bestätigte Veröffentlichung s55 (Planer: Karten mit Fußleisten, Toast mit nächsten Schritten, Ereignis-Karten) — 2026-11-20, Release-Token `2026-11-20-s55`
 
 - [x] Public static release committed as `42c4b8b` and pushed normally to `origin/main`. It changes `site/index.html` (token only) and `site/vendor/planner.bundle.js`: the planner page is grouped into five cards (Plan, Prüfung, Ereignisse, Zuordnungen, Wochenübersicht) in one column; buttons follow one rule (create in the footer of the card, row actions at the end of the row, event actions at the bottom of the event card); Ereignisse are one card per event and "Ereignis anlegen" chooses the Planvorgang in the panel; after creating or removing something a toast offers the next step or "Rückgängig" (a toast with undo has no timer; Ctrl/Cmd+Z and Escape work from anywhere; never undoes more than it announced); audit fixes (contrast, solid "doppelt" chip with a fill-free hatch, 44 px buttons on phones).
