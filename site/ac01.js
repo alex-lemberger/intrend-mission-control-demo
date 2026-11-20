@@ -825,7 +825,7 @@
     else if (existing && !sameKey(editingKey, key)) text = `Achtung: Für ${label} ist bereits ein Tag gespeichert. Speichern ersetzt ihn erst nach Bestätigung; geöffnet wird er über Mission Control.`;
     else if (editingKey) text = dirty ? `Gespeicherter Tag ${open} wird bearbeitet · ungespeicherte Änderungen.` : `Gespeicherter Tag ${open} geöffnet · keine ungespeicherten Änderungen.`;
     else text = dirty ? 'Neuer Tag · noch nicht gespeichert.' : 'Neuer, leerer Tag.';
-    statusEl.textContent = `${text} ${workdays.isPersistent() ? 'Gespeicherte Tage bleiben nur in diesem Browser auf diesem Gerät erhalten; nichts wird gesendet.' : 'Nur im Arbeitsspeicher dieser Demo: nach dem Neuladen der Seite ist alles weg.'}`;
+    statusEl.textContent = `${text} ${workdays.isPersistent() ? 'Gespeicherte Tage bleiben nur in diesem Browser auf diesem Gerät erhalten; nichts wird gesendet. Bitte nur erfundene Daten eingeben.' : 'Nur im Arbeitsspeicher dieser Demo: nach dem Neuladen der Seite ist alles weg.'}`;
     statusEl.classList.toggle('is-warning', replacePending || Boolean(existing && !sameKey(editingKey, key)));
     statusEl.dataset.dirty = String(dirty);               // drives the visible "Ungespeichert" marker
     renderSteps();

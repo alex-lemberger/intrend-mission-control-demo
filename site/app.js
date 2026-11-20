@@ -316,9 +316,9 @@ function wdArmClear(){
 }
 function renderStorageNotes(count){
   const persistent = WorkdayStore.store.isPersistent();
-  const note = persistent ? 'Gespeichert nur in diesem Browser auf diesem Gerät, nichts wird gesendet' : 'Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg';
+  const note = persistent ? 'Gespeichert nur in diesem Browser auf diesem Gerät, nichts wird gesendet. Bitte nur erfundene Daten eingeben' : 'Nur im Arbeitsspeicher: nach dem Neuladen der Seite ist alles weg';
   document.querySelectorAll('.storage-note').forEach(el => { el.textContent = note; });
-  document.querySelectorAll('.storage-detail').forEach(el => { el.textContent = persistent ? '. Gespeicherte Tage bleiben nur in diesem Browser auf diesem Gerät erhalten; ungespeicherte Eingaben gehen beim Neuladen verloren.' : ' im Arbeitsspeicher; beim Neuladen gehen Eingaben verloren.'; });
+  document.querySelectorAll('.storage-detail').forEach(el => { el.textContent = persistent ? '. Gespeicherte Tage bleiben nur in diesem Browser auf diesem Gerät erhalten; ungespeicherte Eingaben gehen beim Neuladen verloren. Bitte nur erfundene Daten eingeben.' : ' im Arbeitsspeicher; beim Neuladen gehen Eingaben verloren.'; });
   wdStoredCount = count;
   const button = $('#wd-clear'); if (!button) return;
   button.hidden = !(persistent && count > 0);
