@@ -40,6 +40,7 @@ jobs:
             site/styles.css \
             site/timesheet-view.js \
             site/vendor/ac01-core.bundle.js \
+            site/vendor/lv.bundle.js \
             site/vendor/planner.bundle.js \
             site/vendor/stundenzettel.bundle.js \
             site/workday-store.js)"
@@ -47,13 +48,16 @@ jobs:
           for f in $expected; do test -s "$f"; done
           # no network calls or dynamic code in any published file; session storage, IndexedDB and cookies are never used
           if grep -rEn 'fetch\(|XMLHttpRequest|WebSocket|sendBeacon|importScripts|serviceWorker|sessionStorage|indexedDB|document\.cookie|eval\(|new Function' site; then exit 1; fi
-          # browser local storage (decided by the owner: 2026-11-20 for the planner, 2026-11-21 for the saved working days, so that a viewer can keep
-          # worked-through examples on their own device): allowed ONLY in these two files, only under this demo's own key prefix,
-          # and only with the warnings that no real data may be entered
-          if grep -rl 'localStorage' site | grep -vxE 'site/vendor/planner\.bundle\.js|site/workday-store\.js'; then exit 1; fi
+          # browser local storage (decided by the owner: 2026-11-20 for the planner, 2026-11-21 for the saved working days and for the
+          # Leistungsverzeichnis, so that a viewer can keep worked-through examples on their own device): allowed ONLY in these three files,
+          # only under this demo's own key prefix, and only with the warnings that no real data may be entered
+          if grep -rl 'localStorage' site | grep -vxE 'site/vendor/planner\.bundle\.js|site/vendor/lv\.bundle\.js|site/workday-store\.js'; then exit 1; fi
           grep -q 'intrend-mc-demo:' site/vendor/planner.bundle.js
           grep -q 'intrend-mc-demo:workdays:v1' site/workday-store.js
           if grep -hoE 'intrend-mc-demo:[A-Za-z0-9:_-]*' site/workday-store.js | grep -vx 'intrend-mc-demo:workdays:v1'; then exit 1; fi
+          grep -q 'intrend-mc-demo:lv:v1:' site/vendor/lv.bundle.js
+          if grep -hoE 'intrend-mc-demo:[A-Za-z0-9:_-]*' site/vendor/lv.bundle.js | grep -vxE 'intrend-mc-demo:|intrend-mc-demo:lv:v1:|intrend-mc-demo:probe'; then exit 1; fi
+          grep -q 'Bitte nur erfundene Daten eingeben' site/vendor/lv.bundle.js
           grep -q 'Keine echten Daten eingeben' site/index.html
           grep -q 'Bitte nur erfundene Daten eingeben' site/app.js
           # the only absolute URL allowed is the SVG namespace inside the synthetic placeholder images
