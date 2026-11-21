@@ -106,3 +106,6 @@ body[data-draft-dirty] .mobile-nav [data-view="ac01"]::after{position:absolute;t
 .case-tools button{min-height:44px;padding:0 14px;border:1px solid #6f8478;border-radius:8px;background:#fff;color:#2f4a43;font-size:13px;font-weight:700}
 .case-tools button:hover{background:#eef3ef}
 .case-tools button.armed{background:#fff6e5;border-color:#a54e35;color:#5b3d12}
+/* Planner page: every action button is primary (owner's decision 2026-11-21). The example chooser stays a toggle group (pressed or not); the armed state of the delete button keeps its warning look. */
+#planner-view .case-tools button:not(.armed),#planner-view .page-head .outline{background:var(--teal);border-color:var(--teal);color:#fff}
+#planner-view .case-tools button:not(.armed):hover,#planner-view .page-head .outline:hover{background:#084f47;border-color:#084f47}

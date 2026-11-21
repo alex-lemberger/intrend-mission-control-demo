@@ -82,6 +82,7 @@ function crumbTrail() {
     case 'ac01': { const k = key(window.AC01Workday); return k ? [mc, proj(k.projectId), { label: dateText(k.date) }] : [mc, { label: 'Baustellentag erfassen' }]; }
     case 'timesheet': { const k = key(window.TimesheetView); return k ? [mc, proj(k.projectId), { label: 'Stundenzettel' }] : [mc, { label: 'Stundenzettel' }]; }
     case 'planner': return [mc, { label: 'Planer' }];
+    case 'lv': return [mc, { label: 'Leistungsverzeichnis' }];
     case 'detail': return [mc, { label: 'Ereignis (bisheriges Formular)' }];
     case 'draft': return [mc, { label: 'Dokumentvorschau' }];
     default: return [{ label: 'Mission Control' }];
@@ -117,6 +118,7 @@ function switchView(view, { confirmed = false } = {}) {
   if(view==='draft') renderDraft();
   if(view==='timesheet') TimesheetView.render();
   if(view==='planner') renderPlanner();
+  if(view==='lv') renderLv();
   renderDraftNotices();
   renderEditorTitle();
   const route =view === 'ac01' ? '#ac01' : window.location.href.split('#')[0];
@@ -180,6 +182,19 @@ function renderPlanner() {
     mountPlannerCase(plannerCaseKey, n === 1 ? '1 gespeicherter Plan gelöscht.' : `${n} gespeicherte Pläne gelöscht.`);
   };
   mountPlannerCase('demo');
+}
+// Leistungsverzeichnis (first slice): generated bundle vendor/lv.bundle.js, mounted once in a shadow root. Its invented LV and the entered
+// Leistungsstand are kept in this browser on this device (key intrend-mc-demo:lv:v1:7001, nothing is sent); the view offers a two-step reset.
+let lvApi = null;
+function renderLv() {
+  const host = $('#lv-host');
+  if (!window.LvApp) { host.innerHTML = '<div class="panel"><div class="empty">Der Leistungsverzeichnis-Baustein fehlt (vendor/lv.bundle.js).</div></div>'; return; }
+  if (lvApi) return;
+  const sr = host.attachShadow({ mode: 'open' });
+  const style = document.createElement('style'); style.textContent = window.LvApp.css;
+  const mount = document.createElement('div');
+  sr.append(style, mount);
+  lvApi = window.LvApp.mountLv(mount, { scheme: 'light', persist: true });
 }
 // Title and lead of the editor follow the saved day it holds: "erfassen" for a new day, "bearbeiten" for a saved day.
 function renderEditorTitle() {
