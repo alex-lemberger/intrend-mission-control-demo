@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:d9cfb4a39f6f8805, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:e2aec5442c815733, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/state/day-copy.js, src/state/breadcrumbs.js, src/state/stored-day.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry ac01-core <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -21,13 +21,21 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createDemoData = exports.createAC01Demo = void 0;
+exports.isStoredDayReport = exports.isIsoDate = exports.breadcrumbTrail = exports.nextFreeDate = exports.copyDayReport = exports.createDemoData = exports.createAC01Demo = void 0;
 __exportStar(require("../core/index.js"), exports);
 var ac01_demo_api_ts_1 = require("./ac01-demo-api.js");
 Object.defineProperty(exports, "createAC01Demo", { enumerable: true, get: function () { return ac01_demo_api_ts_1.createAC01Demo; } });
 var demo_data_ts_1 = require("../demo/demo-data.js");
 Object.defineProperty(exports, "createDemoData", { enumerable: true, get: function () { return demo_data_ts_1.createDemoData; } });
 __exportStar(require("../behinderung/behinderungsanzeige.js"), exports);
+var day_copy_ts_1 = require("../state/day-copy.js");
+Object.defineProperty(exports, "copyDayReport", { enumerable: true, get: function () { return day_copy_ts_1.copyDayReport; } });
+Object.defineProperty(exports, "nextFreeDate", { enumerable: true, get: function () { return day_copy_ts_1.nextFreeDate; } });
+var breadcrumbs_ts_1 = require("../state/breadcrumbs.js");
+Object.defineProperty(exports, "breadcrumbTrail", { enumerable: true, get: function () { return breadcrumbs_ts_1.breadcrumbTrail; } });
+var stored_day_ts_1 = require("../state/stored-day.js");
+Object.defineProperty(exports, "isIsoDate", { enumerable: true, get: function () { return stored_day_ts_1.isIsoDate; } });
+Object.defineProperty(exports, "isStoredDayReport", { enumerable: true, get: function () { return stored_day_ts_1.isStoredDayReport; } });
 
 },
 "src/core/index.js": function (require, exports, module) {
@@ -219,6 +227,80 @@ function buildBehinderungsanzeige(draft) {
             ...(variant === 'persoenlich' ? ['Die Formulierung der persönlichen Variante ist ein Platzhaltertext, keine geprüfte oder freigegebene Vorlage.'] : []),
         ],
     };
+}
+
+},
+"src/state/day-copy.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.copyDayReport = copyDayReport;
+exports.nextFreeDate = nextFreeDate;
+const factories_ts_1 = require("../core/factories.js");
+function copyDayReport(report, date) {
+    const source = structuredClone(report);
+    return {
+        projectId: source.projectId,
+        date,
+        events: [],
+        extras: source.extras,
+        employees: source.employees.map(({ id: _employeeId, assignments, ...person }) => {
+            const { collapsed: _c, selected: _s, prefill: _p, ...data } = (0, factories_ts_1.newEmployee)({
+                ...person,
+                assignments: assignments.map(({ id: _assignmentId, ...assignment }) => (0, factories_ts_1.newAssignment)({ ...assignment, photos: [], locationDraft: '' }))
+            });
+            return data;
+        })
+    };
+}
+const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+function nextFreeDate(takenDates, todayIso) {
+    const taken = new Set(takenDates);
+    const [y, m, d] = todayIso.split('-').map(Number);
+    let ms = Date.UTC(y, m - 1, d);
+    while (taken.has(iso(ms)))
+        ms += 86_400_000;
+    return iso(ms);
+}
+
+},
+"src/state/breadcrumbs.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.breadcrumbTrail = breadcrumbTrail;
+function breadcrumbTrail({ view, workday, timesheet, projectName, dateText }) {
+    const root = { label: 'Mission Control', go: 'dashboard' };
+    const project = (id) => ({ label: projectName(id), go: `project:${id}` });
+    switch (view) {
+        case 'field': return [root, { label: 'Tagesbericht · bisheriges Formular' }];
+        case 'ac01': return workday ? [root, project(workday.projectId), { label: dateText(workday.date) }] : [root, { label: 'Baustellentag erfassen' }];
+        case 'timesheet': return timesheet ? [root, project(timesheet.projectId), { label: 'Stundenzettel' }] : [root, { label: 'Stundenzettel' }];
+        case 'planner': return [root, { label: 'Planer' }];
+        case 'lv': return [root, { label: 'Leistungsverzeichnis' }];
+        case 'detail': return [root, { label: 'Ereignis (bisheriges Formular)' }];
+        case 'draft': return [root, { label: 'Dokumentvorschau' }];
+        default: return [{ label: 'Mission Control' }];
+    }
+}
+
+},
+"src/state/stored-day.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.isIsoDate = isIsoDate;
+exports.isStoredDayReport = isStoredDayReport;
+const isText = (value) => typeof value === 'string';
+function isIsoDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value))
+        return false;
+    const [y, m, d] = value.split('-').map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+function isStoredDayReport(day, isValidDate = isIsoDate) {
+    return Boolean(day) && isText(day.projectId) && isText(day.date) && isValidDate(day.date)
+        && Array.isArray(day.employees) && day.employees.every((employee) => employee && isText(employee.name) && Array.isArray(employee.assignments))
+        && Array.isArray(day.events) && day.events.every((event) => event && Array.isArray(event.reasons))
+        && Boolean(day.extras) && ['equipment', 'material', 'contacts'].every(key => isText(day.extras[key]));
 }
 
 },
@@ -607,5 +689,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:d9cfb4a39f6f8805" }));
+  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:e2aec5442c815733" }));
 })();

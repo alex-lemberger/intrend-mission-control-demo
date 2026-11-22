@@ -64,7 +64,7 @@
     const dateLine = moreReports.length === 0 ? dateText(report.date) : `${allDates.map(dmy).join(', ')} · ${allDates.length} Tage`;
     const projectCount = new Set(days.map(d => d.projectId)).size;
     $('#ts-source').innerHTML = `<section class="ts-source" data-project="${esc(report.projectId)}" data-date="${esc(report.date)}" aria-label="Quelle des Stundenzettels">
-      <div class="ts-source-main"><span class="eyebrow">BAUPROJEKT · GESPEICHERTE TAGE</span><strong id="ts-src-project">${esc(project(report.projectId).name)}</strong><span id="ts-src-date">${esc(dateLine)}</span></div>
+      <div class="ts-source-main"><span class="eyebrow">Bauprojekt · gespeicherte Tage</span><strong id="ts-src-project">${esc(project(report.projectId).name)}</strong><span id="ts-src-date">${esc(dateLine)}</span></div>
       <dl class="ts-figures"><div><dt>Einträge verfügbar</dt><dd id="ts-available">${available}</dd></div><div><dt>Ausgewählt</dt><dd id="ts-selected">0</dd></div></dl>
       <div class="ts-source-actions"><button class="outline" type="button" data-ts-reopen><i class="ic-wrap" data-icon="pencil"></i>Baustellentag bearbeiten</button>${projectCount > 1 ? '<button class="text-action" type="button" data-ts-choose>Anderes Projekt wählen</button>' : ''}</div>
       <p class="ts-note">${cached && !restore ? '<strong>Die gespeicherten Tage dieses Projekts haben sich geändert; der Stundenzettel beginnt neu.</strong> ' : ''}Der Baustellentag wird hier nur gelesen; Änderungen im Stundenzettel bleiben im Stundenzettel.</p></section>`;
@@ -91,7 +91,7 @@
     });
     const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
     $('#ts-source').innerHTML = days.length
-      ? `<section class="panel ts-choose"><div class="panel-head"><div><span class="eyebrow">PROJEKT WÄHLEN</span><h2>Für welches Bauprojekt?</h2></div><span class="count-pill">${plural(groups.length, 'Bauprojekt', 'Bauprojekte')}</span></div>${groups.map(g =>
+      ? `<section class="panel ts-choose"><div class="panel-head"><div><h2>Für welches Bauprojekt?</h2></div><span class="count-pill">${plural(groups.length, 'Bauprojekt', 'Bauprojekte')}</span></div>${groups.map(g =>
           `<article class="list-item ts-day" data-project="${esc(g.projectId)}" data-date="${esc(g.anchor)}"><div class="item-top"><strong>${esc(project(g.projectId).name)}</strong><button class="outline" type="button" data-ts-open>Stundenzettel erstellen <span aria-hidden="true">→</span></button></div><div class="item-sub">${plural(g.days.length, 'Tag', 'Tage')} · ${plural(g.days.reduce((n, d) => n + lines(d), 0), 'Eintrag', 'Einträge')}</div></article>`).join('')}</section>`
       : `<section class="panel ts-empty"><div class="empty"><strong>Noch kein Baustellentag gespeichert.</strong><br>Ein Stundenzettel entsteht aus den Einträgen eines gespeicherten Baustellentags. Dort einmal erfassen und „Speichern → Mission Control“ wählen; Namen und Zeiten müssen dann nicht neu eingegeben werden.</div><div class="ts-empty-actions"><button class="primary" type="button" data-view="ac01" data-new-day>＋ Baustellentag erfassen</button></div></section>`;
   }

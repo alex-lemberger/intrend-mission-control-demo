@@ -57,13 +57,11 @@
   }
 
   const STORAGE_KEY = 'intrend-mc-demo:workdays:v1';
-  const isText = value => typeof value === 'string';
-  // Minimal shape check for what comes back from the browser: anything that would break the screens is dropped, not repaired.
-  const isIsoDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00`));   // a broken date would crash every screen that formats it
-  const isStoredReport = (day, validDate) => Boolean(day) && isText(day.projectId) && isText(day.date) && validDate(day.date)
-    && Array.isArray(day.employees) && day.employees.every(employee => employee && isText(employee.name) && Array.isArray(employee.assignments))
-    && Array.isArray(day.events) && day.events.every(event => event && Array.isArray(event.reasons))
-    && Boolean(day.extras) && ['equipment', 'material', 'contacts'].every(key => isText(day.extras[key]));
+  // The shape check of what comes back from the browser lives in the core (core.isStoredDayReport): anything that would break the screens is
+  // dropped, not repaired. Only WHERE the days are kept (this file) stays outside the core.
+  const core = root.AC01Core;
+  if (!core) throw new Error('AC01Core missing: load vendor/ac01-core.bundle.js before workday-store.js');
+  const { isIsoDate, isStoredDayReport } = core;
 
   // options.isValidDate: only the shared repository contract tests pass a looser rule (they use arbitrary key strings).
   function createStoredWorkdayStore(getStorage = () => globalThis.localStorage, { isValidDate = isIsoDate } = {}) {
@@ -76,7 +74,7 @@
       try {
         const raw = s.getItem(STORAGE_KEY); if (raw === null) return [];
         const data = JSON.parse(raw);
-        return data && data.version === 1 && Array.isArray(data.days) ? data.days.filter(day => isStoredReport(day, isValidDate)) : [];
+        return data && data.version === 1 && Array.isArray(data.days) ? data.days.filter(day => isStoredDayReport(day, isValidDate)) : [];
       } catch (error) { return error instanceof SyntaxError ? [] : null; }
     };
     const writeDays = days => { const s = storage(); if (!s) return false; try { s.setItem(STORAGE_KEY, JSON.stringify({ version: 1, days })); return true; } catch { return false; } };

@@ -4,11 +4,10 @@
  *   inside a component 8-16 · between components 16-24 · between sections 32+ · gap between touch targets >= 8
  *   text >= 12px (uppercase micro-labels >= 11px) · desktop inputs 40px, touch inputs 44px
  */
-:root{--muted:#56656b;--eyebrow:#4a6a60;--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--line-soft:#edf0ed;--surface-soft:#f8faf7;--surface-hover:#eff8f0;--line-accent:#9dc2ad;--danger-soft:#fff6f2}
+:root{--eyebrow:var(--muted);--sp-1:var(--s1);--sp-2:var(--s2);--sp-3:var(--s3);--sp-4:var(--s4);--sp-5:var(--s5);--sp-6:var(--s6);--sp-7:48px;--surface-soft:#f8faf7;--surface-hover:var(--ok-bg);--line-accent:#9dc2ad;--danger-soft:var(--stoer-soft)}
 
 /* ---- legibility floor: nothing below 12px (micro-labels 11px) ---- */
 small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard-foot,.ac01-demo-line,.metric small,.metric span{font-size:12px}
-.eyebrow,.topbar-title .eyebrow{font-size:12px;letter-spacing:.12em}
 .brand small{font-size:12px;letter-spacing:.1em;white-space:nowrap}
 .ac01-stat small,.ac01-draft-meta small,.ts-figures dt{font-size:11px}
 .mobile-nav span{font-size:12px}
@@ -38,7 +37,6 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .item-top{gap:var(--sp-3)}
 .item-sub{margin-top:var(--sp-2);line-height:1.5}
 .item-meta{gap:var(--sp-2);margin-top:var(--sp-3)}
-.badge{padding:4px 10px}
 .wd-preview{gap:var(--sp-2);margin:var(--sp-4) 0 var(--sp-2)}
 .wd-preview>div{gap:var(--sp-1) var(--sp-4)}
 .wd-open-row{gap:var(--sp-3);margin-top:var(--sp-4)}
@@ -48,13 +46,13 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 .wd-project:first-child{margin-top:var(--sp-4);border-top:0}
 .wd-project h3{margin:0 0 var(--sp-1);font-size:16px;letter-spacing:-.3px}
 .wd-project-sub{display:block;color:var(--muted);font-size:12px}
-.wd-project .outline{flex:none;min-height:44px;padding:0 var(--sp-4);font-size:12px}
+.wd-project .outline{flex:none;min-height:44px;padding:0 var(--sp-4)}
 @media(max-width:640px){.wd-project,.wd-project:first-child{align-items:stretch;flex-wrap:wrap;padding:0 var(--sp-4);margin-top:0;gap:0}.wd-project>div{min-width:0;line-height:20px}.wd-project h3,.wd-project-sub{display:inline;line-height:inherit}.wd-project h3{margin:0}.wd-project-sub{margin-left:var(--sp-2)}.wd-project .outline{width:100%}}
 /* event rows: the optional draft action sits under the card text, not beside it */
 .wd-event-row{display:block;border-top:1px solid var(--line-soft)}
 .wd-event-row .list-item{border-top:0}
 .wd-doc-row{padding:0 var(--sp-5) var(--sp-4);background:#fff}
-.wd-doc{padding:8px 14px;min-height:44px;font-size:13px;line-height:1.2;max-width:none;width:auto}
+.wd-doc{padding:8px 14px;min-height:44px;;line-height:1.2;max-width:none;width:auto}
 /* Card quick action: compact 44x44 icon (label in aria-label/title). Only the card action group is narrowed; the Ereignisse panel keeps its labelled button. */
 .wd-open-row{column-gap:var(--sp-2)}
 .wd-open-row .outline,.wd-open-row .primary{padding:0 var(--sp-4)}   /* labelled row actions: room left and right of the text */
@@ -116,7 +114,7 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 
 /* ---- touch targets: pointer devices on desktop get 40px; phones keep the existing 44px rules ---- */
 @media(min-width:1024px) and (pointer:fine){
-  .ac01-remove,.ac01-add,.ac01-event-remove,.text-action,.ac01-add-inline,.ac01-chip-add .ac01-add{min-height:40px}
+  .ac01-remove,.ac01-add,.ac01-event-remove,.ac01-add-inline,.ac01-chip-add .ac01-add{min-height:40px}
   summary{min-height:40px}
 }
 
@@ -150,7 +148,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
 .ac01-evidence-foot{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);margin-top:var(--sp-3);padding:var(--sp-3) 0 0;background:#fff;border-top:1px solid var(--line-soft)}
 .ac01-evidence-foot .primary{min-height:44px;padding:0 var(--sp-5)}
 .ac01-evidence-status{font-size:12px;font-weight:700;color:var(--muted)}
-.ac01-disruption-clear{margin:0 0 var(--sp-2);padding:0;min-height:32px}
+.ac01-disruption-clear{margin:0 0 var(--sp-2);padding:0 var(--sp-2);min-height:44px}
 
 /* ---- checkbox focus: one thin ring on the box itself (no stacked rings, no heavy 3px outline) ---- */
 #ac01-view input[type=checkbox]:focus-visible,input[type=checkbox]:focus-visible{outline:2px solid #2f8f78;outline-offset:1px;border-radius:4px;box-shadow:none}
@@ -191,30 +189,28 @@ strong .ic-wrap{margin-right:.3em}
 @media print{.ic-wrap{display:none}}
 
 /* ---- Guided section navigation (Baustellentag): in-page links, sticky, derived from entered/validated data ---- */
-.ac01-steps{position:sticky;top:0;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);max-width:none;margin:0 0 var(--sp-3);padding:var(--sp-1) var(--sp-2);background:#fff;border:1.5px solid #7b9487;border-radius:12px;box-shadow:0 3px 10px #1b403014}
+.ac01-steps{position:sticky;top:0;z-index:7;display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);max-width:none;margin:0 0 var(--sp-3);padding:var(--sp-1) var(--sp-2);background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--r-card);box-shadow:0 3px 10px #1b403014}
 .ac01-steps ol{display:flex;gap:var(--sp-1);flex:1;min-width:0;margin:0;padding:0;list-style:none}
 .ac01-steps li{flex:1 1 0;min-width:0}
-.ac01-steps button{position:relative;display:flex;align-items:center;gap:var(--sp-2);width:100%;min-height:44px;padding:2px var(--sp-2);border:0;border-radius:8px;background:transparent;color:#16271e;text-align:left}
-.ac01-steps button:hover{background:#eef5f0}
-.ac01-steps button:focus-visible{outline:3px solid #0b5d4d;outline-offset:-2px}
-.ac01-steps button[aria-current="step"]{background:#e3f0e7;color:#064a3e;box-shadow:inset 0 -3px 0 #0a665e}
-.st-n{flex:none;display:grid;place-items:center;width:22px;height:22px;border:1.5px solid #4d6a5d;border-radius:50%;font-size:12px;font-weight:800;line-height:1}
-[aria-current="step"] .st-n{background:#0a665e;border-color:#0a665e;color:#fff}
+.ac01-steps button{position:relative;display:flex;align-items:center;gap:var(--sp-2);width:100%;min-height:44px;padding:2px var(--sp-2);border:0;border-radius:var(--r-control);background:transparent;color:var(--ink);text-align:left}
+.ac01-steps button:hover{background:var(--ok-bg)}
+.ac01-steps button:focus-visible{outline:3px solid var(--focus);outline-offset:-2px}
+.ac01-steps button[aria-current="step"]{background:var(--ok-bg);color:var(--teal-d);box-shadow:inset 0 -3px 0 var(--teal)}
+.st-n{flex:none;display:grid;place-items:center;width:22px;height:22px;border:1.5px solid var(--line-strong);border-radius:50%;font-size:12px;font-weight:800;line-height:1}
+[aria-current="step"] .st-n{background:var(--teal);border-color:var(--teal);color:var(--on-teal)}
 .st-t{display:flex;flex-direction:column;min-width:0}
 .st-l{font-size:13px;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st-short{display:none}
 .st-note{color:#4a5f55;font-size:11.5px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st-mark{flex:none;width:9px;height:9px;border-radius:50%;margin-left:auto}
-[data-state="attention"] .st-mark{background:#b9791f}
-[data-state="attention"] .st-note{color:#7a3a10;font-weight:800}
-[data-state="dirty"] .st-mark{border:2px solid #b9791f}
-[data-state="dirty"] .st-note{color:#7a3a10;font-weight:800}
-[data-state="saved"] .st-mark{background:#0a665e}
-[data-state="saved"] .st-note{color:#205c3e;font-weight:800}
-.st-state{flex:none;padding:4px var(--sp-3);border:1px solid #b8cbbf;border-radius:999px;background:#f3f7f4;color:#33493e;font-size:12px;font-weight:800;white-space:nowrap}
-.st-state[data-mode="dirty"]{background:var(--warn-bg);border-color:var(--warn-line);color:#7a3a10}
-.st-state[data-mode="dirty"]::before{content:"● ";color:#b4600e}
-.st-state[data-mode="saved"]{background:#e3f2e6;border-color:#abd3b3;color:#205c3e}
+[data-state="attention"] .st-mark{background:var(--note-line)}
+[data-state="attention"] .st-note{color:var(--note-ink);font-weight:800}
+[data-state="dirty"] .st-mark{border:2px solid var(--note-line)}
+[data-state="dirty"] .st-note{color:var(--note-ink);font-weight:800}
+[data-state="saved"] .st-mark{background:var(--teal)}
+[data-state="saved"] .st-note{color:var(--ok-ink);font-weight:800}
+.st-state{flex:none;;;;;;;;white-space:nowrap}
+.st-state[data-mode="dirty"]::before{content:"● ";color:var(--note-line)}
 #ac01-view :is(#ac01-ctx-title,#ac01-crew-title,#ac01-events-title,#ac01-draft-title){scroll-margin-top:calc(var(--ac-steps-h,56px) + var(--ac-strip-on,0px) + var(--sp-4))}
 @media(min-width:1024px){
   #ac01-view{--ac-strip-on:var(--ac-strip-h,72px)}
@@ -250,7 +246,7 @@ strong .ic-wrap{margin-right:.3em}
   #ac01-view[data-mode="new"]>.ac01-page-head p{display:none}
 }
 .sc-actions{display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-top:var(--sp-3)}
-.save-confirmation .sc-actions .outline{width:auto;min-height:44px;padding:0 var(--sp-3);background:#fff}
+.save-confirmation .sc-actions .outline{width:auto;min-height:44px;padding:0 var(--sp-3)}
 .save-confirmation .sc-text{display:block}
 .sc-short{display:none}
 @media(max-width:760px){
@@ -332,7 +328,7 @@ strong .ic-wrap{margin-right:.3em}
 /* Kopieren: compact icon action next to the others; "Gespeicherte Tage löschen" asks twice (armed state) */
 .wd-open-row .wd-copy,.wd-open-row .wd-icon-btn{width:44px;min-width:44px;height:44px;min-height:44px;padding:0;margin:0;flex:0 0 44px;justify-content:center}
 .wd-open-row .wd-copy .ic-wrap,.wd-open-row .wd-icon-btn .ic-wrap{margin:0}
-#wd-clear{margin-top:var(--sp-2);min-height:44px;font-size:12px}
+#wd-clear{margin-top:var(--sp-2);min-height:44px}
 .planner-link + #wd-clear{margin-left:var(--sp-2)}
 #wd-clear.armed{border-color:var(--red);color:var(--red);background:var(--danger-soft)}
 .wd-clear-hint{display:block;margin-top:var(--sp-2);font-size:12px;color:var(--muted)}
@@ -344,7 +340,7 @@ strong .ic-wrap{margin-right:.3em}
 .crumbs li{display:flex;align-items:center;min-width:0}
 .crumbs li+li::before{content:"›" / "";flex:none;margin:0 var(--sp-2);color:var(--muted);font-size:18px;line-height:1}
 .crumbs #top-title{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px}
-.crumb-link{max-width:28ch;min-height:40px;padding:0 var(--sp-2);margin:0 calc(-1 * var(--sp-2));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;border-radius:8px;background:transparent;color:var(--teal);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.crumb-link{max-width:28ch;min-height:40px;padding:0 var(--sp-2);margin:0 calc(-1 * var(--sp-2));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;border-radius:var(--r-control);background:transparent;color:var(--teal);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .crumb-link:hover{background:var(--surface-hover);text-decoration:underline;text-underline-offset:3px}
 @media(max-width:760px){
   .crumbs li:not(:nth-last-child(-n+2)){display:none}      /* phone: the parent and the current page only */

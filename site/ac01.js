@@ -878,17 +878,9 @@
     renderSaveStatus();
   }
 
-  // Copy of a saved day as a new, unsaved day: people, activities (times, break, group, LV note, places) and the day's extras
-  // are taken over; events and photo names are specific to the original day and are NOT. New row ids: the copy is its own day.
+  // Copy of a saved day as a new, unsaved day. The rules (what is taken over, what is not, new row ids) live in the core: core.copyDayReport.
   function openCopy(report, date, label) {
-    const copy = structuredClone(report);
-    copy.date = date;
-    copy.events = [];
-    copy.employees = copy.employees.map(({ id, assignments, ...employee }) => newEmployee({
-      ...employee,
-      assignments: assignments.map(({ id: assignmentId, ...assignment }) => newAssignment({ ...assignment, photos: [], locationDraft: '' }))
-    }));
-    openDay(copy, { copyOf: label });
+    openDay(core.copyDayReport(report, date), { copyOf: label });
   }
 
   function newDay() {
