@@ -94,20 +94,26 @@ document.addEventListener('click', async e => {
 // A Stundenzettel can switch to another day without leaving its view: keep the path in step.
 new MutationObserver(() => { if (state.view === 'timesheet') renderCrumbs(); }).observe(document.querySelector('#timesheet-view'), { childList: true, subtree: true });
 
+// Gesamtansicht: three existing views shown side by side, only on a wide screen with a mouse (the entry is hidden elsewhere, see styles.css).
+const OVERVIEW_QUERY = '(min-width: 1280px) and (pointer: fine)';
+const OVERVIEW_VIEWS = ['dashboard', 'planner', 'lv'];
+window.matchMedia(OVERVIEW_QUERY).addEventListener('change', e => { if (!e.matches && state.view === 'overview') switchView('dashboard'); });
 function switchView(view, { confirmed = false } = {}) {
+  if (view === 'overview' && !window.matchMedia(OVERVIEW_QUERY).matches) view = 'dashboard';
   if(state.view==='ac01' && view!=='ac01' && !confirmed && editorDirty()){ askToLeaveEditor(view); return; }
   if(state.view==='field' && view!=='field' && formDirty && !window.confirm('Ungespeicherte Änderungen verwerfen?')) return;
   if(view!=='dashboard'){ $('#save-confirmation').hidden=true; $('#open-notice').hidden=true; }
   state.view = view;
-  document.querySelectorAll('.view').forEach(el => el.hidden = el.id !== `${view}-view`);
+  document.querySelectorAll('.view').forEach(el => el.hidden = view === 'overview' ? !OVERVIEW_VIEWS.some(v => el.id === `${v}-view`) : el.id !== `${view}-view`);
+  if (view === 'overview') document.body.dataset.layout = 'overview'; else delete document.body.dataset.layout;
   document.querySelectorAll('[data-view]').forEach(el => { const on = el.dataset.view===view; el.classList.toggle('active',on); if(el.matches('.nav-item,.mobile-nav button')){ if(on) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); } });
   renderCrumbs();
-  if(view==='dashboard') renderDashboard();
+  if(view==='dashboard' || view==='overview') renderDashboard();
   if(view==='detail') renderDetail();
   if(view==='draft') renderDraft();
   if(view==='timesheet') TimesheetView.render();
-  if(view==='planner') renderPlanner();
-  if(view==='lv') renderLv();
+  if(view==='planner' || view==='overview') renderPlanner();
+  if(view==='lv' || view==='overview') renderLv();
   renderDraftNotices();
   renderEditorTitle();
   const route =view === 'ac01' ? '#ac01' : window.location.href.split('#')[0];

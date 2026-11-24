@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:e2aec5442c815733, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/state/day-copy.js, src/state/breadcrumbs.js, src/state/stored-day.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:23ce2dc3d1b17bf8, src/compat/ac01-classic.js, src/core/index.js, src/compat/ac01-demo-api.js, src/demo/demo-data.js, src/behinderung/behinderungsanzeige.js, src/state/day-copy.js, src/state/breadcrumbs.js, src/state/stored-day.js, src/core/types.js, src/core/ids.js, src/core/time.js, src/core/factories.js, src/core/recognizer.js, src/core/summarize.js, src/core/prefill.js, src/core/bulk.js, src/core/directory.js, src/core/disruption.js, src/behinderung/wording.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry ac01-core <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -276,6 +276,7 @@ function breadcrumbTrail({ view, workday, timesheet, projectName, dateText }) {
         case 'timesheet': return timesheet ? [root, project(timesheet.projectId), { label: 'Stundenzettel' }] : [root, { label: 'Stundenzettel' }];
         case 'planner': return [root, { label: 'Planer' }];
         case 'lv': return [root, { label: 'Leistungsverzeichnis' }];
+        case 'overview': return [root, { label: 'Gesamtansicht' }];
         case 'detail': return [root, { label: 'Ereignis (bisheriges Formular)' }];
         case 'draft': return [root, { label: 'Dokumentvorschau' }];
         default: return [{ label: 'Mission Control' }];
@@ -689,5 +690,5 @@ exports.PERIOD_LABELS = [
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:e2aec5442c815733" }));
+  globalThis.AC01Core = Object.freeze(Object.assign({}, load("src/compat/ac01-classic.js"), { build: "sha256:23ce2dc3d1b17bf8" }));
 })();

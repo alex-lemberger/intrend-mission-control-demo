@@ -182,3 +182,25 @@ body[data-draft-dirty] .mobile-nav [data-view="ac01"]::after{position:absolute;t
 .case-note{margin:0;color:var(--muted);font-size:13px;line-height:1.45;max-width:80ch;flex:1 1 320px}
 .case-tools{display:flex;flex-wrap:wrap;gap:8px}
 .case-tools button.armed{background:var(--note-bg);border-color:var(--stoer);color:var(--note-ink)}/* Planner page: every action button is primary (owner's decision 2026-11-21). The example chooser stays a toggle group (pressed or not); the armed state of the delete button keeps its warning look. */
+/* Gesamtansicht: offered only on a wide screen with a mouse. */
+.nav-item[data-view="overview"]{display:none}
+@media (min-width:1280px) and (pointer:fine){.nav-item[data-view="overview"]{display:flex}}
+/* Gesamtansicht (design GESAMTANSICHT-ERSTER-SCHNITT-DESIGN-0.1): the three views side by side in a grid, each scrolling in its own field.
+   Density is CSS zoom on the three areas because the LV and the planner keep their styles in shadow roots that shell rules cannot reach.
+   position:relative keeps absolutely placed hidden helper elements of the modules inside their area (else they stretch the page).
+   Only active while body[data-layout="overview"] (set by switchView; only on a wide screen with a mouse). */
+body[data-layout="overview"] main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(0,.8fr) minmax(0,1.2fr);gap:12px;height:calc(100vh - 76px);padding:12px;overflow:hidden}
+body[data-layout="overview"] #dashboard-view{grid-column:1;grid-row:1}
+body[data-layout="overview"] #planner-view{grid-column:1;grid-row:2}
+body[data-layout="overview"] #lv-view{grid-column:2;grid-row:1 / span 2}
+body[data-layout="overview"] :is(#dashboard-view,#planner-view,#lv-view){zoom:.85;position:relative;min-width:0;min-height:0;overflow:auto;padding:14px 16px;border:1px solid var(--card-line);border-radius:12px;background:var(--panel)}
+body[data-layout="overview"] :is(#dashboard-view,#planner-view,#lv-view) .page-head p{display:none}
+body[data-layout="overview"] :is(#dashboard-view,#planner-view,#lv-view) .page-head h1{font-size:22px;letter-spacing:-.4px;margin:0}
+body[data-layout="overview"] :is(#dashboard-view,#planner-view,#lv-view) .page-head{margin-bottom:10px}
+/* Mission Control in the overview: the tiles shrink to one row of label and number, so the list of saved days starts in view. */
+body[data-layout="overview"] #dashboard-view .metrics{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:10px}
+body[data-layout="overview"] #dashboard-view .metric{padding:8px 10px}
+body[data-layout="overview"] #dashboard-view .metric small{margin-bottom:2px}
+body[data-layout="overview"] #dashboard-view .metric span{display:none}
+/* Planner in the overview: the example chooser, its maintenance buttons and the status note give way to the timeline (they stay in the Planer view). */
+body[data-layout="overview"] #planner-view .case-pick{display:none}
