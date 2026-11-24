@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:941930c1fba4bb8b, preview/lv-app.js, src/core/ids.js, src/lv/leistungsstand.js, src/lv/use-cases.js, src/lv/nachtrag.js, src/lv/demo-lv.js, src/lv/stored-lv-repository.js, src/lv/lv-repository.js, src/lv/gaeb-export-import.js, src/lv/reimport-abgleich.js, src/lv/in-memory-lv-repository.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:eee04d8e523a2495, preview/lv-app.js, src/core/ids.js, src/lv/leistungsstand.js, src/lv/use-cases.js, src/lv/nachtrag.js, src/lv/positions-kern.js, src/lv/demo-lv.js, src/lv/stored-lv-repository.js, src/lv/lv-repository.js, src/lv/gaeb-export-import.js, src/lv/reimport-abgleich.js, src/lv/in-memory-lv-repository.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry lv <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -13,6 +13,7 @@ const ids_ts_1 = require("../src/core/ids.js");
 const leistungsstand_ts_1 = require("../src/lv/leistungsstand.js");
 const use_cases_ts_1 = require("../src/lv/use-cases.js");
 const nachtrag_ts_1 = require("../src/lv/nachtrag.js");
+const positions_kern_ts_1 = require("../src/lv/positions-kern.js");
 const demo_lv_ts_1 = require("../src/lv/demo-lv.js");
 Object.defineProperty(exports, "createDemoLvRepository", { enumerable: true, get: function () { return demo_lv_ts_1.createDemoLvRepository; } });
 Object.defineProperty(exports, "createStoredDemoLvRepository", { enumerable: true, get: function () { return demo_lv_ts_1.createStoredDemoLvRepository; } });
@@ -21,8 +22,11 @@ Object.defineProperty(exports, "DEMO_KOMMISSION", { enumerable: true, get: funct
 Object.defineProperty(exports, "DEMO_PROJEKT", { enumerable: true, get: function () { return demo_lv_ts_1.DEMO_PROJEKT; } });
 const stored_lv_repository_ts_1 = require("../src/lv/stored-lv-repository.js");
 const lv_repository_ts_1 = require("../src/lv/lv-repository.js");
+const vertragPos = (k) => ({ id: k.id, art: 'vertrag', nr: k.oz, kennung: k.oz, kurztext: k.kurztext, langtext: k.langtext, einheit: k.position.einheit, menge: k.position.vertragsmenge, ep: k.position.ep, eventual: k.position.positionsart === 'Eventual', status: null });
+const nachtragPos = (p) => ({ id: p.id, art: 'nachtrag', nr: String(p.positionNr), kennung: `Nachtrag ${p.nachtragNr}, Position ${p.positionNr}`, kurztext: p.kurztext, langtext: p.langtext, einheit: p.einheit, menge: p.angebotsmenge, ep: p.ep ?? null, eventual: false, status: p.status });
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const num = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+const eur = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
 const pct = (n) => `${(Math.round(n * 10) / 10).toLocaleString('de-DE')} %`;
 const day = (iso) => (/^\d{4}-\d{2}-\d{2}/.test(iso) ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : iso);
 const parseMenge = (s) => (/^\s*\d+([.,]\d+)?\s*$/.test(s) ? Number(s.replace(',', '.')) : NaN);
@@ -61,8 +65,8 @@ function mountLv(root, options = {}) {
     let destroyed = false;
     let nachtraege = [];
     let nPanel = false;
-    const nEmpty = () => ({ gruppe: String(nachtraege.reduce((m, p) => Math.max(m, p.nachtragNr), 0) || 'neu'), kurztext: '', langtext: '', einheit: '', menge: '', durch: defaultAuthor });
-    let nDraft = { gruppe: 'neu', kurztext: '', langtext: '', einheit: '', menge: '', durch: defaultAuthor };
+    const nEmpty = () => ({ gruppe: String(nachtraege.reduce((m, p) => Math.max(m, p.nachtragNr), 0) || 'neu'), kurztext: '', langtext: '', einheit: '', menge: '', ep: '', durch: defaultAuthor });
+    let nDraft = { gruppe: 'neu', kurztext: '', langtext: '', einheit: '', menge: '', ep: '', durch: defaultAuthor };
     let nInitial = { ...nDraft };
     let nConfirmDiscard = false;
     let nFormError = '';
@@ -76,12 +80,12 @@ function mountLv(root, options = {}) {
     let flip = false;
     const announce = (t) => { flip = !flip; live.textContent = t + (flip ? ' ' : ''); };
     const children = (parentId) => (bestand?.knoten ?? []).filter(k => k.parentId === parentId).sort((a, b) => a.reihenfolge - b.reihenfolge);
-    const positions = () => (bestand?.knoten ?? []).filter(k => k.typ === 'position');
-    const find = (id) => bestand?.knoten.find(k => k.id === id);
-    const info = (p) => (0, leistungsstand_ts_1.leistungsstandAnzeige)(p, bestand.eintraege);
+    const positions = () => [...(bestand?.knoten ?? []).filter(k => k.typ === 'position').map(vertragPos), ...nachtraege.map(nachtragPos)];
+    const find = (id) => positions().find(p => p.id === id);
+    const info = (p) => (0, leistungsstand_ts_1.leistungsstandAnzeige)({ id: p.id, einheit: p.einheit, vertragsmenge: p.menge }, bestand.eintraege);
     const matches = (p) => {
         const a = info(p);
-        return filter === 'alle' || (filter === 'mit' && a.menge !== null) || (filter === 'ohne' && a.menge === null) || (filter === 'mehr' && a.mehrmenge) || (filter === 'ev' && p.position?.positionsart === 'Eventual');
+        return filter === 'alle' || (filter === 'mit' && a.menge !== null) || (filter === 'ohne' && a.menge === null) || (filter === 'ev' && p.eventual);
     };
     async function load() {
         try {
@@ -102,68 +106,89 @@ function mountLv(root, options = {}) {
             loadError = `Das Leistungsverzeichnis konnte nicht geladen werden: ${e.message}`;
         }
     }
+    function groupRow(id, cls, oz, title, below, extra = '') {
+        const open = !collapsed.has(id);
+        const done = below.filter(p => info(p).menge !== null).length;
+        return `<tr class="lv-group ${cls}"${extra}><th scope="row" colspan="5"><button type="button" class="lv-toggle" data-toggle="${esc(id)}" aria-expanded="${open}"><span class="lv-chev">${icon(open ? 'chevron-down' : 'chevron-right')}</span>${oz ? `<span class="lv-oz">${esc(oz)}</span> ` : ''}${esc(title)}</button></th><td colspan="3" class="lv-groupinfo">${pluralize(below.length, 'Position', 'Positionen')} · ${done} mit Leistungsstand</td></tr>`;
+    }
+    function posRow(p) {
+        const a = info(p);
+        const bar = a.prozent === null ? '' : `<span class="lv-bar" aria-hidden="true"><span style="width:${Math.min(100, a.prozent)}%"></span></span>`;
+        const stand = a.menge === null
+            ? '<span class="lv-none">nicht erfasst</span>'
+            : `<strong>${num(a.menge)}</strong> ${esc(a.einheit)}<small>Stand ${day(a.stichtag)}</small>`;
+        const chips = `${p.eventual ? '<span class="lv-chip">Eventual</span>' : ''}${p.status ? `<span class="lv-chip">${esc(p.status)}</span>` : ''}`;
+        const gp = (0, positions_kern_ts_1.gesamtpreis)(p.menge, p.ep);
+        const kein = '<span class="lv-none" title="kein Preis erfasst">–</span>';
+        const label = `Leistungsstand ${a.menge === null ? 'erfassen' : 'bearbeiten'}, ${p.art === 'vertrag' ? 'Position ' : ''}${p.kennung} ${p.kurztext}`;
+        return `<tr class="lv-pos${panel?.positionId === p.id ? ' open' : ''}" data-pos="${esc(p.id)}" data-art="${p.art}"><th scope="row" class="lv-oz">${esc(p.nr)}</th>
+      <td class="lv-text"><span class="lv-name">${esc(p.kurztext)}</span>${chips}<span class="lv-sub">${p.art === 'vertrag' ? 'Vertrag' : 'Angebot'}: ${num(p.menge)} ${esc(p.einheit)}${a.prozent === null ? '' : ` · ${pct(a.prozent)}`}</span></td>
+      <td class="lv-menge">${num(p.menge)} ${esc(p.einheit)}</td>
+      <td class="lv-ep">${p.ep === null ? kein : eur(p.ep)}</td>
+      <td class="lv-gp">${gp === null ? kein : eur(gp)}</td>
+      <td class="lv-stand">${stand}</td>
+      <td class="lv-anz">${a.prozent === null ? '' : `${bar}<span class="lv-pct">${pct(a.prozent)}</span>`}</td>
+      <td class="lv-act"><button type="button" class="lv-edit" data-open="${esc(p.id)}" title="${a.menge === null ? 'Leistungsstand erfassen' : 'Leistungsstand bearbeiten'}" aria-label="${esc(label)}">${icon(a.menge === null ? 'plus' : 'pencil')}</button></td></tr>`;
+    }
     function rowsFor(parentId, depth) {
         return children(parentId).map(k => {
             if (k.typ === 'vorbemerkung' || k.typ === 'hinweistext') {
                 const text = k.langtext ? `${k.kurztext}: ${k.langtext}` : k.kurztext;
-                return `<tr class="lv-note"><td></td><td colspan="5"><span class="sr-only">${k.typ === 'vorbemerkung' ? 'Vorbemerkung' : 'Hinweis'}: </span>${esc(text)}</td></tr>`;
+                return `<tr class="lv-note"><td></td><td colspan="7"><span class="sr-only">${k.typ === 'vorbemerkung' ? 'Vorbemerkung' : 'Hinweis'}: </span>${esc(text)}</td></tr>`;
             }
             if (k.typ === 'bereich' || k.typ === 'abschnitt') {
-                const open = !collapsed.has(k.id);
-                const below = descendants(k).filter(p => p.typ === 'position');
-                const shown = below.filter(matches);
-                if (filter !== 'alle' && shown.length === 0)
+                const below = descendants(k).filter(p => p.typ === 'position').map(vertragPos);
+                if (filter !== 'alle' && !below.some(matches))
                     return '';
-                const done = below.filter(p => info(p).menge !== null).length;
-                return `<tr class="lv-group l${k.typ === 'bereich' ? 1 : 2}"><th scope="row" colspan="4"><button type="button" class="lv-toggle" data-toggle="${esc(k.id)}" aria-expanded="${open}"><span class="lv-chev">${icon(open ? 'chevron-down' : 'chevron-right')}</span><span class="lv-oz">${esc(k.oz)}</span> ${esc(k.kurztext)}</button></th><td colspan="2" class="lv-groupinfo">${pluralize(below.length, 'Position', 'Positionen')} · ${done} mit Leistungsstand</td></tr>${open ? rowsFor(k.id, depth + 1) : ''}`;
+                return `${groupRow(k.id, `l${k.typ === 'bereich' ? 1 : 2}`, k.oz, k.kurztext, below)}${collapsed.has(k.id) ? '' : rowsFor(k.id, depth + 1)}`;
             }
             if (k.typ === 'position') {
-                if (!matches(k))
-                    return '';
-                const a = info(k), p = k.position;
-                const bar = a.prozent === null ? '' : `<span class="lv-bar" aria-hidden="true"><span class="${a.mehrmenge ? 'over' : ''}" style="width:${Math.min(100, a.prozent)}%"></span></span>`;
-                const stand = a.menge === null
-                    ? '<span class="lv-none">nicht erfasst</span>'
-                    : `<strong>${num(a.menge)}</strong> ${esc(a.einheit)}<small>Stand ${day(a.stichtag)}</small>`;
-                const chips = `${p.positionsart === 'Eventual' ? '<span class="lv-chip">Eventual</span>' : ''}${a.mehrmenge ? '<span class="lv-chip warn">Mehrmenge</span>' : ''}`;
-                const label = `Leistungsstand ${a.menge === null ? 'erfassen' : 'bearbeiten'}, Position ${k.oz} ${k.kurztext}`;
-                return `<tr class="lv-pos${panel?.positionId === k.id ? ' open' : ''}" data-pos="${esc(k.id)}"><th scope="row" class="lv-oz">${esc(k.oz)}</th>
-          <td class="lv-text"><span class="lv-name">${esc(k.kurztext)}</span>${chips}<span class="lv-sub">Vertrag: ${num(p.vertragsmenge)} ${esc(p.einheit)}${a.prozent === null ? '' : ` · ${pct(a.prozent)}`}</span></td>
-          <td class="lv-menge">${num(p.vertragsmenge)} ${esc(p.einheit)}</td>
-          <td class="lv-stand">${stand}</td>
-          <td class="lv-anz">${a.prozent === null ? '' : `${bar}<span class="lv-pct">${pct(a.prozent)}</span>`}</td>
-          <td class="lv-act"><button type="button" class="lv-edit" data-open="${esc(k.id)}" title="${a.menge === null ? 'Leistungsstand erfassen' : 'Leistungsstand bearbeiten'}" aria-label="${esc(label)}">${icon(a.menge === null ? 'plus' : 'pencil')}</button></td></tr>`;
+                const p = vertragPos(k);
+                return matches(p) ? posRow(p) : '';
             }
             return '';
         }).join('');
     }
+    function bestandRows() {
+        const vertrag = (bestand?.knoten ?? []).filter(k => k.typ === 'position').map(vertragPos);
+        const out = [];
+        if (filter === 'alle' || vertrag.some(matches))
+            out.push(`${groupRow('vertrag', 'l0', '', 'Ursprünglicher Vertrag', vertrag)}${collapsed.has('vertrag') ? '' : rowsFor(children(null)[0]?.id ?? null, 0)}`);
+        if (nachtragOk())
+            for (const g of (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege)) {
+                const below = g.positionen.map(nachtragPos);
+                if (filter !== 'alle' && !below.some(matches))
+                    continue;
+                const id = `nachtrag-${g.nachtragNr}`;
+                out.push(`${groupRow(id, 'l0 nt', '', `Nachtrag ${g.nachtragNr}`, below, ` data-nachtrag="${g.nachtragNr}"`)}${collapsed.has(id) ? '' : below.filter(matches).map(posRow).join('')}`);
+            }
+        return out.join('');
+    }
     function nachtragHtml() {
         if (!bestand || !nachtragOk())
             return '';
-        const groups = (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege);
-        const blocks = groups.map(g => `<div class="lv-nt-block" data-nachtrag="${g.nachtragNr}"><h3>Nachtrag ${g.nachtragNr}</h3><div class="lv-nt-scroll"><table class="lv-nt-table"><caption class="sr-only">Nachtrag ${g.nachtragNr}: Positionen im Entwurf</caption>
-      <thead><tr><th scope="col">Pos.</th><th scope="col">Leistung</th><th scope="col">Menge</th><th scope="col">Status</th></tr></thead>
-      <tbody>${g.positionen.map(p => `<tr class="lv-nt-row"><th scope="row" class="lv-oz">${p.positionNr}</th><td><span class="lv-nt-kurz">${esc(p.kurztext)}</span>${p.langtext ? `<span class="lv-nt-lang">${esc(p.langtext)}</span>` : ''}</td><td class="lv-nt-menge">${num(p.angebotsmenge)} ${esc(p.einheit)}</td><td><span class="lv-chip">${esc(p.status)}</span></td></tr>`).join('')}</tbody></table></div></div>`).join('');
-        return `<section class="lv-nachtrag" aria-labelledby="lv-nt-h"><div class="lv-nt-head"><h2 id="lv-nt-h">Nachtrag</h2><div class="lv-nt-actions"><button type="button" class="lv-btn" data-nt-example title="Fügt eine erfundene Position in den letzten Nachtrag ein">Beispiel einfügen</button><button type="button" class="lv-primary" data-nt-add>Nachtragsposition hinzufügen</button></div></div>
-      <p class="lv-nt-hint">${groups.length === 0 ? 'Noch kein Nachtrag. Die erste Position legt Nachtrag 1 an. ' : 'Positionen im Entwurf, je Nachtrag mit 1 beginnend. '}Ein Nachtrag löst nichts aus: keine Rechnung, keine Meldung. Das Haupt-LV oben bleibt unverändert.</p>${blocks}</section>`;
+        const n = (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege).length;
+        return `<section class="lv-nachtrag" aria-label="Nachtragsposition anlegen"><div class="lv-nt-actions"><button type="button" class="lv-btn" data-nt-example title="Fügt eine erfundene Position in den letzten Nachtrag ein">Beispiel einfügen</button><button type="button" class="lv-primary" data-nt-add>Nachtragsposition hinzufügen</button></div>
+      <p class="lv-nt-hint">${n === 0 ? 'Noch kein Nachtrag. Die erste Position legt Nachtrag 1 an. ' : 'Nachträge stehen als eigene Gruppen im Bestand, jede Position wie eine Vertragsposition, je Nachtrag mit 1 beginnend. '}Ein Nachtrag löst nichts aus: keine Rechnung, keine Meldung. Der ursprüngliche Vertrag bleibt unverändert.</p></section>`;
     }
     function nachtragPanelHtml() {
         if (!nPanel)
             return '';
         const groups = (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege);
         const next = (groups.at(-1)?.nachtragNr ?? 0) + 1;
-        const units = [...new Set(positions().map(p => p.position.einheit))];
+        const units = [...new Set(positions().map(p => p.einheit))];
         const opt = (v, t) => `<option value="${esc(v)}"${nDraft.gruppe === v ? ' selected' : ''}>${esc(t)}</option>`;
         return `<div class="lv-panel-wrap"><div class="lv-scrim" data-nt-close="1"></div><aside class="lv-panel${panelEnter ? ' enter' : ''}" role="dialog" aria-modal="true" aria-labelledby="lv-nt-ptitle" id="lv-nt-panel">
       <div class="lv-phead"><h2 id="lv-nt-ptitle">Nachtragsposition hinzufügen</h2><button type="button" class="lv-btn lv-closebtn" data-nt-close="1">${icon('x')}Schließen</button></div>
       ${nConfirmDiscard ? '<div class="lv-confirm" role="alert"><span>Die Eingaben gehen verloren. Verwerfen?</span><button type="button" class="lv-primary" data-nt-discard="yes">Verwerfen</button><button type="button" class="lv-btn" data-nt-discard="no">Weiter bearbeiten</button></div>' : ''}
-      <p class="lv-note-p">Die Position bleibt ein Entwurf und gehört zur Kommission ${esc(kommission)}. Sie ändert das Haupt-LV nicht und löst nichts aus.</p>
+      <p class="lv-note-p">Die Position bleibt ein Entwurf und gehört zur Kommission ${esc(kommission)}. Sie ändert den ursprünglichen Vertrag nicht und löst nichts aus.</p>
       <form id="lv-nt-form" novalidate>
         <label>Zu welchem Nachtrag<select id="lv-nt-gruppe">${groups.map(g => opt(String(g.nachtragNr), `Nachtrag ${g.nachtragNr}`)).join('')}${opt('neu', `Neuer Nachtrag (Nachtrag ${next})`)}</select></label>
         <label>Kurztext<input type="text" id="lv-nt-kurztext" value="${esc(nDraft.kurztext)}" autocomplete="off" required></label>
         <label>Langtext<textarea id="lv-nt-langtext" rows="4">${esc(nDraft.langtext)}</textarea><small>Die Beschreibung der Leistung. Kann leer bleiben.</small></label>
         <label>Einheit<input type="text" id="lv-nt-einheit" list="lv-nt-einheiten" value="${esc(nDraft.einheit)}" autocomplete="off" required><datalist id="lv-nt-einheiten">${units.map(u => `<option value="${esc(u)}">`).join('')}</datalist></label>
         <label>Menge (Angebot)<input type="text" inputmode="decimal" id="lv-nt-menge" value="${esc(nDraft.menge)}" autocomplete="off" required><small>Die angebotene Menge in der Einheit oben.</small></label>
+        <label>Einzelpreis (EP) in Euro<input type="text" inputmode="decimal" id="lv-nt-ep" value="${esc(nDraft.ep)}" autocomplete="off"><small>Optional. Der Gesamtpreis wird aus Menge und EP berechnet.</small></label>
         <label>Angelegt durch<input type="text" id="lv-nt-durch" value="${esc(nDraft.durch)}" autocomplete="off" required></label>
         ${nFormError ? `<p class="lv-error" role="alert">${esc(nFormError)}</p>` : ''}
         <div class="lv-pbtn"><button type="submit" class="lv-primary">Position speichern</button><button type="button" class="lv-btn" data-nt-close="1">Abbrechen</button></div>
@@ -196,7 +221,7 @@ function mountLv(root, options = {}) {
         if (!panel)
             return '';
         const pos = find(panel.positionId);
-        if (!pos?.position)
+        if (!pos)
             return '';
         const a = info(pos);
         const history = [...(bestand.eintraege.filter(e => e.positionId === pos.id))].sort((x, y) => (x.stichtag === y.stichtag ? y.erfasstAm.localeCompare(x.erfasstAm) : y.stichtag.localeCompare(x.stichtag)));
@@ -207,7 +232,7 @@ function mountLv(root, options = {}) {
         const hist = history.length === 0 ? '<p class="lv-note-p">Noch kein Eintrag. Der erste Eintrag legt den Verlauf an.</p>' : `<ol class="lv-hist">${history.map(e => {
             const superseded = !effective.has(e.id);
             const by = history.find(x => x.korrigiertEintragId === e.id);
-            return `<li class="${superseded ? 'old' : ''}"><div><strong>${num(e.menge)} ${esc(pos.position.einheit)}</strong> <span>Stichtag ${day(e.stichtag)}</span>
+            return `<li class="${superseded ? 'old' : ''}"><div><strong>${num(e.menge)} ${esc(pos.einheit)}</strong> <span>Stichtag ${day(e.stichtag)}</span>
         ${current?.id === e.id ? '<span class="lv-chip ok">aktuell</span>' : ''}${superseded ? `<span class="lv-chip">korrigiert${by ? ` durch den Eintrag vom ${day(by.erfasstAm)}` : ''}</span>` : ''}${e.korrigiertEintragId ? `<span class="lv-chip">Korrektur${byId.get(e.korrigiertEintragId) ? ` zu ${num(byId.get(e.korrigiertEintragId).menge)}` : ''}</span>` : ''}</div>
         <small>${esc(e.erfasstDurch)}, ${day(e.erfasstAm)} · ${esc(e.quelle || 'ohne Quelle')}${e.bemerkung ? ` · ${esc(e.bemerkung)}` : ''}</small>
         ${superseded ? '' : `<button type="button" class="lv-link" data-correct="${esc(e.id)}">Korrigieren</button>`}</li>`;
@@ -215,14 +240,16 @@ function mountLv(root, options = {}) {
         return `<div class="lv-panel-wrap"><div class="lv-scrim" data-close="1"></div><aside class="lv-panel${panelEnter ? ' enter' : ''}" role="dialog" aria-modal="true" aria-labelledby="lv-ptitle" id="lv-panel">
       <div class="lv-phead"><h2 id="lv-ptitle">${panel.korrigiert ? 'Eintrag korrigieren' : a.menge === null ? 'Leistungsstand erfassen' : 'Leistungsstand bearbeiten'}</h2><button type="button" class="lv-btn lv-closebtn" data-close="1">${icon('x')}Schließen</button></div>
       ${confirmDiscard ? '<div class="lv-confirm" role="alert"><span>Die Eingaben gehen verloren. Verwerfen?</span><button type="button" class="lv-primary" data-discard="yes">Verwerfen</button><button type="button" class="lv-btn" data-discard="no">Weiter bearbeiten</button></div>' : ''}
-      <p class="lv-pos-title"><span class="lv-oz">${esc(pos.oz)}</span> ${esc(pos.kurztext)}</p>
-      <dl class="lv-facts"><div><dt>Vertragsmenge</dt><dd>${num(pos.position.vertragsmenge)} ${esc(pos.position.einheit)}</dd></div>
-        <div><dt>Aktuell</dt><dd>${a.menge === null ? 'nicht erfasst' : `${num(a.menge)} ${esc(pos.position.einheit)} (${day(a.stichtag)})`}</dd></div></dl>
-      ${panel.korrigiert ? `<p class="lv-note-p">Der Eintrag vom ${day(panel.korrigiert.stichtag)} (${num(panel.korrigiert.menge)} ${esc(pos.position.einheit)}) bleibt im Verlauf sichtbar. Die Korrektur ersetzt ihn nur als aktuellen Wert.</p>` : ''}
+      <p class="lv-pos-title"><span class="lv-oz">${esc(pos.kennung)}</span> ${esc(pos.kurztext)}</p>
+      <dl class="lv-facts"><div><dt>${pos.art === 'vertrag' ? 'Vertragsmenge' : 'Angebotsmenge'}</dt><dd>${num(pos.menge)} ${esc(pos.einheit)}</dd></div>
+        <div><dt>Aktuell</dt><dd>${a.menge === null ? 'nicht erfasst' : `${num(a.menge)} ${esc(pos.einheit)} (${day(a.stichtag)})`}</dd></div>
+        ${pos.ep === null ? '' : `<div><dt>EP</dt><dd>${eur(pos.ep)}</dd></div><div><dt>GP</dt><dd>${eur((0, positions_kern_ts_1.gesamtpreis)(pos.menge, pos.ep))}</dd></div>`}
+        ${pos.langtext ? `<div class="lv-facts-wide"><dt>Langtext</dt><dd>${esc(pos.langtext)}</dd></div>` : ''}</dl>
+      ${panel.korrigiert ? `<p class="lv-note-p">Der Eintrag vom ${day(panel.korrigiert.stichtag)} (${num(panel.korrigiert.menge)} ${esc(pos.einheit)}) bleibt im Verlauf sichtbar. Die Korrektur ersetzt ihn nur als aktuellen Wert.</p>` : ''}
       <form id="lv-form" novalidate>
         <label>Stichtag<input type="date" id="lv-stichtag" value="${esc(draft.stichtag)}" required></label>
-        <label>Menge ausgeführt, kumuliert (${esc(pos.position.einheit)})<input type="text" inputmode="decimal" id="lv-menge" value="${esc(draft.menge)}" autocomplete="off" required aria-describedby="lv-checks">
-          <small>Bis zum Stichtag insgesamt ausgeführt, in ${esc(pos.position.einheit)}. Keine Prozentzahl.</small></label>
+        <label>Menge ausgeführt, kumuliert (${esc(pos.einheit)})<input type="text" inputmode="decimal" id="lv-menge" value="${esc(draft.menge)}" autocomplete="off" required aria-describedby="lv-checks">
+          <small>Bis zum Stichtag insgesamt ausgeführt, in ${esc(pos.einheit)}. Keine Prozentzahl.</small></label>
         <label>Quelle<input type="text" id="lv-quelle" list="lv-quellen" value="${esc(draft.quelle)}" autocomplete="off"><datalist id="lv-quellen"><option value="Baustellenrundgang"><option value="Aufmaß"><option value="Vorarbeiter"></datalist></label>
         <label>Erfasst durch<input type="text" id="lv-durch" value="${esc(draft.erfasstDurch)}" autocomplete="off" required></label>
         <label>Bemerkung<textarea id="lv-bem" rows="2">${esc(draft.bemerkung)}</textarea></label>
@@ -231,7 +258,7 @@ function mountLv(root, options = {}) {
         <div class="lv-pbtn"><button type="submit" class="lv-primary">${panel.korrigiert ? 'Korrektur speichern' : 'Eintrag speichern'}</button><button type="button" class="lv-btn" data-close="1">Abbrechen</button></div>
       </form>
       <h3>Verlauf</h3>${hist}
-      <p class="lv-note-p">Einträge werden nur ergänzt, nie überschrieben. Ein Leistungsstand löst nichts aus: keine Rechnung, keinen Nachtrag.</p>
+      <p class="lv-note-p">Einträge werden nur ergänzt, nie überschrieben. Ein Leistungsstand löst nichts aus: keine Rechnung, keinen Nachtrag. Er hängt nicht vom Status der Position ab.</p>
     </aside></div>`;
     }
     function currentChecks(pos) {
@@ -242,7 +269,7 @@ function mountLv(root, options = {}) {
             return '';
         if (Number.isNaN(menge))
             return '<p class="lv-error">Menge: bitte eine Zahl eingeben, z. B. 12,5.</p>';
-        const { fehler, warnungen } = (0, leistungsstand_ts_1.pruefeEintrag)(pos, entwurf(pos.id, menge), bestand.eintraege, heute);
+        const { fehler, warnungen } = (0, leistungsstand_ts_1.pruefeEintrag)({ id: pos.id, einheit: pos.einheit, vertragsmenge: pos.menge }, entwurf(pos.id, menge), bestand.eintraege, heute);
         return [...fehler.map(f => `<p class="lv-error">${esc(f)}.</p>`), ...warnungen.map(w => `<p class="lv-warn">Hinweis: ${esc(w.message)}. Das Speichern ist trotzdem möglich.</p>`)].join('');
     }
     const entwurf = (positionId, menge) => ({
@@ -254,21 +281,20 @@ function mountLv(root, options = {}) {
             return;
         const total = positions().length;
         const mit = bestand ? positions().filter(p => info(p).menge !== null).length : 0;
-        const mehr = bestand ? positions().filter(p => info(p).mehrmenge).length : 0;
-        const ev = positions().filter(p => p.position?.positionsart === 'Eventual').length;
+        const ev = positions().filter(p => p.eventual).length;
         const imp = bestand?.imports.find(i => i.id === bestand.aktuellerImportId);
         const chip = (f, label, n) => `<button type="button" class="lv-seg" data-filter="${f}" aria-pressed="${filter === f}">${label} <span class="lv-count">${n}</span></button>`;
         root.innerHTML = `${options.heading ? `<h1>Leistungsverzeichnis</h1>` : ''}
       <p class="lv-lead">${esc(projekt)}. ${options.heading ? 'Das Original-LV bleibt unverändert; neben jeder Position steht, wie viel davon ausgeführt ist. ' : ''}Beispiel mit erfundenen Daten.</p>
       ${loadError ? `<p class="lv-error" role="alert">${esc(loadError)}</p>` : ''}
-      ${bestand ? `<div class="lv-bar-tools"><div class="lv-segs" role="group" aria-label="Positionen filtern">${chip('alle', 'Alle', total)}${chip('mit', 'Mit Leistungsstand', mit)}${chip('ohne', 'Ohne', total - mit)}${chip('mehr', 'Mehrmenge', mehr)}${chip('ev', 'Eventual', ev)}</div>
+      ${bestand ? `<div class="lv-bar-tools"><div class="lv-segs" role="group" aria-label="Positionen filtern">${chip('alle', 'Alle', total)}${chip('mit', 'Mit Leistungsstand', mit)}${chip('ohne', 'Ohne', total - mit)}${chip('ev', 'Eventual', ev)}</div>
         <div class="lv-all"><button type="button" class="lv-link" data-all="open">Alles aufklappen</button><button type="button" class="lv-link" data-all="close">Alles zuklappen</button>${persistent !== null && persistent ? `<button type="button" class="lv-link${resetArmed ? ' armed' : ''}" data-reset="1">${resetArmed ? 'Wirklich zurücksetzen? Nochmal klicken' : 'Beispiel zurücksetzen'}</button>` : ''}</div></div>
       ${saved ? `<p class="lv-saved" role="status">${esc(saved)}</p>` : ''}
-      <div class="lv-layout"><div class="lv-scroll"><table class="lv-table"><caption class="sr-only">Leistungsverzeichnis mit Vertragsmenge und ausgeführter Menge je Position</caption>
-        <thead><tr><th scope="col">OZ</th><th scope="col">Leistung</th><th scope="col">Vertragsmenge</th><th scope="col"><span class="lv-long">Leistungsstand</span><span class="lv-short" aria-hidden="true">Stand</span><span class="sr-only lv-sr-narrow">Leistungsstand</span></th><th scope="col">Anteil</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
-        <tbody>${rowsFor(children(null)[0]?.id ?? null, 0) || '<tr><td colspan="6" class="lv-empty">Keine Position entspricht dem Filter.</td></tr>'}</tbody></table></div></div>
+      <div class="lv-layout"><div class="lv-scroll"><table class="lv-table"><caption class="sr-only">Projekt-Leistungsbestand: ursprünglicher Vertrag und Nachträge mit Menge, Einzelpreis, Gesamtpreis und ausgeführter Menge je Position</caption>
+        <thead><tr><th scope="col">OZ / Pos.</th><th scope="col">Leistung</th><th scope="col">Menge</th><th scope="col">EP</th><th scope="col">GP</th><th scope="col"><span class="lv-long">Leistungsstand</span><span class="lv-short" aria-hidden="true">Stand</span><span class="sr-only lv-sr-narrow">Leistungsstand</span></th><th scope="col">Anteil</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
+        <tbody>${bestandRows() || '<tr><td colspan="8" class="lv-empty">Keine Position entspricht dem Filter.</td></tr>'}</tbody></table></div></div>
       ${nachtragHtml()}
-      <p class="lv-foot">Quelle: ${esc(imp?.quelleDatei ?? '')}, ${imp ? `${imp.anzahlKnoten} Gliederungselemente, ${imp.anzahlPositionen} Positionen` : ''}. Erster Schnitt: Original-LV mit Hierarchie und Leistungsstand als Menge. Kein Aufmaß, keine Abrechnung, keine Preise.</p>${persistNote()}${panelHtml()}${nachtragPanelHtml()}` : ''}`;
+      <p class="lv-foot">Quelle: ${esc(imp?.quelleDatei ?? '')}, ${imp ? `${imp.anzahlKnoten} Gliederungselemente, ${imp.anzahlPositionen} Positionen` : ''}. Erster Schnitt: Projekt-Leistungsbestand aus ursprünglichem Vertrag und Nachträgen, Leistungsstand als Menge. Kein Aufmaß, keine Abrechnung; alle Preise sind erfunden.</p>${persistNote()}${panelHtml()}${nachtragPanelHtml()}` : ''}`;
         root.append(live);
         for (const c of Array.from(root.children))
             c.inert = Boolean(panel || nPanel) && !c.classList.contains('lv-panel-wrap') && c !== live;
@@ -337,10 +363,13 @@ function mountLv(root, options = {}) {
         const all = t.closest('[data-all]');
         if (all) {
             collapsed.clear();
-            if (all.dataset.all === 'close')
+            if (all.dataset.all === 'close') {
                 for (const k of bestand?.knoten ?? [])
                     if (k.typ === 'bereich' || k.typ === 'abschnitt')
                         collapsed.add(k.id);
+                for (const g of (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege))
+                    collapsed.add(`nachtrag-${g.nachtragNr}`);
+            }
             render();
             return;
         }
@@ -391,7 +420,7 @@ function mountLv(root, options = {}) {
             returnFocus = `[data-open="${pos.id}"]`;
             focusSel = '#lv-menge';
             render();
-            announce(`Fenster geöffnet: Position ${pos.oz}`);
+            announce(`Fenster geöffnet: ${pos.kennung}`);
             return;
         }
         const corr = t.closest('[data-correct]');
@@ -436,7 +465,7 @@ function mountLv(root, options = {}) {
     const onInput = (e) => {
         if (nPanel) {
             const t = e.target;
-            const nmap = { 'lv-nt-gruppe': 'gruppe', 'lv-nt-kurztext': 'kurztext', 'lv-nt-langtext': 'langtext', 'lv-nt-einheit': 'einheit', 'lv-nt-menge': 'menge', 'lv-nt-durch': 'durch' };
+            const nmap = { 'lv-nt-gruppe': 'gruppe', 'lv-nt-kurztext': 'kurztext', 'lv-nt-langtext': 'langtext', 'lv-nt-einheit': 'einheit', 'lv-nt-menge': 'menge', 'lv-nt-ep': 'ep', 'lv-nt-durch': 'durch' };
             const nkey = nmap[t.id];
             if (nkey) {
                 nDraft[nkey] = t.value;
@@ -473,10 +502,17 @@ function mountLv(root, options = {}) {
             render();
             return;
         }
+        const ep = nDraft.ep.trim() === '' ? null : parseNtMenge(nDraft.ep);
+        if (ep !== null && Number.isNaN(ep)) {
+            nFormError = 'Bitte den Einzelpreis als Zahl eingeben, z. B. 42,50, oder leer lassen.';
+            focusSel = '#lv-nt-ep';
+            render();
+            return;
+        }
         try {
             const p = await (0, use_cases_ts_1.legeNachtragspositionAn)(repo, {
                 kommission, nachtrag: nDraft.gruppe === 'neu' ? 'neu' : Number(nDraft.gruppe), kurztext: nDraft.kurztext, langtext: nDraft.langtext, einheit: nDraft.einheit,
-                angebotsmenge: menge, angelegtDurch: nDraft.durch, angelegtAm: new Date().toISOString(),
+                angebotsmenge: menge, ep, angelegtDurch: nDraft.durch, angelegtAm: new Date().toISOString(),
             });
             nachtraege = await repo.ladeNachtragspositionen(kommission);
             saved = `Nachtragsposition angelegt: Nachtrag ${p.nachtragNr}, Position ${p.positionNr}.`;
@@ -512,7 +548,7 @@ function mountLv(root, options = {}) {
         try {
             const r = await (0, use_cases_ts_1.erfasseLeistungsstand)(repo, kommission, { id: (0, ids_ts_1.nextId)('ls'), ...entwurf(pos.id, menge) }, heute);
             bestand = await repo.ladeBestand(kommission);
-            saved = `Gespeichert: ${num(menge)} ${pos.position.einheit} für ${pos.oz}${r.warnungen.length ? ` (${r.warnungen.map(w => w.code === 'ueber-vertragsmenge' ? 'Mehrmenge' : w.code === 'ruecklaeufig' ? 'Stand sinkt' : 'Stichtag in der Zukunft').join(', ')})` : ''}.`;
+            saved = `Gespeichert: ${num(menge)} ${pos.einheit} für ${pos.kennung}${r.warnungen.length ? ` (${r.warnungen.map(w => w.code === 'ruecklaeufig' ? 'Stand sinkt' : 'Stichtag in der Zukunft').join(', ')})` : ''}.`;
             announce(saved);
             panel = null;
             confirmDiscard = false;
@@ -578,6 +614,11 @@ exports.pruefeEintrag = pruefeEintrag;
 exports.haengeEintragAn = haengeEintragAn;
 exports.leistungsstandAnzeige = leistungsstandAnzeige;
 const zahl = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 3 });
+function mengenPosition(position) {
+    if (!('typ' in position))
+        return position;
+    return position.typ === 'position' && position.position ? { id: position.id, einheit: position.position.einheit, vertragsmenge: position.position.vertragsmenge } : null;
+}
 class LeistungsstandError extends Error {
     fehler;
     constructor(fehler) { super(`Leistungsstand abgelehnt: ${fehler.join('; ')}`); this.name = 'LeistungsstandError'; this.fehler = fehler; }
@@ -604,9 +645,10 @@ function aktuellerLeistungsstand(eintraege, positionId) {
             best = e;
     return best;
 }
-function pruefeEintrag(position, neu, vorhanden, heute) {
+function pruefeEintrag(knoten, neu, vorhanden, heute) {
     const fehler = [], warnungen = [];
-    if (position.typ !== 'position' || !position.position) {
+    const position = mengenPosition(knoten);
+    if (!position) {
         fehler.push('Ein Leistungsstand gehört nur zu einer Position');
         return { fehler, warnungen };
     }
@@ -625,10 +667,7 @@ function pruefeEintrag(position, neu, vorhanden, heute) {
     }
     if (fehler.length)
         return { fehler, warnungen };
-    const einheit = position.position.einheit;
-    if (neu.menge > position.position.vertragsmenge) {
-        warnungen.push({ code: 'ueber-vertragsmenge', message: `Mehrmenge: ${zahl(neu.menge)} ${einheit} bei einer Vertragsmenge von ${zahl(position.position.vertragsmenge)} ${einheit}` });
-    }
+    const einheit = position.einheit;
     if (istIsoTag(heute) && neu.stichtag > heute)
         warnungen.push({ code: 'stichtag-in-zukunft', message: `Stichtag ${neu.stichtag} liegt nach heute (${heute})` });
     const davor = wirksameEintraege(vorhanden, position.id)
@@ -648,14 +687,15 @@ function haengeEintragAn(position, vorhanden, eintrag, heute) {
         throw new LeistungsstandError(fehler);
     return { eintraege: [...vorhanden, { ...eintrag }], warnungen };
 }
-function leistungsstandAnzeige(position, eintraege) {
-    if (position.typ !== 'position' || !position.position)
+function leistungsstandAnzeige(knoten, eintraege) {
+    const position = mengenPosition(knoten);
+    if (!position)
         throw new RangeError('Nur eine Position hat einen Leistungsstand');
     const aktuell = aktuellerLeistungsstand(eintraege, position.id);
-    const vm = position.position.vertragsmenge;
+    const vm = position.vertragsmenge;
     return {
-        menge: aktuell?.menge ?? null, stichtag: aktuell?.stichtag ?? null, einheit: position.position.einheit, vertragsmenge: vm,
-        prozent: aktuell && vm > 0 ? (aktuell.menge / vm) * 100 : null, mehrmenge: aktuell !== null && aktuell.menge > vm,
+        menge: aktuell?.menge ?? null, stichtag: aktuell?.stichtag ?? null, einheit: position.einheit, vertragsmenge: vm,
+        prozent: aktuell && vm > 0 ? (aktuell.menge / vm) * 100 : null,
     };
 }
 
@@ -671,6 +711,7 @@ const gaeb_export_import_ts_1 = require("./gaeb-export-import.js");
 const reimport_abgleich_ts_1 = require("./reimport-abgleich.js");
 const leistungsstand_ts_1 = require("./leistungsstand.js");
 const lv_repository_ts_1 = require("./lv-repository.js");
+const positions_kern_ts_1 = require("./positions-kern.js");
 const nachtrag_ts_1 = require("./nachtrag.js");
 const key = (k) => `${k.typ}:${k.oz}`;
 async function importiereLv(repo, a) {
@@ -715,7 +756,9 @@ async function erfasseLeistungsstand(repo, kommission, eintrag, heute) {
     const bestand = await repo.ladeBestand(kommission);
     if (!bestand)
         throw new lv_repository_ts_1.LvRepositoryError('kommission-unbekannt', `Für ${kommission} gibt es noch keinen Import`);
-    const position = bestand.knoten.find(k => k.id === eintrag.positionId);
+    const knoten = bestand.knoten.find(k => k.id === eintrag.positionId);
+    const nachtrag = knoten || !(0, lv_repository_ts_1.istNachtragRepository)(repo) ? undefined : (await repo.ladeNachtragspositionen(kommission)).find(p => p.id === eintrag.positionId);
+    const position = knoten ?? (nachtrag ? (0, positions_kern_ts_1.nachtragspositionAlsMengenPosition)(nachtrag) : undefined);
     if (!position) {
         const gone = bestand.entfallene.some(k => k.id === eintrag.positionId);
         throw new leistungsstand_ts_1.LeistungsstandError([gone ? 'Die Position kommt im aktuellen Import nicht mehr vor' : 'Die Position ist unbekannt']);
@@ -766,6 +809,8 @@ function pruefeNachtragEingabe(vorhandene, e) {
         out.push('Es fehlt, wer die Position anlegt');
     if (!Number.isFinite(e.angebotsmenge) || e.angebotsmenge < 0)
         out.push('Die Menge muss eine Zahl von 0 oder größer sein');
+    if (e.ep !== undefined && e.ep !== null && (!Number.isFinite(e.ep) || e.ep < 0))
+        out.push('Der Einzelpreis muss eine Zahl von 0 oder größer sein');
     return out;
 }
 function erzeugeNachtragsposition(kommission, vorhandene, e, id) {
@@ -776,13 +821,23 @@ function erzeugeNachtragsposition(kommission, vorhandene, e, id) {
     const positionNr = vorhandene.filter(p => p.nachtragNr === nachtragNr).reduce((m, p) => Math.max(m, p.positionNr), 0) + 1;
     return {
         id, kommission, nachtragNr, positionNr, kurztext: e.kurztext.trim(), langtext: e.langtext.trim(), einheit: e.einheit.trim(),
-        angebotsmenge: e.angebotsmenge, status: 'ENTWURF', angelegtAm: e.angelegtAm, angelegtDurch: e.angelegtDurch.trim(),
+        angebotsmenge: e.angebotsmenge, ep: e.ep ?? null, status: 'ENTWURF', angelegtAm: e.angelegtAm, angelegtDurch: e.angelegtDurch.trim(),
     };
 }
 function gruppiereNachtraege(vorhandene) {
     const nummern = [...new Set(vorhandene.map(p => p.nachtragNr))].sort((a, b) => a - b);
     return nummern.map(nachtragNr => ({ nachtragNr, positionen: vorhandene.filter(p => p.nachtragNr === nachtragNr).sort((a, b) => a.positionNr - b.positionNr) }));
 }
+
+},
+"src/lv/positions-kern.js": function (require, exports, module) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.gesamtpreis = exports.nachtragspositionAlsMengenPosition = void 0;
+const nachtragspositionAlsMengenPosition = (p) => ({ id: p.id, einheit: p.einheit, vertragsmenge: p.angebotsmenge });
+exports.nachtragspositionAlsMengenPosition = nachtragspositionAlsMengenPosition;
+const gesamtpreis = (menge, ep) => (typeof ep === 'number' && Number.isFinite(ep) ? menge * ep : null);
+exports.gesamtpreis = gesamtpreis;
 
 },
 "src/lv/demo-lv.js": function (require, exports, module) {
@@ -802,27 +857,27 @@ exports.DEMO_KOMMISSION = '7001';
 exports.DEMO_PROJEKT = '7001 Muster A (fiktiv)';
 exports.DEMO_HEUTE = '2026-11-19';
 const HEADER = ['Gliederung', 'Positionsart', 'StLb- Nr.', 'Nr.', 'Bez.', 'Langtext', 'Kommentar', 'Menge', 'Einheit', 'EP', 'Gesamtpreis', 'Nachlass', 'Nachlassart', 'GP nach Nachlass'];
-const row = ([g, art, nr, bez, lang, menge, einheit]) => [g, art || null, null, nr || null, bez || null, lang || null, null, menge, einheit || null, null, null, null, null, null];
+const row = ([g, art, nr, bez, lang, menge, einheit, ep]) => [g, art || null, null, nr || null, bez || null, lang || null, null, menge, einheit || null, ep ?? null, null, null, null, null];
 function demoLvRows() {
     const rows = [
         ['LV', '', 'MUSTER_LV_01', 'Muster-Leistungsverzeichnis Innenausbau (erfunden)', '', null, ''],
         ['Vorbemerkung', '', '', 'Vorbemerkung zu allen Leistungen (erfunden)', 'Nur ein Beispieltext. Alle Mengen und Texte sind erfunden.', null, ''],
         ['Bereich', '', '1.', 'Trockenbau', '', null, ''],
         ['Abschnitt', '', '1.1.', 'Wände', '', null, ''],
-        ['Position', '', '1.1.10.', 'Metallständerwand einfach beplankt', 'Beispieltext: Ständerwand mit einlagiger Beplankung je Seite.', 120, 'm2'],
-        ['Position', '', '1.1.20.', 'Metallständerwand doppelt beplankt', 'Beispieltext: Ständerwand mit zweilagiger Beplankung je Seite.', 80, 'm²'],
+        ['Position', '', '1.1.10.', 'Metallständerwand einfach beplankt', 'Beispieltext: Ständerwand mit einlagiger Beplankung je Seite.', 120, 'm2', 42.5],
+        ['Position', '', '1.1.20.', 'Metallständerwand doppelt beplankt', 'Beispieltext: Ständerwand mit zweilagiger Beplankung je Seite.', 80, 'm²', 58],
         ['Hinweistext', '', '', 'Hinweis: Anschlüsse an angrenzende Bauteile sind in den Einheitspreisen enthalten (erfunden).', '', null, ''],
-        ['Position', 'Eventualposition', '1.1.30.', 'Zusätzliche Aussteifung nach Bedarf', 'Beispieltext: Nur auf Anweisung auszuführen.', 6, 'Stk.'],
+        ['Position', 'Eventualposition', '1.1.30.', 'Zusätzliche Aussteifung nach Bedarf', 'Beispieltext: Nur auf Anweisung auszuführen.', 6, 'Stk.', 35],
         ['S. Abschnitt', '', '1.1.', 'Summe Wände', '', null, ''],
         ['Abschnitt', '', '1.2.', 'Decken', '', null, ''],
-        ['Position', '', '1.2.10.', 'Abgehängte Decke, glatt', 'Beispieltext: Abgehängte Decke mit Gipskartonplatten.', 215.5, 'm²'],
-        ['Position', '', '1.2.20.', 'Deckenrandprofil liefern und montieren', 'Beispieltext.', 96, 'lm'],
+        ['Position', '', '1.2.10.', 'Abgehängte Decke, glatt', 'Beispieltext: Abgehängte Decke mit Gipskartonplatten.', 215.5, 'm²', 48.5],
+        ['Position', '', '1.2.20.', 'Deckenrandprofil liefern und montieren', 'Beispieltext.', 96, 'lm', 9.8],
         ['S. Abschnitt', '', '1.2.', 'Summe Decken', '', null, ''],
         ['S. Bereich', '', '1.', 'Summe Trockenbau', '', null, ''],
         ['Bereich', '', '2.', 'Pauschalen und Stundenlohn', '', null, ''],
         ['Abschnitt', '', '2.1.', 'Baustelle', '', null, ''],
-        ['Position', '', '2.1.10.', 'Baustelleneinrichtung pauschal', 'Beispieltext: Einrichten, Vorhalten und Räumen.', 1, 'psch'],
-        ['Position', '', '2.1.20.', 'Stundenlohn Facharbeiter', 'Beispieltext: Nach Anweisung, mit Stundennachweis.', 40, 'Std'],
+        ['Position', '', '2.1.10.', 'Baustelleneinrichtung pauschal', 'Beispieltext: Einrichten, Vorhalten und Räumen.', 1, 'psch', 1850],
+        ['Position', '', '2.1.20.', 'Stundenlohn Facharbeiter', 'Beispieltext: Nach Anweisung, mit Stundennachweis.', 40, 'Std', 52],
         ['S. Abschnitt', '', '2.1.', 'Summe Baustelle', '', null, ''],
         ['S. Bereich', '', '2.', 'Summe Pauschalen und Stundenlohn', '', null, ''],
         ['S. LV', '', 'MUSTER_LV_01', 'Summe Muster-LV', '', null, ''],
@@ -846,7 +901,7 @@ async function seedDemoLv(repo) {
         e(1, '1.1.10.', '2026-11-05', 40, 'Baustellenrundgang'),
         e(2, '1.1.10.', '2026-11-12', 95, 'Baustellenrundgang'),
         e(3, '1.1.20.', '2026-11-12', 30, 'Baustellenrundgang'),
-        e(4, '1.1.20.', '2026-11-19', 86, 'Aufmaß', { bemerkung: 'Mehr als im Vertrag: Wandlänge im Flur größer als geplant.' }),
+        e(4, '1.1.20.', '2026-11-19', 86, 'Aufmaß', { bemerkung: 'Wandlänge im Flur größer als geplant.' }),
         e(5, '1.2.10.', '2026-11-12', 60, 'Baustellenrundgang'),
         e(6, '1.2.10.', '2026-11-19', 150, 'Baustellenrundgang'),
         e(7, '1.2.10.', '2026-11-19', 120.5, 'Aufmaß', { bemerkung: 'Wert nach dem Aufmaß korrigiert.', erfasstAm: '2026-11-19T17:30:00Z', korrigiertEintragId: 'ls-demo-6' }),
@@ -864,11 +919,11 @@ async function createStoredDemoLvRepository(store = (0, stored_lv_repository_ts_
     return stored_lv_repository_ts_1.StoredLvRepository.open(exports.DEMO_KOMMISSION, store, seedDemoLv);
 }
 exports.NACHTRAG_BEISPIELE = [
-    { kurztext: 'Zusätzliche Revisionsöffnungen 60 x 60 cm', langtext: 'Beispieltext: Einbau von Revisionsklappen in der abgehängten Decke, auf Anweisung der Bauleitung.', einheit: 'Stk', angebotsmenge: 3 },
-    { kurztext: 'Mehraufwand Anschluss Brandschutzfuge', langtext: 'Beispieltext: Anschluss an eine zusätzliche Bauteilfuge, die im Vertrag nicht vorgesehen war.', einheit: 'm', angebotsmenge: 18 },
-    { kurztext: 'Zusätzliche Dämmung Installationsschacht', langtext: 'Beispieltext: Nachträgliche Dämmung eines Schachts nach geänderter Planung.', einheit: 'm²', angebotsmenge: 7.5 },
-    { kurztext: 'Stundenlohnarbeiten Sonderanschlüsse', langtext: 'Beispieltext: Arbeiten nach Anweisung, mit Stundennachweis.', einheit: 'Std', angebotsmenge: 16 },
-    { kurztext: 'Verkleidung zusätzlicher Stützen', langtext: 'Beispieltext: Beplankung von zwei Stützen, die erst nach Vertragsabschluss bekannt wurden.', einheit: 'Stk', angebotsmenge: 2 },
+    { kurztext: 'Zusätzliche Revisionsöffnungen 60 x 60 cm', langtext: 'Beispieltext: Einbau von Revisionsklappen in der abgehängten Decke, auf Anweisung der Bauleitung.', einheit: 'Stk', angebotsmenge: 3, ep: 85 },
+    { kurztext: 'Mehraufwand Anschluss Brandschutzfuge', langtext: 'Beispieltext: Anschluss an eine zusätzliche Bauteilfuge, die im Vertrag nicht vorgesehen war.', einheit: 'm', angebotsmenge: 18, ep: 64 },
+    { kurztext: 'Zusätzliche Dämmung Installationsschacht', langtext: 'Beispieltext: Nachträgliche Dämmung eines Schachts nach geänderter Planung.', einheit: 'm²', angebotsmenge: 7.5, ep: 38 },
+    { kurztext: 'Stundenlohnarbeiten Sonderanschlüsse', langtext: 'Beispieltext: Arbeiten nach Anweisung, mit Stundennachweis.', einheit: 'Std', angebotsmenge: 16, ep: 54 },
+    { kurztext: 'Verkleidung zusätzlicher Stützen', langtext: 'Beispieltext: Beplankung von zwei Stützen, die erst nach Vertragsabschluss bekannt wurden.', einheit: 'Stk', angebotsmenge: 2, ep: 115 },
 ];
 function nachtragBeispiel(index) {
     return { ...exports.NACHTRAG_BEISPIELE[((index % exports.NACHTRAG_BEISPIELE.length) + exports.NACHTRAG_BEISPIELE.length) % exports.NACHTRAG_BEISPIELE.length] };
@@ -1070,9 +1125,9 @@ function entfalleneKnoten(snapshots, aktuell) {
                 gone.set(k.id, k);
     return [...gone.values()];
 }
-function pruefeBestand(b) {
+function pruefeBestand(b, nachtragspositionen = []) {
     const out = [];
-    const aktuell = new Set(b.knoten.filter(k => k.typ === 'position').map(k => k.id));
+    const aktuell = new Set([...b.knoten.filter(k => k.typ === 'position').map(k => k.id), ...nachtragspositionen.map(p => p.id)]);
     const entfallen = new Set(b.entfallene.filter(k => k.typ === 'position').map(k => k.id));
     const ids = new Set();
     for (const e of b.eintraege) {
@@ -1101,6 +1156,8 @@ function pruefeNachtragsposition(kommission, p) {
         return 'Kurztext und Einheit dürfen nicht leer sein';
     if (typeof p.angebotsmenge !== 'number' || !Number.isFinite(p.angebotsmenge) || p.angebotsmenge < 0)
         return 'Die Menge muss eine Zahl von 0 oder größer sein';
+    if (p.ep !== undefined && p.ep !== null && (typeof p.ep !== 'number' || !Number.isFinite(p.ep) || p.ep < 0))
+        return 'Der Einzelpreis muss eine Zahl von 0 oder größer sein';
     if (p.status !== 'ENTWURF')
         return `Unbekannter Status ${String(p.status)}`;
     return null;
@@ -1466,9 +1523,9 @@ class InMemoryLvRepository {
             throw new lv_repository_ts_1.LvRepositoryError('kommission-unbekannt', `Für ${kommission} gibt es noch keinen Import`);
         if (s.eintraege.some(e => e.id === eintrag.id))
             throw new lv_repository_ts_1.LvRepositoryError('eintrag-doppelt', `Eintrag ${eintrag.id} gibt es schon`);
-        const known = s.imports.some(i => i.knoten.some(k => k.id === eintrag.positionId && k.typ === 'position'));
+        const known = s.imports.some(i => i.knoten.some(k => k.id === eintrag.positionId && k.typ === 'position')) || s.nachtraege.some(p => p.id === eintrag.positionId);
         if (!known)
-            throw new lv_repository_ts_1.LvRepositoryError('position-unbekannt', `Position ${eintrag.positionId} gibt es in keinem Import von ${kommission}`);
+            throw new lv_repository_ts_1.LvRepositoryError('position-unbekannt', `Position ${eintrag.positionId} gibt es weder in einem Import noch als Nachtragsposition von ${kommission}`);
         s.eintraege.push(structuredClone(eintrag));
     }
     async ladeNachtragspositionen(kommission) {
@@ -1505,5 +1562,5 @@ exports.InMemoryLvRepository = InMemoryLvRepository;
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.LvApp = Object.freeze(Object.assign({}, load("preview/lv-app.js"), { css: ":root, :host, .pl-app, .lv-app {\n  color-scheme: light;\n  \n  --ink: #0f1f25; --muted: #2f4539;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  \n  --line: #c8d7cc; --line-soft: #e3ebe5; --line-strong: #5a7165;\n  \n  --card-line: var(--line);\n  \n  --teal: #08574f; --teal-d: #063f39; --lime: #d5f28a; --on-teal: #fff; --focus: #063f39;\n  \n  --ok-bg: #e5f3e9; --ok-ink: #14452d;\n  --note-bg: #fff6e8; --note-ink: #4f2c08; --note-line: #86500f;\n  --stoer: #8e2616; --stoer-soft: #f6d9d2; --on-stoer: #fff;\n  \n  --r-control: 10px; --r-card: 12px; --r-pill: 999px;\n  \n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (max-width: 760px) {\n  :root, :host, .pl-app, .lv-app { --card-line: #7b9487; }\n}\n.btn-primary, .primary, .lv-primary,\n.btn-secondary, .btn-outline, .outline, .lv-btn, .ac01-add, .ac01-add-event, .ac01-jump button, .ac01-photo-btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);\n  min-height: 44px; padding: 0 18px; border: 1px solid var(--teal); border-radius: var(--r-control);\n  font-size: 14px; font-weight: 700; line-height: 1.2; text-align: center; cursor: pointer;\n  transition: background-color .15s, border-color .15s;\n}\n.btn-primary, .primary, .lv-primary { background: var(--teal); color: var(--on-teal); box-shadow: none; }\n.btn-primary:hover, .primary:hover, .lv-primary:hover { background: var(--teal-d); border-color: var(--teal-d); }\n.btn-secondary, .btn-outline, .outline, .lv-btn, .ac01-add, .ac01-add-event, .ac01-jump button, .ac01-photo-btn { background: var(--panel); color: var(--teal-d); }\n.btn-secondary:hover, .btn-outline:hover, .outline:hover, .lv-btn:hover, .ac01-add:hover, .ac01-add-event:hover, .ac01-jump button:hover, .ac01-photo-btn:hover { background: var(--ok-bg); }\n.btn-primary:disabled, .primary:disabled, .lv-primary:disabled,\n.btn-secondary:disabled, .btn-outline:disabled, .outline:disabled, .lv-btn:disabled, .ac01-add:disabled, .ac01-add-event:disabled { opacity: .55; cursor: not-allowed; }\n.btn-link, .text-action, .lv-link, .quiet, .ac01-remove, .back {\n  display: inline-flex; align-items: center; gap: var(--s1); min-height: 44px; padding: 0 var(--s2);\n  border: 0; border-radius: var(--r-control); background: transparent; color: var(--teal-d);\n  font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;\n}\n.btn-link:hover, .text-action:hover, .lv-link:hover, .quiet:hover, .ac01-remove:hover, .back:hover { background: var(--ok-bg); }\n.btn-link.danger, .quiet.danger, .ac01-remove { color: var(--stoer); }\n.btn-link.danger:hover, .quiet.danger:hover, .ac01-remove:hover { background: var(--stoer-soft); }\n.btn-icon, .lv-edit {\n  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; padding: 0;\n  border: 1px solid var(--teal); border-radius: var(--r-control); background: var(--panel); color: var(--teal-d); cursor: pointer;\n}\n.btn-icon:hover, .lv-edit:hover { background: var(--ok-bg); }\n.lv-segs, .seg, .case-seg, .tabs {\n  display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: var(--r-control); overflow: hidden; background: var(--panel);\n}\n.lv-seg, .segbtn, .case-seg button, .tabs button {\n  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s4);\n  border: 0; border-radius: 0; background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.2; cursor: pointer;\n}\n.lv-seg + .lv-seg, .segbtn + .segbtn, .case-seg button + button, .tabs button + button { border-left: 1px solid var(--line-strong); }\n.lv-seg:hover, .segbtn:hover, .case-seg button:hover, .tabs button:hover { background: var(--ok-bg); }\n.lv-seg[aria-pressed=\"true\"], .segbtn[aria-pressed=\"true\"], .case-seg button[aria-pressed=\"true\"], .tabs button[aria-selected=\"true\"] { background: var(--teal); color: var(--on-teal); }\n.lv-seg:focus-visible, .segbtn:focus-visible, .case-seg button:focus-visible, .tabs button:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }\n.lv-seg:disabled, .segbtn:disabled, .case-seg button:disabled, .tabs button:disabled { opacity: .55; cursor: not-allowed; }\n.chip, .badge, .count-pill, .tag, .lv-chip, .ac01-status, .st-state, .ac01-chip {\n  display: inline-flex; align-items: center; gap: var(--s1); min-height: 24px; padding: 2px 10px;\n  border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--band); color: var(--muted);\n  font-size: 12px; font-weight: 700; line-height: 1.3;\n}\n.chip.ok, .tag.ok, .lv-chip.ok, .ac01-status, .ac01-chip, .st-state[data-mode=\"saved\"] { background: var(--ok-bg); border-color: var(--ok-ink); color: var(--ok-ink); }\n.chip.warn, .badge.orange, .tag.warn, .lv-chip.warn, .ac01-status.is-incomplete, .st-state[data-mode=\"dirty\"] { background: var(--note-bg); border-color: var(--note-line); color: var(--note-ink); }\n.chip.bad, .badge.red, .tag.stoer { background: var(--stoer-soft); border-color: var(--stoer); color: var(--stoer); }\n.callout, .legacy-banner, .draft-notice, .notice, .ac01-row-note, .ac01-missing, .note, .bh-hints, .lv-warn, .lv-error, .form-message, .save-confirmation, .ac01-savebar p[data-dirty=\"true\"] {\n  padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--band); color: var(--ink); font-size: 13px; line-height: 1.5;\n}\n.callout.warn, .legacy-banner, .draft-notice, .notice, .ac01-row-note, .ac01-missing, .note, .bh-hints, .lv-warn, .ac01-savebar p[data-dirty=\"true\"] { background: var(--note-bg); border-color: var(--note-line); color: var(--note-ink); }\n.callout.ok, .save-confirmation, .note.ok, .bh-hints.bh-ok, .form-message { background: var(--ok-bg); border-color: var(--ok-ink); color: var(--ok-ink); }\n.callout.bad, .lv-error, .form-message.error { background: var(--stoer-soft); border-color: var(--stoer); color: var(--stoer); }\n.card, .panel, .metric, .detail-card, .side-card, .draft-paper, .ts-source, .ac01-block, .ac01-report-area, .pl-card, .lv-scroll {\n  background: var(--panel); border: 1px solid var(--card-line); border-radius: var(--r-card);\n}\n.inset, .ac01-employee, .ac01-event, .ac01-picker-group, .ac01-picker, .ac01-bulk, .ac01-experiment, .pl-card .list.events li, .draft-paper .content-block {\n  background: var(--band); border: 1px solid var(--card-line); border-radius: var(--r-control);\n}\n.eyebrow, .metric small, .wd-preview dt, .ts-figures dt, .ac01-stat small, .ac01-disruption-group h4 {\n  font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--muted);\n}\ninput:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"range\"]):not([type=\"file\"]):not([type=\"color\"]), select, textarea {\n  border: 1px solid var(--line-strong); border-radius: var(--r-control); background: var(--panel); color: var(--ink); min-height: 44px; padding: var(--s2) var(--s3);\n}\ntextarea { min-height: 88px; }\n@media (prefers-color-scheme: dark) {\n  .lv-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #f4faf6; --muted: #c4d4ca; --line: #6f867a; --line-soft: #53695d; --line-strong: #9bb1a5;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #6cd0bf; --teal-d: #8fe0d1; --lime: #b5d96a; --focus: #9fe3d5; --on-teal: #0b1d1a;\n    --stoer: #f6a090; --stoer-soft: #4a2520; --note-bg: #2b2418; --note-ink: #f8e6c8; --note-line: #d29a4c; --ok-bg: #1f3a2c; --ok-ink: #d3f2e0;\n  }\n}\n* { box-sizing: border-box; }\n.lv-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.lv-app.standalone { min-height: 100vh; padding: var(--s5) var(--s6) var(--s6); }\n.lv-app ::selection { background: var(--lime); color: #14252c; }\n.lv-app :is(input, textarea, button, select):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.lv-app input, .lv-app textarea, .lv-app button { accent-color: var(--teal); font: inherit; }\n.lv-app h1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); }\n.lv-app h2 { font-size: 16px; margin: 0; }\n.lv-app h3 { font-size: 14px; margin: var(--s5) 0 var(--s2); }\n.sr-only, .lv-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.lv-lead { margin: 0 0 var(--s3); color: var(--muted); max-width: 72ch; }\n.lv-bar-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4); margin: 0 0 var(--s3); }\n.lv-count { font-weight: 700; margin-inline-start: var(--s1); }\n.lv-all { display: flex; gap: var(--s4); }\n.lv-link.armed { color: var(--note-ink); background: var(--note-bg); outline: 2px solid var(--note-line); outline-offset: 0; border-radius: 4px; padding-inline: var(--s2); text-decoration: none; font-weight: 700; }\n.lv-saved { background: var(--ok-bg); color: var(--ok-ink); padding: var(--s2) var(--s3); border-radius: 6px; margin: 0 0 var(--s3); }\n.lv-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); align-items: start; container: lv-table / inline-size; }\n.lv-scroll {overflow-x: auto; border: 1px solid var(--line-strong); scrollbar-color: var(--line-strong) transparent;}\n.lv-table { width: 100%; border-collapse: collapse; min-width: 680px; }\n.lv-table thead th, .lv-nt-table thead th { text-align: left; font-size: 12px; color: var(--ink); font-weight: 700; padding: var(--s3) var(--s3); border-bottom: 2px solid var(--line-strong); background: var(--panel); position: sticky; top: 0; }\n.lv-table td, .lv-table tbody th, .lv-nt-table td, .lv-nt-table tbody th { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; font-weight: 400; }\n.lv-oz { font-weight: 600; color: var(--muted); white-space: nowrap; }\n.lv-group th { background: var(--band); font-weight: 600; }\n.lv-group.l2 th { padding-left: var(--s5); background: var(--panel); }\n.lv-group.l2 { border-top: 1px solid var(--line); }\n.lv-group.l1 { border-top: 1px solid var(--line-strong); }\n.lv-groupinfo { color: var(--muted); font-size: 12px; text-align: right; background: var(--band); }\n.lv-group.l2 .lv-groupinfo { background: var(--panel); }\n.lv-toggle { display: inline-flex; align-items: baseline; gap: var(--s2); border: 0; background: none; color: inherit; font-weight: 600; cursor: pointer; padding: var(--s1) 0; min-height: 28px; text-align: left; }\n.lv-note td { color: var(--muted); font-style: italic; font-size: 13px; padding-top: var(--s1); padding-bottom: var(--s1); }\n.lv-pos.open td, .lv-pos.open th { background: var(--note-bg); }\n.lv-text { min-width: 20ch; }\n.lv-name { margin-right: var(--s2); }\n.lv-menge, .lv-stand { white-space: nowrap; }\n.lv-stand small { display: block; color: var(--muted); font-size: 12px; }\n.lv-none { color: var(--muted); }\n.lv-anz { min-width: 11ch; white-space: nowrap; }\n.lv-bar { display: inline-block; width: 56px; height: 8px; border-radius: 4px; background: var(--line-soft); vertical-align: middle; margin-right: var(--s2); overflow: hidden; }\n.lv-bar > span { display: block; height: 100%; background: var(--teal); }\n.lv-bar > span.over { background: var(--note-line); }\n.lv-pct { color: var(--muted); font-size: 13px; }\n.lv-act { text-align: right; }\n.lv-chip {margin-right: var(--s1); white-space: nowrap;}\n.lv-empty { color: var(--muted); padding: var(--s5); text-align: center; }\n.lv-foot { color: var(--muted); font-size: 13px; max-width: 90ch; margin: var(--s4) 0 0; }\n.lv-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.lv-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.45); }\n.lv-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); display: block; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--line-strong) transparent; background: var(--panel); color: var(--ink); border-left: 2px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.22); padding: var(--s4); }\n.lv-panel.enter { animation: lv-slide-in 0.2s ease-out; }\n@keyframes lv-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n@media (prefers-reduced-motion: reduce) { .lv-panel.enter { animation: none; } }\n.lv-closebtn { display: inline-flex; align-items: center; gap: var(--s2); }\n.lv-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; margin: var(--s3) calc(-1 * var(--s4)) var(--s3); padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-block: 2px solid var(--note-line); font-weight: 600; }\n.lv-confirm span { flex: 1 1 100%; }\n.lv-ico { flex: none; }\n.lv-chev { display: inline-flex; width: 1.4em; color: var(--teal-d); align-self: center; }\n.lv-phead { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); }\n.lv-pos-title { margin: var(--s2) 0 var(--s3); font-weight: 600; }\n.lv-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin: 0 0 var(--s3); }\n.lv-facts dt { font-size: 12px; color: var(--muted); }\n.lv-facts dd { margin: 0; font-weight: 600; }\n.lv-note-p { color: var(--muted); font-size: 13px; margin: var(--s2) 0; }\n#lv-form, #lv-nt-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s3); }\n#lv-form label, #lv-nt-form label { display: grid; gap: var(--s1); font-weight: 600; font-size: 13px; min-width: 0; }\n#lv-form label small, #lv-nt-form label small { font-weight: 400; color: var(--muted); }\n#lv-form input, #lv-form textarea, #lv-nt-form input, #lv-nt-form textarea, #lv-nt-form select {width: 100%; min-width: 0;; caret-color: var(--teal-d);; padding: var(--s2) var(--s3);; color: var(--ink);; font-weight: 400; font-size: 14px;}\n.lv-pbtn { display: flex; gap: var(--s3); flex-wrap: wrap; }\n.lv-checks p, .lv-error, .lv-warn {margin: var(--s1) 0; }\n.lv-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }\n.lv-hist li { border-bottom: 1px solid var(--line); padding-bottom: var(--s3); display: grid; gap: var(--s1); }\n.lv-hist li.old strong { text-decoration: line-through; color: var(--muted); }\n.lv-hist small { color: var(--muted); }\n.lv-hist .lv-link { justify-self: start; }\n@media (prefers-reduced-motion: no-preference) { .lv-bar > span { transition: width .2s ease; } }\n.lv-sub, .lv-short { display: none; }\n.lv-pos { scroll-margin-top: var(--s2); }\n@media (max-width: 640px) {\n  .lv-app.standalone { padding: var(--s4); }\n  .lv-seg {padding-inline: var(--s3);}\n}\n@container lv-table (max-width: 720px) {\n  .lv-table { min-width: 0; }\n  \n  \n  .lv-table :is(thead th:nth-child(3), thead th:nth-child(5), td.lv-menge, td.lv-anz) { width: 0; max-width: 0; padding: 0; border: 0; overflow: hidden; font-size: 0; line-height: 0; }\n  .lv-table :is(td.lv-menge, td.lv-anz) * { font-size: 0; }\n  .lv-sub { display: block; color: var(--muted); font-size: 12px; }\n  .lv-long { display: none; }\n  .lv-short { display: inline; }\n  .lv-table { font-size: 13px; }\n  .lv-stand, .lv-stand small { white-space: normal; }\n  .lv-oz { font-size: 12px; }\n  .lv-text { min-width: 0; }\n  .lv-name { overflow-wrap: anywhere; hyphens: auto; }\n  .lv-table td, .lv-table tbody th { padding-inline: 6px; }\n  .lv-groupinfo { font-size: 0; padding: 0; }                 \n  .lv-table td, .lv-table tbody th { padding-inline: var(--s2); }\n}\n@media (max-width: 640px), (pointer: coarse) {\n  .lv-btn, .lv-primary, .lv-seg, .lv-toggle { min-height: 44px; }\n  #lv-form input, #lv-nt-form :is(input, select) { min-height: 44px; }\n}\n.lv-nachtrag { margin-top: var(--s6); }\n.lv-nt-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4); margin: 0 0 var(--s2); }\n.lv-nt-hint { color: var(--muted); font-size: 13px; max-width: 90ch; margin: 0 0 var(--s3); }\n.lv-nt-block { margin: 0 0 var(--s4); }\n.lv-nt-block h3 { margin: 0 0 var(--s2); }\n.lv-nt-scroll { overflow-x: auto; border: 1px solid var(--line-strong); }\n.lv-nt-table { width: 100%; border-collapse: collapse; }\n.lv-nt-kurz { overflow-wrap: anywhere; }\n.lv-nt-lang { display: block; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }\n.lv-nt-menge { white-space: nowrap; }\n.lv-nt-table { table-layout: fixed; }                            \n.lv-nt-table :is(th, td):nth-child(1) { width: 64px; }\n.lv-nt-table :is(th, td):nth-child(3) { width: 140px; }\n.lv-nt-table :is(th, td):nth-child(4) { width: 120px; }\n@media (max-width: 640px) {\n  .lv-nt-table :is(th, td):nth-child(1) { width: 44px; }\n  .lv-nt-table :is(th, td):nth-child(3) { width: 82px; white-space: normal; }\n  .lv-nt-table :is(th, td):nth-child(4) { width: 92px; }\n  .lv-nt-table { font-size: 13px; }\n}\n.lv-nt-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }" }, { build: "sha256:941930c1fba4bb8b" }));
+  globalThis.LvApp = Object.freeze(Object.assign({}, load("preview/lv-app.js"), { css: ":root, :host, .pl-app, .lv-app {\n  color-scheme: light;\n  \n  --ink: #0f1f25; --muted: #2f4539;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  \n  --line: #c8d7cc; --line-soft: #e3ebe5; --line-strong: #5a7165;\n  \n  --card-line: var(--line);\n  \n  --teal: #08574f; --teal-d: #063f39; --lime: #d5f28a; --on-teal: #fff; --focus: #063f39;\n  \n  --ok-bg: #e5f3e9; --ok-ink: #14452d;\n  --note-bg: #fff6e8; --note-ink: #4f2c08; --note-line: #86500f;\n  --stoer: #8e2616; --stoer-soft: #f6d9d2; --on-stoer: #fff;\n  \n  --r-control: 10px; --r-card: 12px; --r-pill: 999px;\n  \n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (max-width: 760px) {\n  :root, :host, .pl-app, .lv-app { --card-line: #7b9487; }\n}\n.btn-primary, .primary, .lv-primary,\n.btn-secondary, .btn-outline, .outline, .lv-btn, .ac01-add, .ac01-add-event, .ac01-jump button, .ac01-photo-btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);\n  min-height: 44px; padding: 0 18px; border: 1px solid var(--teal); border-radius: var(--r-control);\n  font-size: 14px; font-weight: 700; line-height: 1.2; text-align: center; cursor: pointer;\n  transition: background-color .15s, border-color .15s;\n}\n.btn-primary, .primary, .lv-primary { background: var(--teal); color: var(--on-teal); box-shadow: none; }\n.btn-primary:hover, .primary:hover, .lv-primary:hover { background: var(--teal-d); border-color: var(--teal-d); }\n.btn-secondary, .btn-outline, .outline, .lv-btn, .ac01-add, .ac01-add-event, .ac01-jump button, .ac01-photo-btn { background: var(--panel); color: var(--teal-d); }\n.btn-secondary:hover, .btn-outline:hover, .outline:hover, .lv-btn:hover, .ac01-add:hover, .ac01-add-event:hover, .ac01-jump button:hover, .ac01-photo-btn:hover { background: var(--ok-bg); }\n.btn-primary:disabled, .primary:disabled, .lv-primary:disabled,\n.btn-secondary:disabled, .btn-outline:disabled, .outline:disabled, .lv-btn:disabled, .ac01-add:disabled, .ac01-add-event:disabled { opacity: .55; cursor: not-allowed; }\n.btn-link, .text-action, .lv-link, .quiet, .ac01-remove, .back {\n  display: inline-flex; align-items: center; gap: var(--s1); min-height: 44px; padding: 0 var(--s2);\n  border: 0; border-radius: var(--r-control); background: transparent; color: var(--teal-d);\n  font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;\n}\n.btn-link:hover, .text-action:hover, .lv-link:hover, .quiet:hover, .ac01-remove:hover, .back:hover { background: var(--ok-bg); }\n.btn-link.danger, .quiet.danger, .ac01-remove { color: var(--stoer); }\n.btn-link.danger:hover, .quiet.danger:hover, .ac01-remove:hover { background: var(--stoer-soft); }\n.btn-icon, .lv-edit {\n  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; padding: 0;\n  border: 1px solid var(--teal); border-radius: var(--r-control); background: var(--panel); color: var(--teal-d); cursor: pointer;\n}\n.btn-icon:hover, .lv-edit:hover { background: var(--ok-bg); }\n.lv-segs, .seg, .case-seg, .tabs {\n  display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: var(--r-control); overflow: hidden; background: var(--panel);\n}\n.lv-seg, .segbtn, .case-seg button, .tabs button {\n  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s4);\n  border: 0; border-radius: 0; background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.2; cursor: pointer;\n}\n.lv-seg + .lv-seg, .segbtn + .segbtn, .case-seg button + button, .tabs button + button { border-left: 1px solid var(--line-strong); }\n.lv-seg:hover, .segbtn:hover, .case-seg button:hover, .tabs button:hover { background: var(--ok-bg); }\n.lv-seg[aria-pressed=\"true\"], .segbtn[aria-pressed=\"true\"], .case-seg button[aria-pressed=\"true\"], .tabs button[aria-selected=\"true\"] { background: var(--teal); color: var(--on-teal); }\n.lv-seg:focus-visible, .segbtn:focus-visible, .case-seg button:focus-visible, .tabs button:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }\n.lv-seg:disabled, .segbtn:disabled, .case-seg button:disabled, .tabs button:disabled { opacity: .55; cursor: not-allowed; }\n.chip, .badge, .count-pill, .tag, .lv-chip, .ac01-status, .st-state, .ac01-chip {\n  display: inline-flex; align-items: center; gap: var(--s1); min-height: 24px; padding: 2px 10px;\n  border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--band); color: var(--muted);\n  font-size: 12px; font-weight: 700; line-height: 1.3;\n}\n.chip.ok, .tag.ok, .lv-chip.ok, .ac01-status, .ac01-chip, .st-state[data-mode=\"saved\"] { background: var(--ok-bg); border-color: var(--ok-ink); color: var(--ok-ink); }\n.chip.warn, .badge.orange, .tag.warn, .lv-chip.warn, .ac01-status.is-incomplete, .st-state[data-mode=\"dirty\"] { background: var(--note-bg); border-color: var(--note-line); color: var(--note-ink); }\n.chip.bad, .badge.red, .tag.stoer { background: var(--stoer-soft); border-color: var(--stoer); color: var(--stoer); }\n.callout, .legacy-banner, .draft-notice, .notice, .ac01-row-note, .ac01-missing, .note, .bh-hints, .lv-warn, .lv-error, .form-message, .save-confirmation, .ac01-savebar p[data-dirty=\"true\"] {\n  padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--band); color: var(--ink); font-size: 13px; line-height: 1.5;\n}\n.callout.warn, .legacy-banner, .draft-notice, .notice, .ac01-row-note, .ac01-missing, .note, .bh-hints, .lv-warn, .ac01-savebar p[data-dirty=\"true\"] { background: var(--note-bg); border-color: var(--note-line); color: var(--note-ink); }\n.callout.ok, .save-confirmation, .note.ok, .bh-hints.bh-ok, .form-message { background: var(--ok-bg); border-color: var(--ok-ink); color: var(--ok-ink); }\n.callout.bad, .lv-error, .form-message.error { background: var(--stoer-soft); border-color: var(--stoer); color: var(--stoer); }\n.card, .panel, .metric, .detail-card, .side-card, .draft-paper, .ts-source, .ac01-block, .ac01-report-area, .pl-card, .lv-scroll {\n  background: var(--panel); border: 1px solid var(--card-line); border-radius: var(--r-card);\n}\n.inset, .ac01-employee, .ac01-event, .ac01-picker-group, .ac01-picker, .ac01-bulk, .ac01-experiment, .pl-card .list.events li, .draft-paper .content-block {\n  background: var(--band); border: 1px solid var(--card-line); border-radius: var(--r-control);\n}\n.eyebrow, .metric small, .wd-preview dt, .ts-figures dt, .ac01-stat small, .ac01-disruption-group h4 {\n  font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--muted);\n}\ninput:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"range\"]):not([type=\"file\"]):not([type=\"color\"]), select, textarea {\n  border: 1px solid var(--line-strong); border-radius: var(--r-control); background: var(--panel); color: var(--ink); min-height: 44px; padding: var(--s2) var(--s3);\n}\ntextarea { min-height: 88px; }\n@media (prefers-color-scheme: dark) {\n  .lv-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #f4faf6; --muted: #c4d4ca; --line: #6f867a; --line-soft: #53695d; --line-strong: #9bb1a5;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #6cd0bf; --teal-d: #8fe0d1; --lime: #b5d96a; --focus: #9fe3d5; --on-teal: #0b1d1a;\n    --stoer: #f6a090; --stoer-soft: #4a2520; --note-bg: #2b2418; --note-ink: #f8e6c8; --note-line: #d29a4c; --ok-bg: #1f3a2c; --ok-ink: #d3f2e0;\n  }\n}\n* { box-sizing: border-box; }\n.lv-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.lv-app.standalone { min-height: 100vh; padding: var(--s5) var(--s6) var(--s6); }\n.lv-app ::selection { background: var(--lime); color: #14252c; }\n.lv-app :is(input, textarea, button, select):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.lv-app input, .lv-app textarea, .lv-app button { accent-color: var(--teal); font: inherit; }\n.lv-app h1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); }\n.lv-app h2 { font-size: 16px; margin: 0; }\n.lv-app h3 { font-size: 14px; margin: var(--s5) 0 var(--s2); }\n.sr-only, .lv-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.lv-lead { margin: 0 0 var(--s3); color: var(--muted); max-width: 72ch; }\n.lv-bar-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4); margin: 0 0 var(--s3); }\n.lv-count { font-weight: 700; margin-inline-start: var(--s1); }\n.lv-all { display: flex; gap: var(--s4); }\n.lv-link.armed { color: var(--note-ink); background: var(--note-bg); outline: 2px solid var(--note-line); outline-offset: 0; border-radius: 4px; padding-inline: var(--s2); text-decoration: none; font-weight: 700; }\n.lv-saved { background: var(--ok-bg); color: var(--ok-ink); padding: var(--s2) var(--s3); border-radius: 6px; margin: 0 0 var(--s3); }\n.lv-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); align-items: start; container: lv-table / inline-size; }\n.lv-scroll {overflow-x: auto; border: 1px solid var(--line-strong); scrollbar-color: var(--line-strong) transparent;}\n.lv-table { width: 100%; border-collapse: collapse; min-width: 860px; }\n.lv-table thead th { text-align: left; font-size: 12px; color: var(--ink); font-weight: 700; padding: var(--s3) var(--s3); border-bottom: 2px solid var(--line-strong); background: var(--panel); position: sticky; top: 0; }\n.lv-table td, .lv-table tbody th { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; font-weight: 400; }\n.lv-oz { font-weight: 600; color: var(--muted); white-space: nowrap; }\n.lv-table thead th:first-child { white-space: nowrap; }\n.lv-group th { background: var(--band); font-weight: 600; }\n.lv-group.l0 th, .lv-group.l0 .lv-groupinfo { background: var(--panel); }\n.lv-group.l0 th { font-size: 15px; }\n.lv-group.l0 { border-top: 2px solid var(--line-strong); }\n.lv-group.l0:first-child { border-top: 0; }\n.lv-group.l2 th { padding-left: var(--s5); background: var(--panel); }\n.lv-group.l2 { border-top: 1px solid var(--line); }\n.lv-group.l1 { border-top: 1px solid var(--line-strong); }\n.lv-groupinfo { color: var(--muted); font-size: 12px; text-align: right; background: var(--band); }\n.lv-group.l2 .lv-groupinfo { background: var(--panel); }\n.lv-toggle { display: inline-flex; align-items: baseline; gap: var(--s2); border: 0; background: none; color: inherit; font-weight: 600; cursor: pointer; padding: var(--s1) 0; min-height: 28px; text-align: left; }\n.lv-note td { color: var(--muted); font-style: italic; font-size: 13px; padding-top: var(--s1); padding-bottom: var(--s1); }\n.lv-pos.open td, .lv-pos.open th { background: var(--note-bg); }\n.lv-text { min-width: 20ch; }\n.lv-name { margin-right: var(--s2); }\n.lv-menge, .lv-stand, .lv-ep, .lv-gp { white-space: nowrap; }\n.lv-ep, .lv-gp { text-align: right; }\n.lv-stand small { display: block; color: var(--muted); font-size: 12px; }\n.lv-none { color: var(--muted); }\n.lv-anz { min-width: 11ch; white-space: nowrap; }\n.lv-bar { display: inline-block; width: 56px; height: 8px; border-radius: 4px; background: var(--line-soft); vertical-align: middle; margin-right: var(--s2); overflow: hidden; }\n.lv-bar > span { display: block; height: 100%; background: var(--teal); }\n.lv-pct { color: var(--muted); font-size: 13px; }\n.lv-act { text-align: right; }\n.lv-chip {margin-right: var(--s1); white-space: nowrap;}\n.lv-empty { color: var(--muted); padding: var(--s5); text-align: center; }\n.lv-foot { color: var(--muted); font-size: 13px; max-width: 90ch; margin: var(--s4) 0 0; }\n.lv-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.lv-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.45); }\n.lv-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); display: block; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--line-strong) transparent; background: var(--panel); color: var(--ink); border-left: 2px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.22); padding: var(--s4); }\n.lv-panel.enter { animation: lv-slide-in 0.2s ease-out; }\n@keyframes lv-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n@media (prefers-reduced-motion: reduce) { .lv-panel.enter { animation: none; } }\n.lv-closebtn { display: inline-flex; align-items: center; gap: var(--s2); }\n.lv-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; margin: var(--s3) calc(-1 * var(--s4)) var(--s3); padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-block: 2px solid var(--note-line); font-weight: 600; }\n.lv-confirm span { flex: 1 1 100%; }\n.lv-ico { flex: none; }\n.lv-chev { display: inline-flex; width: 1.4em; color: var(--teal-d); align-self: center; }\n.lv-phead { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); }\n.lv-pos-title { margin: var(--s2) 0 var(--s3); font-weight: 600; }\n.lv-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin: 0 0 var(--s3); }\n.lv-facts dt { font-size: 12px; color: var(--muted); }\n.lv-facts dd { margin: 0; font-weight: 600; }\n.lv-facts-wide { grid-column: 1 / -1; }\n.lv-facts-wide dd { font-weight: 400; overflow-wrap: anywhere; }\n.lv-note-p { color: var(--muted); font-size: 13px; margin: var(--s2) 0; }\n#lv-form, #lv-nt-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s3); }\n#lv-form label, #lv-nt-form label { display: grid; gap: var(--s1); font-weight: 600; font-size: 13px; min-width: 0; }\n#lv-form label small, #lv-nt-form label small { font-weight: 400; color: var(--muted); }\n#lv-form input, #lv-form textarea, #lv-nt-form input, #lv-nt-form textarea, #lv-nt-form select {width: 100%; min-width: 0;; caret-color: var(--teal-d);; padding: var(--s2) var(--s3);; color: var(--ink);; font-weight: 400; font-size: 14px;}\n.lv-pbtn { display: flex; gap: var(--s3); flex-wrap: wrap; }\n.lv-checks p, .lv-error, .lv-warn {margin: var(--s1) 0; }\n.lv-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }\n.lv-hist li { border-bottom: 1px solid var(--line); padding-bottom: var(--s3); display: grid; gap: var(--s1); }\n.lv-hist li.old strong { text-decoration: line-through; color: var(--muted); }\n.lv-hist small { color: var(--muted); }\n.lv-hist .lv-link { justify-self: start; }\n@media (prefers-reduced-motion: no-preference) { .lv-bar > span { transition: width .2s ease; } }\n.lv-sub, .lv-short { display: none; }\n.lv-pos { scroll-margin-top: var(--s2); }\n@media (max-width: 640px) {\n  .lv-app.standalone { padding: var(--s4); }\n  .lv-seg {padding-inline: var(--s3);}\n}\n@container lv-table (max-width: 860px) {\n  .lv-table { min-width: 0; }\n  \n  \n  .lv-table :is(thead th:nth-child(3), thead th:nth-child(4), thead th:nth-child(5), thead th:nth-child(7), td.lv-menge, td.lv-ep, td.lv-gp, td.lv-anz) { width: 0; max-width: 0; padding: 0; border: 0; overflow: hidden; font-size: 0; line-height: 0; }\n  .lv-table :is(td.lv-menge, td.lv-ep, td.lv-gp, td.lv-anz) * { font-size: 0; }\n  .lv-sub { display: block; color: var(--muted); font-size: 12px; }\n  .lv-long { display: none; }\n  .lv-short { display: inline; }\n  .lv-table { font-size: 13px; }\n  .lv-stand, .lv-stand small { white-space: normal; }\n  .lv-oz { font-size: 12px; }\n  .lv-text { min-width: 0; }\n  .lv-name { overflow-wrap: anywhere; hyphens: auto; }\n  .lv-table td, .lv-table tbody th { padding-inline: 6px; }\n  .lv-groupinfo { font-size: 0; padding: 0; }                 \n  .lv-table td, .lv-table tbody th { padding-inline: var(--s2); }\n}\n@media (max-width: 640px), (pointer: coarse) {\n  .lv-btn, .lv-primary, .lv-seg, .lv-toggle { min-height: 44px; }\n  #lv-form input, #lv-nt-form :is(input, select) { min-height: 44px; }\n}\n.lv-nachtrag { margin-top: var(--s4); }\n.lv-nt-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0 0 var(--s2); }\n.lv-nt-hint { color: var(--muted); font-size: 13px; max-width: 90ch; margin: 0 0 var(--s3); }" }, { build: "sha256:eee04d8e523a2495" }));
 })();
