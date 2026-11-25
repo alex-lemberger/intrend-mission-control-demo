@@ -291,7 +291,7 @@ strong .ic-wrap{margin-right:.3em}
 .wd-detail-body{padding:var(--sp-3) var(--sp-5) var(--sp-4) calc(44px + var(--sp-5))}
 .wd-detail-body .item-meta{margin:0 0 var(--sp-3)}
 .wd-detail-body .wd-preview{margin:0}
-.wd-detail-body .wd-preview>div{grid-template-columns:200px minmax(0,1fr)}
+.wd-detail-body .wd-preview>div{grid-template-columns:var(--wd-label-w,200px) minmax(0,1fr)}   /* --wd-label-w: set by alignDetailColumns() so the values start where the Mitarbeitende column starts */
 .wd-detail-body .wd-open-hint{margin:var(--sp-3) 0 0}
 @media(prefers-reduced-motion:reduce){.wd-toggle .ic-wrap svg{transition:none}}
 .wd-table .wd-detail[hidden]{display:none}   /* must beat the display:block of the stacked layout below */
@@ -347,3 +347,21 @@ strong .ic-wrap{margin-right:.3em}
   .crumbs li:nth-last-child(2)::before{content:none}
   .crumb-link{min-height:44px;max-width:20ch}
 }
+
+/* Baustellentag: the Sammelaktion bar and the add buttons under the people table. One bar: the choice on the left, the buttons on the right at one height,
+   the main action last; the add button gets air from the table above and from the events below. */
+.ac01-bulk-actions{align-items:flex-end;justify-content:flex-start;gap:var(--sp-3) var(--sp-4);margin-top:var(--sp-4)}
+.ac01-bulk-mode{flex:1 1 260px;max-width:420px}
+.ac01-bulk-buttons{display:flex;flex:1 1 100%;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:var(--sp-3)}   /* own row under the choice, starting at the left edge */
+#ac01-view .ac01-bulk-buttons :is(.ac01-add,.ac01-action){height:44px;min-height:44px;margin:0;padding:0 var(--sp-4);width:auto;white-space:nowrap}
+#ac01-view .ac01-bulk-buttons .ac01-action{min-width:0}
+#ac01-bulk-message{margin-top:var(--sp-4)}
+#ac01-add-employee{margin:var(--sp-4) 0 0}
+.ac01-events-panel{margin-top:var(--sp-5)}
+@media(max-width:760px){
+  .ac01-bulk-actions{flex-direction:column;align-items:stretch}
+  .ac01-bulk-mode{flex:none;max-width:none}
+  .ac01-bulk-buttons{flex-direction:column;align-items:stretch;width:100%;margin-left:0}
+  #ac01-view .ac01-bulk-buttons :is(.ac01-add,.ac01-action){width:100%;justify-content:center}
+}
+

@@ -632,12 +632,12 @@
 
   ['#ac01-bulk-start', '#ac01-bulk-end'].forEach(selector => $(selector).addEventListener('input', event => { event.target.parentElement.dataset.empty = String(event.target.value === ''); }));
   $('#ac01-bulk-example').addEventListener('click', () => {
-    [['start', '07:00'], ['end', '17:00'], ['break', '60']].forEach(([key, value]) => {
+    [['start', '07:00'], ['end', '17:00'], ['break', '60'], ['work', 'Wände'], ['location', 'EG · Eingangsbereich']].forEach(([key, value]) => {
       const input = $(`#ac01-bulk-${key}`);
       input.value = value;
       if (input.type === 'time') input.parentElement.dataset.empty = 'false';
     });
-    bulkMessage.textContent = 'Beispielwerte eingesetzt (07:00–17:00, 60 Min. Pause): keine Regel und nicht freigegeben. Es wurde noch nichts in die Zeilen eingetragen.';
+    bulkMessage.textContent = 'Beispielwerte eingesetzt (07:00–17:00, 60 Min. Pause, Leistungsgruppe „Wände“, Ort „EG · Eingangsbereich“): keine Regel und nicht freigegeben. Es wurde noch nichts in die Zeilen eingetragen.';
   });
   $('#ac01-bulk-mode').addEventListener('change', event => {
     if (event.target.value === 'overwrite') bulkMessage.textContent = 'Überschreiben ersetzt vorhandene Werte der ausgewählten Zeilen. „Rückgängig“ stellt sie wieder her, bis etwas anderes geändert wird.';
@@ -755,6 +755,23 @@
       : 'Alle gewählten Personen sind schon in der Tagestabelle; nichts geändert.';
     pickerMessage.textContent = text;
     toolsMessage.textContent = text;       // visible although the picker folds away after adding
+    if (result.added) $('#ac01-picker').open = false;
+  });
+  // Activate all directory entries (own + sub, optionally office) in one step.
+  $('#ac01-picker-activate-all').addEventListener('click', () => {
+    const visible = directory.filter(entry => entry.group !== 'office' || pickerOffice);
+    if (!visible.length) return;
+    const before = cloneEmployees();
+    const result = prefillEmployees(employees, visible, '');
+    employees = result.employees;
+    renderEmployees();
+    renderEvents();
+    setUndo(before);
+    const text = result.added
+      ? `${result.added} ${result.added === 1 ? 'Person' : 'Personen'} aus der Demo-Liste übernommen (Name bzw. Kennung, keine Zeiten).${result.skipped ? ` ${result.skipped} waren schon vorhanden.` : ''}`
+      : 'Alle Personen der Demo-Liste sind bereits in der Tabelle; nichts geändert.';
+    toolsMessage.textContent = text;
+    pickerMessage.textContent = text;
     if (result.added) $('#ac01-picker').open = false;
   });
 

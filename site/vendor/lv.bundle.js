@@ -1,4 +1,4 @@
-/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:eee04d8e523a2495, preview/lv-app.js, src/core/ids.js, src/lv/leistungsstand.js, src/lv/use-cases.js, src/lv/nachtrag.js, src/lv/positions-kern.js, src/lv/demo-lv.js, src/lv/stored-lv-repository.js, src/lv/lv-repository.js, src/lv/gaeb-export-import.js, src/lv/reimport-abgleich.js, src/lv/in-memory-lv-repository.js.
+/* GENERATED FILE - do not edit. Source: mission-control-spfx, content sha256:024486d75c6f7b14, preview/lv-app.js, src/core/ids.js, src/lv/leistungsstand.js, src/lv/use-cases.js, src/lv/nachtrag.js, src/lv/positions-kern.js, src/lv/demo-lv.js, src/lv/stored-lv-repository.js, src/lv/lv-repository.js, src/lv/gaeb-export-import.js, src/lv/reimport-abgleich.js, src/lv/in-memory-lv-repository.js.
  * Rebuild: node mission-control-spfx/scripts/build-classic-bundle.mjs --entry lv <this file>
  * Synthetic prototype. Templates, hours and checks are drafts, not approved rules. */
 (function () {
@@ -22,8 +22,9 @@ Object.defineProperty(exports, "DEMO_KOMMISSION", { enumerable: true, get: funct
 Object.defineProperty(exports, "DEMO_PROJEKT", { enumerable: true, get: function () { return demo_lv_ts_1.DEMO_PROJEKT; } });
 const stored_lv_repository_ts_1 = require("../src/lv/stored-lv-repository.js");
 const lv_repository_ts_1 = require("../src/lv/lv-repository.js");
-const vertragPos = (k) => ({ id: k.id, art: 'vertrag', nr: k.oz, kennung: k.oz, kurztext: k.kurztext, langtext: k.langtext, einheit: k.position.einheit, menge: k.position.vertragsmenge, ep: k.position.ep, eventual: k.position.positionsart === 'Eventual', status: null });
-const nachtragPos = (p) => ({ id: p.id, art: 'nachtrag', nr: String(p.positionNr), kennung: `Nachtrag ${p.nachtragNr}, Position ${p.positionNr}`, kurztext: p.kurztext, langtext: p.langtext, einheit: p.einheit, menge: p.angebotsmenge, ep: p.ep ?? null, eventual: false, status: p.status });
+const STATUS_TEXT = { ENTWURF: 'Entwurf', VERSENDET: 'Versendet' };
+const vertragPos = (k) => ({ id: k.id, art: 'vertrag', nr: k.oz, kennung: k.oz, kurztext: k.kurztext, langtext: k.langtext, einheit: k.position.einheit, menge: k.position.vertragsmenge, ep: k.position.ep, eventual: k.position.positionsart === 'Eventual', status: null, nachtragNr: null, gesperrt: false });
+const nachtragPos = (p) => ({ id: p.id, art: 'nachtrag', nr: String(p.positionNr), kennung: `Nachtrag ${p.nachtragNr}, Position ${p.positionNr}`, kurztext: p.kurztext, langtext: p.langtext, einheit: p.einheit, menge: p.angebotsmenge, ep: p.ep ?? null, eventual: false, status: STATUS_TEXT[p.status] ?? p.status, nachtragNr: p.nachtragNr, gesperrt: p.status === 'VERSENDET' });
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const num = (n) => n.toLocaleString('de-DE', { maximumFractionDigits: 3 });
 const eur = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
@@ -34,9 +35,11 @@ const parseNtMenge = (s) => (/^\s*-?\d+([.,]\d+)?\s*$/.test(s) ? Number(s.replac
 const ICON_PATHS = {
     pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    'clipboard-plus': '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11v6M9 14h6"/>',
     x: '<path d="M18 6 6 18M6 6l12 12"/>',
     'chevron-down': '<path d="m6 9 6 6 6-6"/>',
     'chevron-right': '<path d="m9 6 6 6-6 6"/>',
+    sliders: '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
 };
 const icon = (name) => `<svg class="lv-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name]}</svg>`;
 function mountLv(root, options = {}) {
@@ -65,7 +68,11 @@ function mountLv(root, options = {}) {
     let destroyed = false;
     let nachtraege = [];
     let nPanel = false;
-    const nEmpty = () => ({ gruppe: String(nachtraege.reduce((m, p) => Math.max(m, p.nachtragNr), 0) || 'neu'), kurztext: '', langtext: '', einheit: '', menge: '', ep: '', durch: defaultAuthor });
+    let nEdit = null;
+    let armedKey = '', armedTimer = 0;
+    const letzterOffener = () => (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege).filter(g => !(0, nachtrag_ts_1.istVersendet)(nachtraege, g.nachtragNr)).at(-1)?.nachtragNr ?? null;
+    const hatLeistungsstand = (id) => (bestand?.eintraege ?? []).some(e => e.positionId === id);
+    const nEmpty = () => ({ gruppe: String(letzterOffener() ?? 'neu'), kurztext: '', langtext: '', einheit: '', menge: '', ep: '', durch: defaultAuthor });
     let nDraft = { gruppe: 'neu', kurztext: '', langtext: '', einheit: '', menge: '', ep: '', durch: defaultAuthor };
     let nInitial = { ...nDraft };
     let nConfirmDiscard = false;
@@ -85,7 +92,7 @@ function mountLv(root, options = {}) {
     const info = (p) => (0, leistungsstand_ts_1.leistungsstandAnzeige)({ id: p.id, einheit: p.einheit, vertragsmenge: p.menge }, bestand.eintraege);
     const matches = (p) => {
         const a = info(p);
-        return filter === 'alle' || (filter === 'mit' && a.menge !== null) || (filter === 'ohne' && a.menge === null) || (filter === 'ev' && p.eventual);
+        return filter === 'alle' || (filter === 'mit' && a.menge !== null) || (filter === 'ohne' && a.menge === null);
     };
     async function load() {
         try {
@@ -128,7 +135,7 @@ function mountLv(root, options = {}) {
       <td class="lv-gp">${gp === null ? kein : eur(gp)}</td>
       <td class="lv-stand">${stand}</td>
       <td class="lv-anz">${a.prozent === null ? '' : `${bar}<span class="lv-pct">${pct(a.prozent)}</span>`}</td>
-      <td class="lv-act"><button type="button" class="lv-edit" data-open="${esc(p.id)}" title="${a.menge === null ? 'Leistungsstand erfassen' : 'Leistungsstand bearbeiten'}" aria-label="${esc(label)}">${icon(a.menge === null ? 'plus' : 'pencil')}</button></td></tr>`;
+      <td class="lv-act"><button type="button" class="lv-edit" data-open="${esc(p.id)}" data-tip="${a.menge === null ? 'Leistungsstand erfassen' : 'Leistungsstand bearbeiten'}" aria-label="${esc(label)}">${icon(a.menge === null ? 'clipboard-plus' : 'pencil')}</button>${p.art === 'nachtrag' && !p.gesperrt ? `<button type="button" class="lv-edit lv-edit-pos" data-nt-edit="${esc(p.id)}" data-tip="Position ändern oder löschen" aria-label="${esc(`Nachtragsposition ändern: ${p.kennung} ${p.kurztext}`)}">${icon('sliders')}</button>` : ''}</td></tr>`;
     }
     function rowsFor(parentId, depth) {
         return children(parentId).map(k => {
@@ -160,39 +167,52 @@ function mountLv(root, options = {}) {
                 if (filter !== 'alle' && !below.some(matches))
                     continue;
                 const id = `nachtrag-${g.nachtragNr}`;
-                out.push(`${groupRow(id, 'l0 nt', '', `Nachtrag ${g.nachtragNr}`, below, ` data-nachtrag="${g.nachtragNr}"`)}${collapsed.has(id) ? '' : below.filter(matches).map(posRow).join('')}`);
+                out.push(`${groupRow(id, 'l0 nt', '', `Nachtrag ${g.nachtragNr}`, below, ` data-nachtrag="${g.nachtragNr}"`)}${collapsed.has(id) ? '' : `${nachtragAktionen(g.nachtragNr, g.positionen)}${below.filter(matches).map(posRow).join('')}`}`);
             }
         return out.join('');
+    }
+    function nachtragAktionen(nr, positionen) {
+        if (positionen.some(p => p.status === 'VERSENDET')) {
+            const p = positionen[0];
+            return `<tr class="lv-nt-bar" data-nt-bar="${nr}"><td></td><td colspan="7"><span class="lv-nt-sent"><span class="lv-chip ok">Versendet</span> <small>markiert am ${day(p.versendetAm ?? '')} von ${esc(p.versendetDurch ?? '')}; die Positionen ändern sich nicht mehr</small></span></td></tr>`;
+        }
+        const sendKey = `send-${nr}`, armed = armedKey === sendKey;
+        return `<tr class="lv-nt-bar" data-nt-bar="${nr}"><td></td><td colspan="7"><span class="lv-nt-actions-row"><button type="button" class="lv-link" data-nt-renum="${nr}" title="Schließt Lücken in den Positionsnummern; die Reihenfolge bleibt">Neu nummerieren</button><button type="button" class="lv-link${armed ? ' armed' : ''}" data-nt-send="${nr}" title="Markiert den Nachtrag als an den Auftraggeber gesendet; es wird nichts gesendet">${armed ? 'Wirklich als versendet markieren? Nochmal klicken' : 'Als versendet markieren'}</button></span></td></tr>`;
     }
     function nachtragHtml() {
         if (!bestand || !nachtragOk())
             return '';
         const n = (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege).length;
         return `<section class="lv-nachtrag" aria-label="Nachtragsposition anlegen"><div class="lv-nt-actions"><button type="button" class="lv-btn" data-nt-example title="Fügt eine erfundene Position in den letzten Nachtrag ein">Beispiel einfügen</button><button type="button" class="lv-primary" data-nt-add>Nachtragsposition hinzufügen</button></div>
-      <p class="lv-nt-hint">${n === 0 ? 'Noch kein Nachtrag. Die erste Position legt Nachtrag 1 an. ' : 'Nachträge stehen als eigene Gruppen im Bestand, jede Position wie eine Vertragsposition, je Nachtrag mit 1 beginnend. '}Ein Nachtrag löst nichts aus: keine Rechnung, keine Meldung. Der ursprüngliche Vertrag bleibt unverändert.</p></section>`;
+      <p class="lv-nt-hint">${n === 0 ? 'Noch kein Nachtrag. Die erste Position legt Nachtrag 1 an. ' : 'Nachträge stehen als eigene Gruppen im Bestand, jede Position wie eine Vertragsposition, je Nachtrag mit 1 beginnend. '}Solange ein Nachtrag nicht als versendet markiert ist, lassen sich seine Positionen ändern, in einen anderen Nachtrag verschieben, löschen und neu nummerieren; danach ändern sie sich nicht mehr. Die Markierung sendet nichts, ein Nachtrag löst nichts aus: keine Rechnung, keine Meldung. Der ursprüngliche Vertrag bleibt unverändert.</p></section>`;
     }
     function nachtragPanelHtml() {
         if (!nPanel)
             return '';
-        const groups = (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege);
-        const next = (groups.at(-1)?.nachtragNr ?? 0) + 1;
+        const alle = (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege);
+        const groups = alle.filter(g => !(0, nachtrag_ts_1.istVersendet)(nachtraege, g.nachtragNr));
+        const next = (alle.at(-1)?.nachtragNr ?? 0) + 1;
+        const edit = nEdit === null ? null : nachtraege.find(p => p.id === nEdit) ?? null;
         const units = [...new Set(positions().map(p => p.einheit))];
         const opt = (v, t) => `<option value="${esc(v)}"${nDraft.gruppe === v ? ' selected' : ''}>${esc(t)}</option>`;
         return `<div class="lv-panel-wrap"><div class="lv-scrim" data-nt-close="1"></div><aside class="lv-panel${panelEnter ? ' enter' : ''}" role="dialog" aria-modal="true" aria-labelledby="lv-nt-ptitle" id="lv-nt-panel">
-      <div class="lv-phead"><h2 id="lv-nt-ptitle">Nachtragsposition hinzufügen</h2><button type="button" class="lv-btn lv-closebtn" data-nt-close="1">${icon('x')}Schließen</button></div>
+      <div class="lv-phead"><h2 id="lv-nt-ptitle">${edit ? 'Nachtragsposition ändern' : 'Nachtragsposition hinzufügen'}</h2><button type="button" class="lv-btn lv-closebtn" data-nt-close="1">${icon('x')}Schließen</button></div>
       ${nConfirmDiscard ? '<div class="lv-confirm" role="alert"><span>Die Eingaben gehen verloren. Verwerfen?</span><button type="button" class="lv-primary" data-nt-discard="yes">Verwerfen</button><button type="button" class="lv-btn" data-nt-discard="no">Weiter bearbeiten</button></div>' : ''}
-      <p class="lv-note-p">Die Position bleibt ein Entwurf und gehört zur Kommission ${esc(kommission)}. Sie ändert den ursprünglichen Vertrag nicht und löst nichts aus.</p>
+      <p class="lv-note-p">${edit ? `Nachtrag ${edit.nachtragNr}, Position ${edit.positionNr}: Die Position bleibt ein Entwurf, bis der Nachtrag als versendet markiert wird. Die Nummer bleibt beim Ändern; beim Verschieben bekommt die Position die nächste Nummer im Ziel.` : `Die Position bleibt ein Entwurf und gehört zur Kommission ${esc(kommission)}.`} Sie ändert den ursprünglichen Vertrag nicht und löst nichts aus.</p>
       <form id="lv-nt-form" novalidate>
-        <label>Zu welchem Nachtrag<select id="lv-nt-gruppe">${groups.map(g => opt(String(g.nachtragNr), `Nachtrag ${g.nachtragNr}`)).join('')}${opt('neu', `Neuer Nachtrag (Nachtrag ${next})`)}</select></label>
+        <label>${edit ? 'In welchem Nachtrag' : 'Zu welchem Nachtrag'}<select id="lv-nt-gruppe">${groups.map(g => opt(String(g.nachtragNr), `Nachtrag ${g.nachtragNr}`)).join('')}${opt('neu', `Neuer Nachtrag (Nachtrag ${next})`)}</select></label>
         <label>Kurztext<input type="text" id="lv-nt-kurztext" value="${esc(nDraft.kurztext)}" autocomplete="off" required></label>
         <label>Langtext<textarea id="lv-nt-langtext" rows="4">${esc(nDraft.langtext)}</textarea><small>Die Beschreibung der Leistung. Kann leer bleiben.</small></label>
         <label>Einheit<input type="text" id="lv-nt-einheit" list="lv-nt-einheiten" value="${esc(nDraft.einheit)}" autocomplete="off" required><datalist id="lv-nt-einheiten">${units.map(u => `<option value="${esc(u)}">`).join('')}</datalist></label>
         <label>Menge (Angebot)<input type="text" inputmode="decimal" id="lv-nt-menge" value="${esc(nDraft.menge)}" autocomplete="off" required><small>Die angebotene Menge in der Einheit oben.</small></label>
         <label>Einzelpreis (EP) in Euro<input type="text" inputmode="decimal" id="lv-nt-ep" value="${esc(nDraft.ep)}" autocomplete="off"><small>Optional. Der Gesamtpreis wird aus Menge und EP berechnet.</small></label>
-        <label>Angelegt durch<input type="text" id="lv-nt-durch" value="${esc(nDraft.durch)}" autocomplete="off" required></label>
+        ${edit ? '' : `<label>Angelegt durch<input type="text" id="lv-nt-durch" value="${esc(nDraft.durch)}" autocomplete="off" required></label>`}
         ${nFormError ? `<p class="lv-error" role="alert">${esc(nFormError)}</p>` : ''}
-        <div class="lv-pbtn"><button type="submit" class="lv-primary">Position speichern</button><button type="button" class="lv-btn" data-nt-close="1">Abbrechen</button></div>
+        <div class="lv-pbtn"><button type="submit" class="lv-primary">${edit ? 'Änderungen speichern' : 'Position speichern'}</button><button type="button" class="lv-btn" data-nt-close="1">Abbrechen</button></div>
       </form>
+      ${edit ? (hatLeistungsstand(edit.id)
+            ? '<p class="lv-note-p">Diese Position hat einen Leistungsstand und wird deshalb nicht gelöscht. Ändern und Verschieben sind möglich; der Leistungsstand bleibt an der Position.</p>'
+            : `<div class="lv-pbtn"><button type="button" class="lv-link danger${armedKey === 'del' ? ' armed' : ''}" data-nt-del="1">${armedKey === 'del' ? 'Wirklich löschen? Nochmal klicken' : 'Position löschen'}</button></div>`) : ''}
     </aside></div>`;
     }
     const nIsDirty = () => Object.keys(nDraft).some(k => nDraft[k] !== nInitial[k]);
@@ -205,7 +225,55 @@ function mountLv(root, options = {}) {
         }
         nClose();
     }
-    function nClose() { nPanel = false; nConfirmDiscard = false; nFormError = ''; focusSel = returnFocus; render(); }
+    function nClose() { nPanel = false; nEdit = null; disarm(); nConfirmDiscard = false; nFormError = ''; focusSel = returnFocus; render(); }
+    const focusInside = () => { const a = root.getRootNode().activeElement; return a !== null && root.contains(a); };
+    const armedSelector = (key) => (key === 'del' ? '[data-nt-del]' : key.startsWith('send-') ? `[data-nt-send="${key.slice(5)}"]` : '[data-reset]');
+    function disarm() { if (armedTimer)
+        window.clearTimeout(armedTimer); armedTimer = 0; armedKey = ''; }
+    function arm(key, frage) {
+        if (armedKey === key) {
+            disarm();
+            return true;
+        }
+        disarm();
+        armedKey = key;
+        armedTimer = window.setTimeout(() => {
+            armedTimer = 0;
+            armedKey = '';
+            if (focusInside())
+                focusSel = armedSelector(key);
+            announce('Bestätigung abgelaufen, es wurde nichts geändert.');
+            render();
+        }, 6000);
+        announce(`${frage} Zum Bestätigen nochmal klicken, sonst läuft die Frage nach einigen Sekunden ab.`);
+        return false;
+    }
+    async function nachtragAendern(a, ok, fokus) {
+        if (!repo || !nachtragOk())
+            return false;
+        try {
+            nachtraege = await (0, use_cases_ts_1.aendereNachtrag)(repo, kommission, a);
+            saved = ok;
+            announce(saved);
+            focusSel = fokus;
+            render();
+            return true;
+        }
+        catch (err) {
+            const msg = err instanceof nachtrag_ts_1.NachtragError ? err.fehler.join('; ') : `Nicht möglich: ${err.message}`;
+            if (nPanel) {
+                nFormError = msg;
+                focusSel = '#lv-nt-kurztext';
+            }
+            else {
+                saved = msg;
+                announce(msg);
+                focusSel = fokus;
+            }
+            render();
+            return false;
+        }
+    }
     function persistNote() {
         if (persistent === null)
             return '';
@@ -281,20 +349,20 @@ function mountLv(root, options = {}) {
             return;
         const total = positions().length;
         const mit = bestand ? positions().filter(p => info(p).menge !== null).length : 0;
-        const ev = positions().filter(p => p.eventual).length;
         const imp = bestand?.imports.find(i => i.id === bestand.aktuellerImportId);
         const chip = (f, label, n) => `<button type="button" class="lv-seg" data-filter="${f}" aria-pressed="${filter === f}">${label} <span class="lv-count">${n}</span></button>`;
-        root.innerHTML = `${options.heading ? `<h1>Leistungsverzeichnis</h1>` : ''}
+        root.innerHTML = `${options.heading ? `<h1>Projekt Planungs- und Leistungsverzeichnis</h1>` : ''}
       <p class="lv-lead">${esc(projekt)}. ${options.heading ? 'Das Original-LV bleibt unverändert; neben jeder Position steht, wie viel davon ausgeführt ist. ' : ''}Beispiel mit erfundenen Daten.</p>
       ${loadError ? `<p class="lv-error" role="alert">${esc(loadError)}</p>` : ''}
-      ${bestand ? `<div class="lv-bar-tools"><div class="lv-segs" role="group" aria-label="Positionen filtern">${chip('alle', 'Alle', total)}${chip('mit', 'Mit Leistungsstand', mit)}${chip('ohne', 'Ohne', total - mit)}${chip('ev', 'Eventual', ev)}</div>
+      ${bestand ? `<div class="lv-bar-tools"><div class="lv-segs" role="group" aria-label="Positionen filtern">${chip('alle', 'Alle', total)}${chip('mit', 'Mit Leistungsstand', mit)}${chip('ohne', 'Ohne', total - mit)}</div>
         <div class="lv-all"><button type="button" class="lv-link" data-all="open">Alles aufklappen</button><button type="button" class="lv-link" data-all="close">Alles zuklappen</button>${persistent !== null && persistent ? `<button type="button" class="lv-link${resetArmed ? ' armed' : ''}" data-reset="1">${resetArmed ? 'Wirklich zurücksetzen? Nochmal klicken' : 'Beispiel zurücksetzen'}</button>` : ''}</div></div>
       ${saved ? `<p class="lv-saved" role="status">${esc(saved)}</p>` : ''}
-      <div class="lv-layout"><div class="lv-scroll"><table class="lv-table"><caption class="sr-only">Projekt-Leistungsbestand: ursprünglicher Vertrag und Nachträge mit Menge, Einzelpreis, Gesamtpreis und ausgeführter Menge je Position</caption>
+      <div class="lv-layout"><div class="lv-scroll"><table class="lv-table"><caption class="sr-only">Projekt Planungs- und Leistungsverzeichnis: ursprünglicher Vertrag und Nachträge mit Menge, Einzelpreis, Gesamtpreis und ausgeführter Menge je Position</caption>
         <thead><tr><th scope="col">OZ / Pos.</th><th scope="col">Leistung</th><th scope="col">Menge</th><th scope="col">EP</th><th scope="col">GP</th><th scope="col"><span class="lv-long">Leistungsstand</span><span class="lv-short" aria-hidden="true">Stand</span><span class="sr-only lv-sr-narrow">Leistungsstand</span></th><th scope="col">Anteil</th><th scope="col"><span class="sr-only">Aktion</span></th></tr></thead>
         <tbody>${bestandRows() || '<tr><td colspan="8" class="lv-empty">Keine Position entspricht dem Filter.</td></tr>'}</tbody></table></div></div>
       ${nachtragHtml()}
-      <p class="lv-foot">Quelle: ${esc(imp?.quelleDatei ?? '')}, ${imp ? `${imp.anzahlKnoten} Gliederungselemente, ${imp.anzahlPositionen} Positionen` : ''}. Erster Schnitt: Projekt-Leistungsbestand aus ursprünglichem Vertrag und Nachträgen, Leistungsstand als Menge. Kein Aufmaß, keine Abrechnung; alle Preise sind erfunden.</p>${persistNote()}${panelHtml()}${nachtragPanelHtml()}` : ''}`;
+      <p class="lv-legend" aria-hidden="true"><span>${icon('clipboard-plus')} Leistungsstand erfassen</span><span>${icon('pencil')} Leistungsstand bearbeiten</span><span>${icon('sliders')} Nachtragsposition ändern oder löschen</span></p>
+      <p class="lv-foot">Quelle: ${esc(imp?.quelleDatei ?? '')}, ${imp ? `${imp.anzahlKnoten} Gliederungselemente, ${imp.anzahlPositionen} Positionen` : ''}. Erster Schnitt: Projekt Planungs- und Leistungsverzeichnis (PLS) aus ursprünglichem Vertrag und Nachträgen, Leistungsstand als Menge. Kein Aufmaß, keine Abrechnung; alle Preise sind erfunden.</p>${persistNote()}${panelHtml()}${nachtragPanelHtml()}` : ''}`;
         root.append(live);
         for (const c of Array.from(root.children))
             c.inert = Boolean(panel || nPanel) && !c.classList.contains('lv-panel-wrap') && c !== live;
@@ -306,7 +374,66 @@ function mountLv(root, options = {}) {
     }
     const onClick = async (e) => {
         const t = e.target;
+        const ntEdit = t.closest('[data-nt-edit]');
+        if (ntEdit) {
+            const p = nachtraege.find(x => x.id === ntEdit.dataset.ntEdit);
+            if (!p || p.status === 'VERSENDET')
+                return;
+            nEdit = p.id;
+            disarm();
+            nDraft = { gruppe: String(p.nachtragNr), kurztext: p.kurztext, langtext: p.langtext, einheit: p.einheit, menge: String(p.angebotsmenge).replace('.', ','), ep: p.ep === null || p.ep === undefined ? '' : String(p.ep).replace('.', ','), durch: defaultAuthor };
+            nInitial = { ...nDraft };
+            nConfirmDiscard = false;
+            nFormError = '';
+            panelEnter = true;
+            saved = '';
+            nPanel = true;
+            returnFocus = `[data-nt-edit="${p.id}"]`;
+            focusSel = '#lv-nt-kurztext';
+            render();
+            announce(`Fenster geöffnet: Nachtrag ${p.nachtragNr}, Position ${p.positionNr} ändern`);
+            return;
+        }
+        const ntDel = t.closest('[data-nt-del]');
+        if (ntDel && nEdit) {
+            const p = nachtraege.find(x => x.id === nEdit);
+            if (!p)
+                return;
+            if (!arm('del', 'Position löschen?')) {
+                focusSel = '[data-nt-del]';
+                render();
+                return;
+            }
+            const done = await nachtragAendern({ art: 'entfernen', id: p.id }, `Nachtrag ${p.nachtragNr}, Position ${p.positionNr} gelöscht. Die übrigen Positionen behalten ihre Nummern; „Neu nummerieren“ schließt die Lücke.`, '[data-nt-add]');
+            if (done) {
+                nPanel = false;
+                nEdit = null;
+                nConfirmDiscard = false;
+                nFormError = '';
+                render();
+            }
+            return;
+        }
+        const ntRenum = t.closest('[data-nt-renum]');
+        if (ntRenum) {
+            const nr = Number(ntRenum.dataset.ntRenum);
+            await nachtragAendern({ art: 'neu-nummerieren', nachtragNr: nr }, `Nachtrag ${nr} neu nummeriert: 1 bis ${nachtraege.filter(p => p.nachtragNr === nr).length}.`, `[data-nt-renum="${nr}"]`);
+            return;
+        }
+        const ntSend = t.closest('[data-nt-send]');
+        if (ntSend) {
+            const nr = Number(ntSend.dataset.ntSend);
+            if (!arm(`send-${nr}`, `Nachtrag ${nr} als versendet markieren?`)) {
+                focusSel = `[data-nt-send="${nr}"]`;
+                render();
+                return;
+            }
+            await nachtragAendern({ art: 'versenden', nachtragNr: nr, durch: defaultAuthor, am: new Date().toISOString() }, `Nachtrag ${nr} als versendet markiert. Es wurde nichts gesendet; die Positionen ändern sich nicht mehr.`, '[data-nt-add]');
+            return;
+        }
         if (t.closest('[data-nt-add]')) {
+            nEdit = null;
+            disarm();
             nDraft = nEmpty();
             nInitial = { ...nDraft };
             nConfirmDiscard = false;
@@ -324,7 +451,7 @@ function mountLv(root, options = {}) {
             if (!repo || !nachtragOk())
                 return;
             try {
-                const letzte = (0, nachtrag_ts_1.gruppiereNachtraege)(nachtraege).at(-1)?.nachtragNr;
+                const letzte = letzterOffener() ?? undefined;
                 const p = await (0, use_cases_ts_1.legeNachtragspositionAn)(repo, { kommission, nachtrag: letzte ?? 'neu', ...(0, demo_lv_ts_1.nachtragBeispiel)(nachtraege.length), angelegtDurch: defaultAuthor, angelegtAm: new Date().toISOString() });
                 nachtraege = await repo.ladeNachtragspositionen(kommission);
                 saved = `Beispielposition eingefügt: Nachtrag ${p.nachtragNr}, Position ${p.positionNr}.`;
@@ -375,7 +502,9 @@ function mountLv(root, options = {}) {
         }
         if (t.closest('[data-reset]')) {
             if (!resetArmed) {
-                resetArmed = window.setTimeout(() => { resetArmed = 0; render(); }, 6000);
+                resetArmed = window.setTimeout(() => { resetArmed = 0; if (focusInside())
+                    focusSel = '[data-reset]'; announce('Zurücksetzen abgebrochen, es wurde nichts geändert.'); render(); }, 6000);
+                announce('Beispiel zurücksetzen? Zum Bestätigen nochmal klicken, sonst läuft die Frage nach einigen Sekunden ab.');
                 focusSel = '[data-reset]';
                 render();
                 return;
@@ -388,6 +517,8 @@ function mountLv(root, options = {}) {
             bestand = await fresh.ladeBestand(kommission);
             nachtraege = await fresh.ladeNachtragspositionen(kommission);
             nPanel = false;
+            nEdit = null;
+            disarm();
             nConfirmDiscard = false;
             panel = null;
             confirmDiscard = false;
@@ -509,6 +640,23 @@ function mountLv(root, options = {}) {
             render();
             return;
         }
+        if (nEdit) {
+            const p = nachtraege.find(x => x.id === nEdit);
+            if (!p)
+                return;
+            const ziel = nDraft.gruppe === 'neu' ? 'neu' : Number(nDraft.gruppe);
+            const verschoben = ziel !== p.nachtragNr;
+            const fokus = `[data-nt-edit="${p.id}"]`;
+            const ok = await nachtragAendern({ art: 'bearbeiten', id: p.id, felder: { kurztext: nDraft.kurztext, langtext: nDraft.langtext, einheit: nDraft.einheit, angebotsmenge: menge, ep }, ziel }, verschoben ? 'Nachtragsposition geändert und verschoben.' : `Nachtrag ${p.nachtragNr}, Position ${p.positionNr} geändert.`, verschoben ? '[data-nt-add]' : fokus);
+            if (ok) {
+                nPanel = false;
+                nEdit = null;
+                nConfirmDiscard = false;
+                nFormError = '';
+                render();
+            }
+            return;
+        }
         try {
             const p = await (0, use_cases_ts_1.legeNachtragspositionAn)(repo, {
                 kommission, nachtrag: nDraft.gruppe === 'neu' ? 'neu' : Number(nDraft.gruppe), kurztext: nDraft.kurztext, langtext: nDraft.langtext, einheit: nDraft.einheit,
@@ -580,7 +728,7 @@ function mountLv(root, options = {}) {
     void load().then(render);
     return {
         repository: () => repo,
-        destroy() { destroyed = true; disarmReset(); root.removeEventListener('click', onClick); root.removeEventListener('input', onInput); root.removeEventListener('submit', onSubmit); root.removeEventListener('keydown', onKey); root.innerHTML = ''; },
+        destroy() { destroyed = true; disarmReset(); disarm(); root.removeEventListener('click', onClick); root.removeEventListener('input', onInput); root.removeEventListener('submit', onSubmit); root.removeEventListener('keydown', onKey); root.innerHTML = ''; },
     };
 }
 
@@ -706,6 +854,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.importiereLv = importiereLv;
 exports.erfasseLeistungsstand = erfasseLeistungsstand;
 exports.legeNachtragspositionAn = legeNachtragspositionAn;
+exports.aendereNachtrag = aendereNachtrag;
 const ids_ts_1 = require("../core/ids.js");
 const gaeb_export_import_ts_1 = require("./gaeb-export-import.js");
 const reimport_abgleich_ts_1 = require("./reimport-abgleich.js");
@@ -779,27 +928,48 @@ async function legeNachtragspositionAn(repo, a) {
     await repo.haengeNachtragspositionAn(a.kommission, position);
     return position;
 }
+async function aendereNachtrag(repo, kommission, a) {
+    const bestand = await repo.ladeBestand(kommission);
+    if (!bestand)
+        throw new lv_repository_ts_1.LvRepositoryError('kommission-unbekannt', `Für ${kommission} gibt es noch keinen Import`);
+    const alle = await repo.ladeNachtragspositionen(kommission);
+    const neu = a.art === 'bearbeiten' ? (0, nachtrag_ts_1.bearbeiteNachtragsposition)(alle, a.id, a.felder, a.ziel)
+        : a.art === 'entfernen' ? (0, nachtrag_ts_1.entferneNachtragsposition)(alle, a.id, new Set(bestand.eintraege.map(e => e.positionId)))
+            : a.art === 'neu-nummerieren' ? (0, nachtrag_ts_1.nummeriereNachtragNeu)(alle, a.nachtragNr)
+                : (0, nachtrag_ts_1.versendeNachtrag)(alle, a.nachtragNr, a.durch, a.am);
+    await repo.ersetzeNachtragspositionen(kommission, neu);
+    return repo.ladeNachtragspositionen(kommission);
+}
 
 },
 "src/lv/nachtrag.js": function (require, exports, module) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NachtragError = void 0;
+exports.istVersendet = exports.NachtragError = void 0;
 exports.pruefeNachtragEingabe = pruefeNachtragEingabe;
 exports.erzeugeNachtragsposition = erzeugeNachtragsposition;
 exports.gruppiereNachtraege = gruppiereNachtraege;
+exports.bearbeiteNachtragsposition = bearbeiteNachtragsposition;
+exports.entferneNachtragsposition = entferneNachtragsposition;
+exports.nummeriereNachtragNeu = nummeriereNachtragNeu;
+exports.versendeNachtrag = versendeNachtrag;
+exports.pruefeNachtragAenderung = pruefeNachtragAenderung;
 class NachtragError extends Error {
     fehler;
     constructor(fehler) { super(`Nachtragsposition abgelehnt: ${fehler.join('; ')}`); this.name = 'NachtragError'; this.fehler = fehler; }
 }
 exports.NachtragError = NachtragError;
 const hoechsterNachtrag = (vorhandene) => vorhandene.reduce((m, p) => Math.max(m, p.nachtragNr), 0);
+const istVersendet = (vorhandene, nachtragNr) => vorhandene.some(p => p.nachtragNr === nachtragNr && p.status === 'VERSENDET');
+exports.istVersendet = istVersendet;
 function pruefeNachtragEingabe(vorhandene, e) {
     const out = [];
     if (e.nachtrag !== 'neu') {
         const max = hoechsterNachtrag(vorhandene);
         if (!Number.isInteger(e.nachtrag) || e.nachtrag < 1 || e.nachtrag > max)
             out.push(`Nachtrag ${String(e.nachtrag)} gibt es nicht (vorhanden: ${max === 0 ? 'keiner' : `1 bis ${max}`})`);
+        else if ((0, exports.istVersendet)(vorhandene, e.nachtrag))
+            out.push(`Nachtrag ${e.nachtrag} ist versendet; neue Positionen kommen in einen neuen Nachtrag`);
     }
     if (e.kurztext.trim() === '')
         out.push('Der Kurztext fehlt');
@@ -827,6 +997,111 @@ function erzeugeNachtragsposition(kommission, vorhandene, e, id) {
 function gruppiereNachtraege(vorhandene) {
     const nummern = [...new Set(vorhandene.map(p => p.nachtragNr))].sort((a, b) => a - b);
     return nummern.map(nachtragNr => ({ nachtragNr, positionen: vorhandene.filter(p => p.nachtragNr === nachtragNr).sort((a, b) => a.positionNr - b.positionNr) }));
+}
+const wirf = (...fehler) => { throw new NachtragError(fehler); };
+const finde = (alle, id) => alle.find(p => p.id === id) ?? wirf('Die Position gibt es nicht');
+const sperre = (alle, p) => { if ((0, exports.istVersendet)(alle, p.nachtragNr))
+    wirf(`Nachtrag ${p.nachtragNr} ist versendet; seine Positionen ändern sich nicht mehr`); };
+function pruefeFelder(f) {
+    const out = [];
+    if (f.kurztext.trim() === '')
+        out.push('Der Kurztext fehlt');
+    if (f.einheit.trim() === '')
+        out.push('Die Einheit fehlt');
+    if (!Number.isFinite(f.angebotsmenge) || f.angebotsmenge < 0)
+        out.push('Die Menge muss eine Zahl von 0 oder größer sein');
+    if (f.ep !== undefined && f.ep !== null && (!Number.isFinite(f.ep) || f.ep < 0))
+        out.push('Der Einzelpreis muss eine Zahl von 0 oder größer sein');
+    return out;
+}
+function bearbeiteNachtragsposition(alle, id, felder, ziel) {
+    const p = finde(alle, id);
+    sperre(alle, p);
+    const fehler = pruefeFelder(felder);
+    let nachtragNr = p.nachtragNr, positionNr = p.positionNr;
+    if (ziel !== undefined && ziel !== p.nachtragNr) {
+        const max = hoechsterNachtrag(alle);
+        if (ziel === 'neu') {
+            nachtragNr = max + 1;
+            positionNr = 1;
+        }
+        else if (!Number.isInteger(ziel) || ziel < 1 || ziel > max || !alle.some(x => x.nachtragNr === ziel))
+            fehler.push(`Nachtrag ${String(ziel)} gibt es nicht`);
+        else if ((0, exports.istVersendet)(alle, ziel))
+            fehler.push(`Nachtrag ${ziel} ist versendet; neue Positionen kommen in einen neuen Nachtrag`);
+        else {
+            nachtragNr = ziel;
+            positionNr = alle.filter(x => x.nachtragNr === ziel).reduce((m, x) => Math.max(m, x.positionNr), 0) + 1;
+        }
+    }
+    if (fehler.length)
+        throw new NachtragError(fehler);
+    return alle.map(x => (x.id !== id ? { ...x } : {
+        ...x, nachtragNr, positionNr, kurztext: felder.kurztext.trim(), langtext: felder.langtext.trim(), einheit: felder.einheit.trim(), angebotsmenge: felder.angebotsmenge, ep: felder.ep ?? null,
+    }));
+}
+function entferneNachtragsposition(alle, id, mitLeistungsstand) {
+    const p = finde(alle, id);
+    sperre(alle, p);
+    if (mitLeistungsstand.has(id))
+        wirf('Die Position hat einen Leistungsstand und wird nicht gelöscht');
+    return alle.filter(x => x.id !== id).map(x => ({ ...x }));
+}
+function nummeriereNachtragNeu(alle, nachtragNr) {
+    const inGruppe = alle.filter(p => p.nachtragNr === nachtragNr).sort((a, b) => a.positionNr - b.positionNr);
+    if (inGruppe.length === 0)
+        wirf(`Nachtrag ${nachtragNr} gibt es nicht`);
+    sperre(alle, inGruppe[0]);
+    const neu = new Map(inGruppe.map((p, i) => [p.id, i + 1]));
+    return alle.map(p => ({ ...p, positionNr: neu.get(p.id) ?? p.positionNr }));
+}
+function versendeNachtrag(alle, nachtragNr, durch, am) {
+    const inGruppe = alle.filter(p => p.nachtragNr === nachtragNr);
+    if (inGruppe.length === 0)
+        wirf(`Nachtrag ${nachtragNr} gibt es nicht`);
+    sperre(alle, inGruppe[0]);
+    if (durch.trim() === '')
+        wirf('Es fehlt, wer den Nachtrag als versendet markiert');
+    return alle.map(p => (p.nachtragNr === nachtragNr ? { ...p, status: 'VERSENDET', versendetAm: am, versendetDurch: durch.trim() } : { ...p }));
+}
+const gleich = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+const OHNE_STATUS = ['status', 'versendetAm', 'versendetDurch'];
+const inhalt = (p) => { const c = { ...p, ep: p.ep ?? null }; for (const k of OHNE_STATUS)
+    delete c[k]; return c; };
+function pruefeNachtragAenderung(alt, neu, mitLeistungsstand) {
+    const neuNachId = new Map(neu.map(p => [p.id, p]));
+    for (const a of alt) {
+        const n = neuNachId.get(a.id);
+        if (!n) {
+            if (a.status === 'VERSENDET')
+                return `Die versendete Position ${a.nachtragNr}.${a.positionNr} darf nicht entfernt werden`;
+            if (mitLeistungsstand.has(a.id))
+                return `Die Position ${a.nachtragNr}.${a.positionNr} hat einen Leistungsstand und darf nicht entfernt werden`;
+            continue;
+        }
+        if (a.status === 'VERSENDET' && !gleich(a, n))
+            return `Die versendete Position ${a.nachtragNr}.${a.positionNr} darf nicht geändert werden`;
+        if (a.status === 'ENTWURF' && n.status === 'VERSENDET' && JSON.stringify(inhalt(a)) !== JSON.stringify(inhalt(n)))
+            return `Beim Versenden darf sich Position ${a.nachtragNr}.${a.positionNr} nicht ändern`;
+    }
+    const altIds = new Set(alt.map(p => p.id));
+    for (const n of neu) {
+        if (n.status === 'VERSENDET' && !altIds.has(n.id))
+            return `Die Position ${n.nachtragNr}.${n.positionNr} kann nicht neu und versendet sein`;
+    }
+    for (const nr of new Set(neu.map(p => p.nachtragNr))) {
+        const g = neu.filter(p => p.nachtragNr === nr);
+        const gesendet = g.filter(p => p.status === 'VERSENDET').length;
+        if (gesendet !== 0 && gesendet !== g.length)
+            return `Nachtrag ${nr} ist nur zum Teil versendet`;
+        if (gesendet === g.length)
+            for (const p of g) {
+                const a = alt.find(x => x.id === p.id);
+                if (a && a.status === 'ENTWURF' && alt.some(x => x.nachtragNr === nr && x.status === 'ENTWURF' && !neuNachId.has(x.id)))
+                    return `Beim Versenden von Nachtrag ${nr} fehlt eine Position`;
+            }
+    }
+    return null;
 }
 
 },
@@ -873,13 +1148,15 @@ function demoLvRows() {
         ['Position', '', '1.2.10.', 'Abgehängte Decke, glatt', 'Beispieltext: Abgehängte Decke mit Gipskartonplatten.', 215.5, 'm²', 48.5],
         ['Position', '', '1.2.20.', 'Deckenrandprofil liefern und montieren', 'Beispieltext.', 96, 'lm', 9.8],
         ['S. Abschnitt', '', '1.2.', 'Summe Decken', '', null, ''],
+        ['Abschnitt', '', '1.3.', 'Baustelle', '', null, ''],
+        ['Position', '', '1.3.10.', 'Baustelleneinrichtung pauschal', 'Beispieltext: Einrichten, Vorhalten und Räumen.', 1, 'psch', 1850],
+        ['S. Abschnitt', '', '1.3.', 'Summe Baustelle', '', null, ''],
         ['S. Bereich', '', '1.', 'Summe Trockenbau', '', null, ''],
-        ['Bereich', '', '2.', 'Pauschalen und Stundenlohn', '', null, ''],
-        ['Abschnitt', '', '2.1.', 'Baustelle', '', null, ''],
-        ['Position', '', '2.1.10.', 'Baustelleneinrichtung pauschal', 'Beispieltext: Einrichten, Vorhalten und Räumen.', 1, 'psch', 1850],
-        ['Position', '', '2.1.20.', 'Stundenlohn Facharbeiter', 'Beispieltext: Nach Anweisung, mit Stundennachweis.', 40, 'Std', 52],
-        ['S. Abschnitt', '', '2.1.', 'Summe Baustelle', '', null, ''],
-        ['S. Bereich', '', '2.', 'Summe Pauschalen und Stundenlohn', '', null, ''],
+        ['Bereich', '', '2.', 'Stundenlohn', '', null, ''],
+        ['Abschnitt', '', '2.1.', 'Arbeiten nach Anweisung', '', null, ''],
+        ['Position', '', '2.1.10.', 'Stundenlohn Facharbeiter', 'Beispieltext: Nach Anweisung, mit Stundennachweis.', 40, 'Std', 52],
+        ['S. Abschnitt', '', '2.1.', 'Summe Arbeiten nach Anweisung', '', null, ''],
+        ['S. Bereich', '', '2.', 'Summe Stundenlohn', '', null, ''],
         ['S. LV', '', 'MUSTER_LV_01', 'Summe Muster-LV', '', null, ''],
     ];
     return [HEADER, ...rows.map(row)];
@@ -905,7 +1182,7 @@ async function seedDemoLv(repo) {
         e(5, '1.2.10.', '2026-11-12', 60, 'Baustellenrundgang'),
         e(6, '1.2.10.', '2026-11-19', 150, 'Baustellenrundgang'),
         e(7, '1.2.10.', '2026-11-19', 120.5, 'Aufmaß', { bemerkung: 'Wert nach dem Aufmaß korrigiert.', erfasstAm: '2026-11-19T17:30:00Z', korrigiertEintragId: 'ls-demo-6' }),
-        e(8, '2.1.10.', '2026-11-12', 0.5, 'Baustellenrundgang'),
+        e(8, '1.3.10.', '2026-11-12', 0.5, 'Baustellenrundgang'),
     ];
     for (const entry of entries)
         await (0, use_cases_ts_2.erfasseLeistungsstand)(repo, exports.DEMO_KOMMISSION, entry, exports.DEMO_HEUTE);
@@ -1000,6 +1277,11 @@ class StoredLvRepository {
                     await this.#inner.haengeNachtragspositionAn(this.#kommission, op.position);
                     log.push(op);
                 }
+                else if (entry.op === 'nachtrag-stand' && Array.isArray(entry.positionen)) {
+                    const op = entry;
+                    await this.#inner.ersetzeNachtragspositionen(this.#kommission, op.positionen);
+                    log.push(op);
+                }
                 else
                     throw new Error('shape');
             }
@@ -1030,6 +1312,10 @@ class StoredLvRepository {
         await this.#inner.haengeNachtragspositionAn(kommission, position);
         await this.#persist({ op: 'nachtrag', position: structuredClone(position) });
     }
+    async ersetzeNachtragspositionen(kommission, positionen) {
+        await this.#inner.ersetzeNachtragspositionen(kommission, positionen);
+        await this.#persist({ op: 'nachtrag-stand', positionen: structuredClone([...positionen]) });
+    }
     async #persist(op) {
         const next = [...this.#log, op];
         if (this.#store) {
@@ -1043,8 +1329,10 @@ class StoredLvRepository {
                         await rebuilt.speichereImport(o.meta, o.knoten, o.erwartet);
                     else if (o.op === 'eintrag')
                         await rebuilt.haengeLeistungsstandAn(this.#kommission, o.eintrag);
-                    else
+                    else if (o.op === 'nachtrag')
                         await rebuilt.haengeNachtragspositionAn(this.#kommission, o.position);
+                    else
+                        await rebuilt.ersetzeNachtragspositionen(this.#kommission, o.positionen);
                 }
                 this.#inner = rebuilt;
                 throw new Error('Speichern im Browser nicht möglich (Speicher voll oder gesperrt)');
@@ -1158,8 +1446,10 @@ function pruefeNachtragsposition(kommission, p) {
         return 'Die Menge muss eine Zahl von 0 oder größer sein';
     if (p.ep !== undefined && p.ep !== null && (typeof p.ep !== 'number' || !Number.isFinite(p.ep) || p.ep < 0))
         return 'Der Einzelpreis muss eine Zahl von 0 oder größer sein';
-    if (p.status !== 'ENTWURF')
+    if (p.status !== 'ENTWURF' && p.status !== 'VERSENDET')
         return `Unbekannter Status ${String(p.status)}`;
+    if (p.status === 'VERSENDET' && (typeof p.versendetAm !== 'string' || typeof p.versendetDurch !== 'string' || p.versendetDurch.trim() === ''))
+        return 'Eine versendete Position braucht Zeitpunkt und Person';
     return null;
 }
 
@@ -1482,6 +1772,7 @@ function gleicheReimportAb(alt, neu, options = {}) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InMemoryLvRepository = void 0;
+const nachtrag_ts_1 = require("./nachtrag.js");
 const lv_repository_ts_1 = require("./lv-repository.js");
 class InMemoryLvRepository {
     #lv = new Map();
@@ -1543,10 +1834,35 @@ class InMemoryLvRepository {
             throw new lv_repository_ts_1.LvRepositoryError('nachtragsposition-ungueltig', problem);
         if (s.nachtraege.some(p => p.id === position.id))
             throw new lv_repository_ts_1.LvRepositoryError('nachtragsposition-doppelt', `Nachtragsposition ${position.id} gibt es schon`);
+        if (s.nachtraege.some(p => p.nachtragNr === position.nachtragNr && p.status === 'VERSENDET'))
+            throw new lv_repository_ts_1.LvRepositoryError('nachtragsposition-gesperrt', `Nachtrag ${position.nachtragNr} ist versendet`);
         if (s.nachtraege.some(p => p.nachtragNr === position.nachtragNr && p.positionNr === position.positionNr)) {
             throw new lv_repository_ts_1.LvRepositoryError('nachtragsposition-doppelt', `Nachtrag ${position.nachtragNr}, Position ${position.positionNr} gibt es schon`);
         }
         s.nachtraege.push(structuredClone(position));
+    }
+    async ersetzeNachtragspositionen(kommission, positionen) {
+        const s = this.#lv.get(kommission);
+        if (!s)
+            throw new lv_repository_ts_1.LvRepositoryError('kommission-unbekannt', `Für ${kommission} gibt es noch keinen Import`);
+        const ids = new Set(), nummern = new Set();
+        for (const p of positionen) {
+            const problem = (0, lv_repository_ts_1.pruefeNachtragsposition)(kommission, p);
+            if (problem)
+                throw new lv_repository_ts_1.LvRepositoryError('nachtragsposition-ungueltig', problem);
+            if (ids.has(p.id))
+                throw new lv_repository_ts_1.LvRepositoryError('nachtragsposition-doppelt', `Nachtragsposition ${p.id} kommt mehrfach vor`);
+            ids.add(p.id);
+            const nr = `${p.nachtragNr}.${p.positionNr}`;
+            if (nummern.has(nr))
+                throw new lv_repository_ts_1.LvRepositoryError('nachtragsposition-doppelt', `Nachtrag ${p.nachtragNr}, Position ${p.positionNr} kommt mehrfach vor`);
+            nummern.add(nr);
+        }
+        const mitLeistungsstand = new Set(s.eintraege.map(e => e.positionId));
+        const verboten = (0, nachtrag_ts_1.pruefeNachtragAenderung)(s.nachtraege, positionen, mitLeistungsstand);
+        if (verboten)
+            throw new lv_repository_ts_1.LvRepositoryError('nachtragsposition-gesperrt', verboten);
+        s.nachtraege = structuredClone([...positionen]);
     }
 }
 exports.InMemoryLvRepository = InMemoryLvRepository;
@@ -1562,5 +1878,5 @@ exports.InMemoryLvRepository = InMemoryLvRepository;
     defs[id]((spec) => load(resolve(id, spec)), module.exports, module);
     return module.exports;
   }
-  globalThis.LvApp = Object.freeze(Object.assign({}, load("preview/lv-app.js"), { css: ":root, :host, .pl-app, .lv-app {\n  color-scheme: light;\n  \n  --ink: #0f1f25; --muted: #2f4539;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  \n  --line: #c8d7cc; --line-soft: #e3ebe5; --line-strong: #5a7165;\n  \n  --card-line: var(--line);\n  \n  --teal: #08574f; --teal-d: #063f39; --lime: #d5f28a; --on-teal: #fff; --focus: #063f39;\n  \n  --ok-bg: #e5f3e9; --ok-ink: #14452d;\n  --note-bg: #fff6e8; --note-ink: #4f2c08; --note-line: #86500f;\n  --stoer: #8e2616; --stoer-soft: #f6d9d2; --on-stoer: #fff;\n  \n  --r-control: 10px; --r-card: 12px; --r-pill: 999px;\n  \n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (max-width: 760px) {\n  :root, :host, .pl-app, .lv-app { --card-line: #7b9487; }\n}\n.btn-primary, .primary, .lv-primary,\n.btn-secondary, .btn-outline, .outline, .lv-btn, .ac01-add, .ac01-add-event, .ac01-jump button, .ac01-photo-btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);\n  min-height: 44px; padding: 0 18px; border: 1px solid var(--teal); border-radius: var(--r-control);\n  font-size: 14px; font-weight: 700; line-height: 1.2; text-align: center; cursor: pointer;\n  transition: background-color .15s, border-color .15s;\n}\n.btn-primary, .primary, .lv-primary { background: var(--teal); color: var(--on-teal); box-shadow: none; }\n.btn-primary:hover, .primary:hover, .lv-primary:hover { background: var(--teal-d); border-color: var(--teal-d); }\n.btn-secondary, .btn-outline, .outline, .lv-btn, .ac01-add, .ac01-add-event, .ac01-jump button, .ac01-photo-btn { background: var(--panel); color: var(--teal-d); }\n.btn-secondary:hover, .btn-outline:hover, .outline:hover, .lv-btn:hover, .ac01-add:hover, .ac01-add-event:hover, .ac01-jump button:hover, .ac01-photo-btn:hover { background: var(--ok-bg); }\n.btn-primary:disabled, .primary:disabled, .lv-primary:disabled,\n.btn-secondary:disabled, .btn-outline:disabled, .outline:disabled, .lv-btn:disabled, .ac01-add:disabled, .ac01-add-event:disabled { opacity: .55; cursor: not-allowed; }\n.btn-link, .text-action, .lv-link, .quiet, .ac01-remove, .back {\n  display: inline-flex; align-items: center; gap: var(--s1); min-height: 44px; padding: 0 var(--s2);\n  border: 0; border-radius: var(--r-control); background: transparent; color: var(--teal-d);\n  font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;\n}\n.btn-link:hover, .text-action:hover, .lv-link:hover, .quiet:hover, .ac01-remove:hover, .back:hover { background: var(--ok-bg); }\n.btn-link.danger, .quiet.danger, .ac01-remove { color: var(--stoer); }\n.btn-link.danger:hover, .quiet.danger:hover, .ac01-remove:hover { background: var(--stoer-soft); }\n.btn-icon, .lv-edit {\n  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; padding: 0;\n  border: 1px solid var(--teal); border-radius: var(--r-control); background: var(--panel); color: var(--teal-d); cursor: pointer;\n}\n.btn-icon:hover, .lv-edit:hover { background: var(--ok-bg); }\n.lv-segs, .seg, .case-seg, .tabs {\n  display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: var(--r-control); overflow: hidden; background: var(--panel);\n}\n.lv-seg, .segbtn, .case-seg button, .tabs button {\n  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s4);\n  border: 0; border-radius: 0; background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.2; cursor: pointer;\n}\n.lv-seg + .lv-seg, .segbtn + .segbtn, .case-seg button + button, .tabs button + button { border-left: 1px solid var(--line-strong); }\n.lv-seg:hover, .segbtn:hover, .case-seg button:hover, .tabs button:hover { background: var(--ok-bg); }\n.lv-seg[aria-pressed=\"true\"], .segbtn[aria-pressed=\"true\"], .case-seg button[aria-pressed=\"true\"], .tabs button[aria-selected=\"true\"] { background: var(--teal); color: var(--on-teal); }\n.lv-seg:focus-visible, .segbtn:focus-visible, .case-seg button:focus-visible, .tabs button:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }\n.lv-seg:disabled, .segbtn:disabled, .case-seg button:disabled, .tabs button:disabled { opacity: .55; cursor: not-allowed; }\n.chip, .badge, .count-pill, .tag, .lv-chip, .ac01-status, .st-state, .ac01-chip {\n  display: inline-flex; align-items: center; gap: var(--s1); min-height: 24px; padding: 2px 10px;\n  border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--band); color: var(--muted);\n  font-size: 12px; font-weight: 700; line-height: 1.3;\n}\n.chip.ok, .tag.ok, .lv-chip.ok, .ac01-status, .ac01-chip, .st-state[data-mode=\"saved\"] { background: var(--ok-bg); border-color: var(--ok-ink); color: var(--ok-ink); }\n.chip.warn, .badge.orange, .tag.warn, .lv-chip.warn, .ac01-status.is-incomplete, .st-state[data-mode=\"dirty\"] { background: var(--note-bg); border-color: var(--note-line); color: var(--note-ink); }\n.chip.bad, .badge.red, .tag.stoer { background: var(--stoer-soft); border-color: var(--stoer); color: var(--stoer); }\n.callout, .legacy-banner, .draft-notice, .notice, .ac01-row-note, .ac01-missing, .note, .bh-hints, .lv-warn, .lv-error, .form-message, .save-confirmation, .ac01-savebar p[data-dirty=\"true\"] {\n  padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--band); color: var(--ink); font-size: 13px; line-height: 1.5;\n}\n.callout.warn, .legacy-banner, .draft-notice, .notice, .ac01-row-note, .ac01-missing, .note, .bh-hints, .lv-warn, .ac01-savebar p[data-dirty=\"true\"] { background: var(--note-bg); border-color: var(--note-line); color: var(--note-ink); }\n.callout.ok, .save-confirmation, .note.ok, .bh-hints.bh-ok, .form-message { background: var(--ok-bg); border-color: var(--ok-ink); color: var(--ok-ink); }\n.callout.bad, .lv-error, .form-message.error { background: var(--stoer-soft); border-color: var(--stoer); color: var(--stoer); }\n.card, .panel, .metric, .detail-card, .side-card, .draft-paper, .ts-source, .ac01-block, .ac01-report-area, .pl-card, .lv-scroll {\n  background: var(--panel); border: 1px solid var(--card-line); border-radius: var(--r-card);\n}\n.inset, .ac01-employee, .ac01-event, .ac01-picker-group, .ac01-picker, .ac01-bulk, .ac01-experiment, .pl-card .list.events li, .draft-paper .content-block {\n  background: var(--band); border: 1px solid var(--card-line); border-radius: var(--r-control);\n}\n.eyebrow, .metric small, .wd-preview dt, .ts-figures dt, .ac01-stat small, .ac01-disruption-group h4 {\n  font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--muted);\n}\ninput:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"range\"]):not([type=\"file\"]):not([type=\"color\"]), select, textarea {\n  border: 1px solid var(--line-strong); border-radius: var(--r-control); background: var(--panel); color: var(--ink); min-height: 44px; padding: var(--s2) var(--s3);\n}\ntextarea { min-height: 88px; }\n@media (prefers-color-scheme: dark) {\n  .lv-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #f4faf6; --muted: #c4d4ca; --line: #6f867a; --line-soft: #53695d; --line-strong: #9bb1a5;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #6cd0bf; --teal-d: #8fe0d1; --lime: #b5d96a; --focus: #9fe3d5; --on-teal: #0b1d1a;\n    --stoer: #f6a090; --stoer-soft: #4a2520; --note-bg: #2b2418; --note-ink: #f8e6c8; --note-line: #d29a4c; --ok-bg: #1f3a2c; --ok-ink: #d3f2e0;\n  }\n}\n* { box-sizing: border-box; }\n.lv-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.lv-app.standalone { min-height: 100vh; padding: var(--s5) var(--s6) var(--s6); }\n.lv-app ::selection { background: var(--lime); color: #14252c; }\n.lv-app :is(input, textarea, button, select):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.lv-app input, .lv-app textarea, .lv-app button { accent-color: var(--teal); font: inherit; }\n.lv-app h1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); }\n.lv-app h2 { font-size: 16px; margin: 0; }\n.lv-app h3 { font-size: 14px; margin: var(--s5) 0 var(--s2); }\n.sr-only, .lv-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.lv-lead { margin: 0 0 var(--s3); color: var(--muted); max-width: 72ch; }\n.lv-bar-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4); margin: 0 0 var(--s3); }\n.lv-count { font-weight: 700; margin-inline-start: var(--s1); }\n.lv-all { display: flex; gap: var(--s4); }\n.lv-link.armed { color: var(--note-ink); background: var(--note-bg); outline: 2px solid var(--note-line); outline-offset: 0; border-radius: 4px; padding-inline: var(--s2); text-decoration: none; font-weight: 700; }\n.lv-saved { background: var(--ok-bg); color: var(--ok-ink); padding: var(--s2) var(--s3); border-radius: 6px; margin: 0 0 var(--s3); }\n.lv-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); align-items: start; container: lv-table / inline-size; }\n.lv-scroll {overflow-x: auto; border: 1px solid var(--line-strong); scrollbar-color: var(--line-strong) transparent;}\n.lv-table { width: 100%; border-collapse: collapse; min-width: 860px; }\n.lv-table thead th { text-align: left; font-size: 12px; color: var(--ink); font-weight: 700; padding: var(--s3) var(--s3); border-bottom: 2px solid var(--line-strong); background: var(--panel); position: sticky; top: 0; }\n.lv-table td, .lv-table tbody th { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; font-weight: 400; }\n.lv-oz { font-weight: 600; color: var(--muted); white-space: nowrap; }\n.lv-table thead th:first-child { white-space: nowrap; }\n.lv-group th { background: var(--band); font-weight: 600; }\n.lv-group.l0 th, .lv-group.l0 .lv-groupinfo { background: var(--panel); }\n.lv-group.l0 th { font-size: 15px; }\n.lv-group.l0 { border-top: 2px solid var(--line-strong); }\n.lv-group.l0:first-child { border-top: 0; }\n.lv-group.l2 th { padding-left: var(--s5); background: var(--panel); }\n.lv-group.l2 { border-top: 1px solid var(--line); }\n.lv-group.l1 { border-top: 1px solid var(--line-strong); }\n.lv-groupinfo { color: var(--muted); font-size: 12px; text-align: right; background: var(--band); }\n.lv-group.l2 .lv-groupinfo { background: var(--panel); }\n.lv-toggle { display: inline-flex; align-items: baseline; gap: var(--s2); border: 0; background: none; color: inherit; font-weight: 600; cursor: pointer; padding: var(--s1) 0; min-height: 28px; text-align: left; }\n.lv-note td { color: var(--muted); font-style: italic; font-size: 13px; padding-top: var(--s1); padding-bottom: var(--s1); }\n.lv-pos.open td, .lv-pos.open th { background: var(--note-bg); }\n.lv-text { min-width: 20ch; }\n.lv-name { margin-right: var(--s2); }\n.lv-menge, .lv-stand, .lv-ep, .lv-gp { white-space: nowrap; }\n.lv-ep, .lv-gp { text-align: right; }\n.lv-stand small { display: block; color: var(--muted); font-size: 12px; }\n.lv-none { color: var(--muted); }\n.lv-anz { min-width: 11ch; white-space: nowrap; }\n.lv-bar { display: inline-block; width: 56px; height: 8px; border-radius: 4px; background: var(--line-soft); vertical-align: middle; margin-right: var(--s2); overflow: hidden; }\n.lv-bar > span { display: block; height: 100%; background: var(--teal); }\n.lv-pct { color: var(--muted); font-size: 13px; }\n.lv-act { text-align: right; }\n.lv-chip {margin-right: var(--s1); white-space: nowrap;}\n.lv-empty { color: var(--muted); padding: var(--s5); text-align: center; }\n.lv-foot { color: var(--muted); font-size: 13px; max-width: 90ch; margin: var(--s4) 0 0; }\n.lv-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.lv-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.45); }\n.lv-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); display: block; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--line-strong) transparent; background: var(--panel); color: var(--ink); border-left: 2px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.22); padding: var(--s4); }\n.lv-panel.enter { animation: lv-slide-in 0.2s ease-out; }\n@keyframes lv-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n@media (prefers-reduced-motion: reduce) { .lv-panel.enter { animation: none; } }\n.lv-closebtn { display: inline-flex; align-items: center; gap: var(--s2); }\n.lv-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; margin: var(--s3) calc(-1 * var(--s4)) var(--s3); padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-block: 2px solid var(--note-line); font-weight: 600; }\n.lv-confirm span { flex: 1 1 100%; }\n.lv-ico { flex: none; }\n.lv-chev { display: inline-flex; width: 1.4em; color: var(--teal-d); align-self: center; }\n.lv-phead { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); }\n.lv-pos-title { margin: var(--s2) 0 var(--s3); font-weight: 600; }\n.lv-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin: 0 0 var(--s3); }\n.lv-facts dt { font-size: 12px; color: var(--muted); }\n.lv-facts dd { margin: 0; font-weight: 600; }\n.lv-facts-wide { grid-column: 1 / -1; }\n.lv-facts-wide dd { font-weight: 400; overflow-wrap: anywhere; }\n.lv-note-p { color: var(--muted); font-size: 13px; margin: var(--s2) 0; }\n#lv-form, #lv-nt-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s3); }\n#lv-form label, #lv-nt-form label { display: grid; gap: var(--s1); font-weight: 600; font-size: 13px; min-width: 0; }\n#lv-form label small, #lv-nt-form label small { font-weight: 400; color: var(--muted); }\n#lv-form input, #lv-form textarea, #lv-nt-form input, #lv-nt-form textarea, #lv-nt-form select {width: 100%; min-width: 0;; caret-color: var(--teal-d);; padding: var(--s2) var(--s3);; color: var(--ink);; font-weight: 400; font-size: 14px;}\n.lv-pbtn { display: flex; gap: var(--s3); flex-wrap: wrap; }\n.lv-checks p, .lv-error, .lv-warn {margin: var(--s1) 0; }\n.lv-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }\n.lv-hist li { border-bottom: 1px solid var(--line); padding-bottom: var(--s3); display: grid; gap: var(--s1); }\n.lv-hist li.old strong { text-decoration: line-through; color: var(--muted); }\n.lv-hist small { color: var(--muted); }\n.lv-hist .lv-link { justify-self: start; }\n@media (prefers-reduced-motion: no-preference) { .lv-bar > span { transition: width .2s ease; } }\n.lv-sub, .lv-short { display: none; }\n.lv-pos { scroll-margin-top: var(--s2); }\n@media (max-width: 640px) {\n  .lv-app.standalone { padding: var(--s4); }\n  .lv-seg {padding-inline: var(--s3);}\n}\n@container lv-table (max-width: 860px) {\n  .lv-table { min-width: 0; }\n  \n  \n  .lv-table :is(thead th:nth-child(3), thead th:nth-child(4), thead th:nth-child(5), thead th:nth-child(7), td.lv-menge, td.lv-ep, td.lv-gp, td.lv-anz) { width: 0; max-width: 0; padding: 0; border: 0; overflow: hidden; font-size: 0; line-height: 0; }\n  .lv-table :is(td.lv-menge, td.lv-ep, td.lv-gp, td.lv-anz) * { font-size: 0; }\n  .lv-sub { display: block; color: var(--muted); font-size: 12px; }\n  .lv-long { display: none; }\n  .lv-short { display: inline; }\n  .lv-table { font-size: 13px; }\n  .lv-stand, .lv-stand small { white-space: normal; }\n  .lv-oz { font-size: 12px; }\n  .lv-text { min-width: 0; }\n  .lv-name { overflow-wrap: anywhere; hyphens: auto; }\n  .lv-table td, .lv-table tbody th { padding-inline: 6px; }\n  .lv-groupinfo { font-size: 0; padding: 0; }                 \n  .lv-table td, .lv-table tbody th { padding-inline: var(--s2); }\n}\n@media (max-width: 640px), (pointer: coarse) {\n  .lv-btn, .lv-primary, .lv-seg, .lv-toggle { min-height: 44px; }\n  #lv-form input, #lv-nt-form :is(input, select) { min-height: 44px; }\n}\n.lv-nachtrag { margin-top: var(--s4); }\n.lv-nt-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0 0 var(--s2); }\n.lv-nt-hint { color: var(--muted); font-size: 13px; max-width: 90ch; margin: 0 0 var(--s3); }" }, { build: "sha256:eee04d8e523a2495" }));
+  globalThis.LvApp = Object.freeze(Object.assign({}, load("preview/lv-app.js"), { css: ":root, :host, .pl-app, .lv-app {\n  color-scheme: light;\n  \n  --ink: #0f1f25; --muted: #2f4539;\n  --paper: #f5f7f4; --panel: #fff; --band: #eef3ef;\n  \n  --line: #c8d7cc; --line-soft: #e3ebe5; --line-strong: #5a7165;\n  \n  --card-line: var(--line);\n  \n  --teal: #08574f; --teal-d: #063f39; --lime: #d5f28a; --on-teal: #fff; --focus: #063f39;\n  \n  --ok-bg: #e5f3e9; --ok-ink: #14452d;\n  --note-bg: #fff6e8; --note-ink: #4f2c08; --note-line: #86500f;\n  --stoer: #8e2616; --stoer-soft: #f6d9d2; --on-stoer: #fff;\n  \n  --r-control: 10px; --r-card: 12px; --r-pill: 999px;\n  \n  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;\n  font-family: \"Segoe UI Variable Text\", \"Segoe UI\", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;\n}\n@media (max-width: 760px) {\n  :root, :host, .pl-app, .lv-app { --card-line: #7b9487; }\n}\n.btn-primary, .primary, .lv-primary,\n.btn-secondary, .btn-outline, .outline, .lv-btn, .ac01-add, .ac01-add-event, .ac01-jump button, .ac01-photo-btn {\n  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);\n  min-height: 44px; padding: 0 18px; border: 1px solid var(--teal); border-radius: var(--r-control);\n  font-size: 14px; font-weight: 700; line-height: 1.2; text-align: center; cursor: pointer;\n  transition: background-color .15s, border-color .15s;\n}\n.btn-primary, .primary, .lv-primary { background: var(--teal); color: var(--on-teal); box-shadow: none; }\n.btn-primary:hover, .primary:hover, .lv-primary:hover { background: var(--teal-d); border-color: var(--teal-d); }\n.btn-secondary, .btn-outline, .outline, .lv-btn, .ac01-add, .ac01-add-event, .ac01-jump button, .ac01-photo-btn { background: var(--panel); color: var(--teal-d); }\n.btn-secondary:hover, .btn-outline:hover, .outline:hover, .lv-btn:hover, .ac01-add:hover, .ac01-add-event:hover, .ac01-jump button:hover, .ac01-photo-btn:hover { background: var(--ok-bg); }\n.btn-primary:disabled, .primary:disabled, .lv-primary:disabled,\n.btn-secondary:disabled, .btn-outline:disabled, .outline:disabled, .lv-btn:disabled, .ac01-add:disabled, .ac01-add-event:disabled { opacity: .55; cursor: not-allowed; }\n.btn-link, .text-action, .lv-link, .quiet, .ac01-remove, .back {\n  display: inline-flex; align-items: center; gap: var(--s1); min-height: 44px; padding: 0 var(--s2);\n  border: 0; border-radius: var(--r-control); background: transparent; color: var(--teal-d);\n  font-size: 14px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;\n}\n.btn-link:hover, .text-action:hover, .lv-link:hover, .quiet:hover, .ac01-remove:hover, .back:hover { background: var(--ok-bg); }\n.btn-link.danger, .quiet.danger, .lv-link.danger, .ac01-remove { color: var(--stoer); }\n.btn-link.danger:hover, .quiet.danger:hover, .lv-link.danger:hover, .ac01-remove:hover { background: var(--stoer-soft); }\n.btn-icon, .lv-edit {\n  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; min-height: 44px; padding: 0;\n  border: 1px solid var(--teal); border-radius: var(--r-control); background: var(--panel); color: var(--teal-d); cursor: pointer;\n}\n.btn-icon:hover, .lv-edit:hover { background: var(--ok-bg); }\n.lv-segs, .seg, .case-seg, .tabs {\n  display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line-strong); border-radius: var(--r-control); overflow: hidden; background: var(--panel);\n}\n.lv-seg, .segbtn, .case-seg button, .tabs button {\n  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s4);\n  border: 0; border-radius: 0; background: transparent; color: var(--ink); font-size: 14px; font-weight: 600; line-height: 1.2; cursor: pointer;\n}\n.lv-seg + .lv-seg, .segbtn + .segbtn, .case-seg button + button, .tabs button + button { border-left: 1px solid var(--line-strong); }\n.lv-seg:hover, .segbtn:hover, .case-seg button:hover, .tabs button:hover { background: var(--ok-bg); }\n.lv-seg[aria-pressed=\"true\"], .segbtn[aria-pressed=\"true\"], .case-seg button[aria-pressed=\"true\"], .tabs button[aria-selected=\"true\"] { background: var(--teal); color: var(--on-teal); }\n.lv-seg:focus-visible, .segbtn:focus-visible, .case-seg button:focus-visible, .tabs button:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }\n.lv-seg:disabled, .segbtn:disabled, .case-seg button:disabled, .tabs button:disabled { opacity: .55; cursor: not-allowed; }\n.chip, .badge, .count-pill, .tag, .lv-chip, .ac01-status, .st-state, .ac01-chip {\n  display: inline-flex; align-items: center; gap: var(--s1); min-height: 24px; padding: 2px 10px;\n  border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--band); color: var(--muted);\n  font-size: 12px; font-weight: 700; line-height: 1.3;\n}\n.chip.ok, .tag.ok, .lv-chip.ok, .ac01-status, .ac01-chip, .st-state[data-mode=\"saved\"] { background: var(--ok-bg); border-color: var(--ok-ink); color: var(--ok-ink); }\n.chip.warn, .badge.orange, .tag.warn, .lv-chip.warn, .ac01-status.is-incomplete, .st-state[data-mode=\"dirty\"] { background: var(--note-bg); border-color: var(--note-line); color: var(--note-ink); }\n.chip.bad, .badge.red, .tag.stoer { background: var(--stoer-soft); border-color: var(--stoer); color: var(--stoer); }\n.callout, .legacy-banner, .draft-notice, .notice, .ac01-row-note, .ac01-missing, .note, .bh-hints, .lv-warn, .lv-error, .form-message, .save-confirmation, .ac01-savebar p[data-dirty=\"true\"] {\n  padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--band); color: var(--ink); font-size: 13px; line-height: 1.5;\n}\n.callout.warn, .legacy-banner, .draft-notice, .notice, .ac01-row-note, .ac01-missing, .note, .bh-hints, .lv-warn, .ac01-savebar p[data-dirty=\"true\"] { background: var(--note-bg); border-color: var(--note-line); color: var(--note-ink); }\n.callout.ok, .save-confirmation, .note.ok, .bh-hints.bh-ok, .form-message { background: var(--ok-bg); border-color: var(--ok-ink); color: var(--ok-ink); }\n.callout.bad, .lv-error, .form-message.error { background: var(--stoer-soft); border-color: var(--stoer); color: var(--stoer); }\n.card, .panel, .metric, .detail-card, .side-card, .draft-paper, .ts-source, .ac01-block, .ac01-report-area, .pl-card, .lv-scroll {\n  background: var(--panel); border: 1px solid var(--card-line); border-radius: var(--r-card);\n}\n.inset, .ac01-employee, .ac01-event, .ac01-picker-group, .ac01-picker, .ac01-bulk, .ac01-experiment, .pl-card .list.events li, .draft-paper .content-block {\n  background: var(--band); border: 1px solid var(--card-line); border-radius: var(--r-control);\n}\n.eyebrow, .metric small, .wd-preview dt, .ts-figures dt, .ac01-stat small, .ac01-disruption-group h4 {\n  font-size: 12px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--muted);\n}\ninput:not([type=\"checkbox\"]):not([type=\"radio\"]):not([type=\"range\"]):not([type=\"file\"]):not([type=\"color\"]), select, textarea {\n  border: 1px solid var(--line-strong); border-radius: var(--r-control); background: var(--panel); color: var(--ink); min-height: 44px; padding: var(--s2) var(--s3);\n}\ntextarea { min-height: 88px; }\n[data-tip] { position: relative; }\n[data-tip]::after {\n  content: attr(data-tip); position: absolute; z-index: 20; right: calc(100% + 8px); top: 50%; transform: translateY(-50%);\n  width: max-content; max-width: min(220px, 55vw); padding: 6px 10px; border-radius: var(--r-control, 8px); background: var(--ink); color: var(--panel);\n  font-size: 12px; font-weight: 600; line-height: 1.3; white-space: normal; text-align: left; pointer-events: none; opacity: 0; visibility: hidden;\n}\n[data-tip]:is(:hover, :focus-visible)::after { opacity: 1; visibility: visible; }\n[data-tip][data-tip-pos=\"below\"]::after { right: auto; left: 0; top: calc(100% + 8px); transform: none; }\n@media (prefers-reduced-motion: no-preference) { [data-tip]::after { transition: opacity .12s ease; } }\n@media (hover: none) { [data-tip]:hover:not(:focus-visible)::after { opacity: 0; visibility: hidden; } }\n@media (prefers-color-scheme: dark) {\n  .lv-app[data-scheme=\"auto\"] {\n    color-scheme: dark;\n    --ink: #f4faf6; --muted: #c4d4ca; --line: #6f867a; --line-soft: #53695d; --line-strong: #9bb1a5;\n    --paper: #11191a; --panel: #172123; --band: #1d2a2c;\n    --teal: #6cd0bf; --teal-d: #8fe0d1; --lime: #b5d96a; --focus: #9fe3d5; --on-teal: #0b1d1a;\n    --stoer: #f6a090; --stoer-soft: #4a2520; --note-bg: #2b2418; --note-ink: #f8e6c8; --note-line: #d29a4c; --ok-bg: #1f3a2c; --ok-ink: #d3f2e0;\n  }\n}\n* { box-sizing: border-box; }\n.lv-app { background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; padding-bottom: var(--s6); }\n.lv-app.standalone { min-height: 100vh; padding: var(--s5) var(--s6) var(--s6); }\n.lv-app ::selection { background: var(--lime); color: #14252c; }\n.lv-app :is(input, textarea, button, select):focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }\n.lv-app input, .lv-app textarea, .lv-app button { accent-color: var(--teal); font: inherit; }\n.lv-app h1 { font-size: 22px; letter-spacing: -.01em; margin: 0 0 var(--s1); }\n.lv-app h2 { font-size: 16px; margin: 0; }\n.lv-app h3 { font-size: 14px; margin: var(--s5) 0 var(--s2); }\n.sr-only, .lv-live { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }\n.lv-lead { margin: 0 0 var(--s3); color: var(--muted); max-width: 72ch; }\n.lv-bar-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4); margin: 0 0 var(--s3); }\n.lv-count { font-weight: 700; margin-inline-start: var(--s1); }\n.lv-all { display: flex; gap: var(--s4); }\n.lv-link.armed { color: var(--note-ink); background: var(--note-bg); outline: 2px solid var(--note-line); outline-offset: 0; border-radius: 4px; padding-inline: var(--s2); text-decoration: none; font-weight: 700; }\n.lv-saved { background: var(--ok-bg); color: var(--ok-ink); padding: var(--s2) var(--s3); border-radius: 6px; margin: 0 0 var(--s3); }\n.lv-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); align-items: start; container: lv-table / inline-size; }\n.lv-scroll {overflow-x: auto; border: 1px solid var(--line-strong); scrollbar-color: var(--line-strong) transparent;}\n.lv-table { width: 100%; border-collapse: collapse; min-width: 860px; }\n.lv-table thead th { text-align: left; font-size: 12px; color: var(--ink); font-weight: 700; padding: var(--s3) var(--s3); border-bottom: 2px solid var(--line-strong); background: var(--panel); position: sticky; top: 0; }\n.lv-table td, .lv-table tbody th { padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; font-weight: 400; }\n.lv-oz { font-weight: 600; color: var(--muted); white-space: nowrap; }\n.lv-table thead th:first-child { white-space: nowrap; }\n.lv-group th { background: var(--band); font-weight: 600; }\n.lv-group.l0 th, .lv-group.l0 .lv-groupinfo { background: var(--panel); }\n.lv-group.l0 th { font-size: 15px; }\n.lv-group.l0 .lv-toggle { font-weight: 800; }\n.lv-group.l1 .lv-toggle { font-weight: 700; }                \n.lv-group.l2 .lv-toggle { font-weight: 600; }                \n.lv-group.l0 { border-top: 2px solid var(--line-strong); }\n.lv-group.l0:first-child { border-top: 0; }\n.lv-group.l2 th { padding-left: var(--s5); background: var(--panel); }\n.lv-group.l2 { border-top: 1px solid var(--line); }\n.lv-group.l1 { border-top: 1px solid var(--line-strong); }\n.lv-groupinfo { color: var(--muted); font-size: 12px; text-align: right; background: var(--band); }\n.lv-group.l2 .lv-groupinfo { background: var(--panel); }\n.lv-toggle { display: inline-flex; align-items: baseline; gap: var(--s2); border: 0; background: none; color: inherit; font-weight: 600; cursor: pointer; padding: var(--s1) 0; min-height: 28px; text-align: left; }\n.lv-note td { color: var(--muted); font-style: italic; font-size: 13px; padding-top: var(--s1); padding-bottom: var(--s1); }\n.lv-pos.open td, .lv-pos.open th { background: var(--note-bg); }\n.lv-text { min-width: 20ch; }\n.lv-name { margin-right: var(--s2); }\n.lv-menge, .lv-stand, .lv-ep, .lv-gp { white-space: nowrap; }\n.lv-ep, .lv-gp { text-align: right; }\n.lv-stand small { display: block; color: var(--muted); font-size: 12px; }\n.lv-none { color: var(--muted); }\n.lv-anz { min-width: 11ch; white-space: nowrap; }\n.lv-bar { display: inline-block; width: 56px; height: 8px; border-radius: 4px; background: var(--line-soft); vertical-align: middle; margin-right: var(--s2); overflow: hidden; }\n.lv-bar > span { display: block; height: 100%; background: var(--teal); }\n.lv-pct { color: var(--muted); font-size: 13px; }\n.lv-act { text-align: right; }\n.lv-chip {margin-right: var(--s1); white-space: nowrap;}\n.lv-empty { color: var(--muted); padding: var(--s5); text-align: center; }\n.lv-foot { color: var(--muted); font-size: 13px; max-width: 90ch; margin: var(--s4) 0 0; }\n.lv-panel-wrap { position: fixed; inset: 0; z-index: 1000; }\n.lv-scrim { position: absolute; inset: 0; background: rgba(20, 37, 44, 0.45); }\n.lv-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); display: block; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--line-strong) transparent; background: var(--panel); color: var(--ink); border-left: 2px solid var(--line-strong); box-shadow: -12px 0 28px rgba(0, 0, 0, 0.22); padding: var(--s4); }\n.lv-panel.enter { animation: lv-slide-in 0.2s ease-out; }\n@keyframes lv-slide-in { from { transform: translateX(100%); } to { transform: translateX(0); } }\n@media (prefers-reduced-motion: reduce) { .lv-panel.enter { animation: none; } }\n.lv-closebtn { display: inline-flex; align-items: center; gap: var(--s2); }\n.lv-confirm { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; margin: var(--s3) calc(-1 * var(--s4)) var(--s3); padding: var(--s3) var(--s4); background: var(--note-bg); color: var(--note-ink); border-block: 2px solid var(--note-line); font-weight: 600; }\n.lv-confirm span { flex: 1 1 100%; }\n.lv-ico { flex: none; }\n.lv-chev { display: inline-flex; width: 1.4em; color: var(--teal-d); align-self: center; }\n.lv-phead { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); }\n.lv-pos-title { margin: var(--s2) 0 var(--s3); font-weight: 600; }\n.lv-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin: 0 0 var(--s3); }\n.lv-facts dt { font-size: 12px; color: var(--muted); }\n.lv-facts dd { margin: 0; font-weight: 600; }\n.lv-facts-wide { grid-column: 1 / -1; }\n.lv-facts-wide dd { font-weight: 400; overflow-wrap: anywhere; }\n.lv-note-p { color: var(--muted); font-size: 13px; margin: var(--s2) 0; }\n#lv-form, #lv-nt-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s3); }\n#lv-form label, #lv-nt-form label { display: grid; gap: var(--s1); font-weight: 600; font-size: 13px; min-width: 0; }\n#lv-form label small, #lv-nt-form label small { font-weight: 400; color: var(--muted); }\n#lv-form input, #lv-form textarea, #lv-nt-form input, #lv-nt-form textarea, #lv-nt-form select {width: 100%; min-width: 0;; caret-color: var(--teal-d);; padding: var(--s2) var(--s3);; color: var(--ink);; font-weight: 400; font-size: 14px;}\n.lv-pbtn { display: flex; gap: var(--s3); flex-wrap: wrap; }\n.lv-checks p, .lv-error, .lv-warn {margin: var(--s1) 0; }\n.lv-hist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }\n.lv-hist li { border-bottom: 1px solid var(--line); padding-bottom: var(--s3); display: grid; gap: var(--s1); }\n.lv-hist li.old strong { text-decoration: line-through; color: var(--muted); }\n.lv-hist small { color: var(--muted); }\n.lv-hist .lv-link { justify-self: start; }\n@media (prefers-reduced-motion: no-preference) { .lv-bar > span { transition: width .2s ease; } }\n.lv-sub, .lv-short { display: none; }\n.lv-pos { scroll-margin-top: var(--s2); }\n@media (max-width: 640px) {\n  .lv-app.standalone { padding: var(--s4); }\n  .lv-seg {padding-inline: var(--s3);}\n}\n@container lv-table (max-width: 860px) {\n  .lv-table { min-width: 0; }\n  \n  \n  .lv-table :is(thead th:nth-child(3), thead th:nth-child(4), thead th:nth-child(5), thead th:nth-child(7), td.lv-menge, td.lv-ep, td.lv-gp, td.lv-anz) { width: 0; max-width: 0; padding: 0; border: 0; overflow: hidden; font-size: 0; line-height: 0; }\n  .lv-table :is(td.lv-menge, td.lv-ep, td.lv-gp, td.lv-anz) * { font-size: 0; }\n  .lv-sub { display: block; color: var(--muted); font-size: 12px; }\n  .lv-long { display: none; }\n  .lv-short { display: inline; }\n  .lv-table { font-size: 13px; }\n  .lv-stand, .lv-stand small { white-space: normal; }\n  .lv-oz { font-size: 12px; }\n  .lv-text { min-width: 0; }\n  .lv-name { overflow-wrap: anywhere; hyphens: auto; }\n  .lv-table td, .lv-table tbody th { padding-inline: 6px; }\n  .lv-groupinfo { font-size: 0; padding: 0; }                 \n  .lv-table td, .lv-table tbody th { padding-inline: var(--s2); }\n}\n@media (max-width: 640px), (pointer: coarse) {\n  .lv-btn, .lv-primary, .lv-seg, .lv-toggle { min-height: 44px; }\n  #lv-form input, #lv-nt-form :is(input, select) { min-height: 44px; }\n}\n.lv-nachtrag { margin-top: var(--s4); }\n.lv-nt-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0 0 var(--s2); }\n.lv-nt-hint { color: var(--muted); font-size: 13px; max-width: 90ch; margin: 0 0 var(--s3); }\n.lv-nt-bar td { background: var(--panel); padding-block: var(--s1); }\n.lv-nt-actions-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); }\n.lv-nt-sent small { color: var(--muted); font-size: 12px; }\n.lv-edit-pos { margin-inline-start: var(--s1); }\n@container lv-table (max-width: 860px) {\n  .lv-act .lv-edit { display: flex; margin-inline-start: auto; }\n  .lv-act .lv-edit-pos { margin-top: var(--s1); }\n}\n.lv-legend { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); margin: var(--s2) 0 0; color: var(--muted); font-size: 12px; }\n.lv-legend span { display: inline-flex; align-items: center; gap: var(--s1); }\n.lv-legend .lv-ico { flex: none; }" }, { build: "sha256:024486d75c6f7b14" }));
 })();

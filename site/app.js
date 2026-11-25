@@ -94,6 +94,25 @@ document.addEventListener('click', async e => {
 // A Stundenzettel can switch to another day without leaving its view: keep the path in step.
 new MutationObserver(() => { if (state.view === 'timesheet') renderCrumbs(); }).observe(document.querySelector('#timesheet-view'), { childList: true, subtree: true });
 
+// Erfasste Tage: the values of the opened detail row start exactly where the "Mitarbeitende" column starts (the labels fill the space before it). Measured per table
+// (offsetLeft is in the table's own pixels, so it also holds under the zoom of the Gesamtansicht); in the stacked layout of a narrow field nothing is set.
+function alignDetailColumns() {
+  for (let pass = 0; pass < 2; pass++) alignDetailColumnsOnce();   // the first width can move the column a little (the opened row takes part in the table layout); the second one settles it
+}
+function alignDetailColumnsOnce() {
+  document.querySelectorAll('#wd-list .wd-table').forEach(table => {
+    const th = table.querySelector('thead th:nth-child(3)'), body = table.querySelector('.wd-detail-body'), row = body?.querySelector('.wd-preview > div');
+    if (!th || !body || !row || getComputedStyle(th).display !== 'table-cell') { table.style.removeProperty('--wd-label-w'); return; }
+    // Where the header TEXT starts (the column can be wider than its right-aligned text): measured with a range, converted to the table's own pixels.
+    const range = document.createRange(); range.selectNodeContents(th);
+    const tableBox = table.getBoundingClientRect(), scale = tableBox.width ? table.offsetWidth / tableBox.width : 1;
+    const valuesX = (range.getBoundingClientRect().left - tableBox.left) * scale;
+    const label = valuesX - parseFloat(getComputedStyle(body.parentElement).paddingLeft) - parseFloat(getComputedStyle(body).paddingLeft) - (parseFloat(getComputedStyle(row).columnGap) || 0);   // the cell's own padding counts too
+    table.style.setProperty('--wd-label-w', `${Math.max(110, Math.round(label))}px`);
+  });
+}
+{ const list = document.getElementById('wd-list'); if (list && 'ResizeObserver' in window) new ResizeObserver(() => alignDetailColumns()).observe(list); }
+
 // Gesamtansicht: three existing views shown side by side, only on a wide screen with a mouse (the entry is hidden elsewhere, see styles.css).
 const OVERVIEW_QUERY = '(min-width: 1280px) and (pointer: fine)';
 const OVERVIEW_VIEWS = ['dashboard', 'planner', 'lv'];
@@ -410,6 +429,7 @@ async function renderDashboard(){
     const eventCount = days.reduce((n, row) => n + row.summary.eventCount, 0);
     return `<div class="wd-project" data-project="${esc(projectId)}" data-date="${esc(first.date)}"><div><h3>${esc(project(projectId).name)}</h3><span class="wd-project-sub">${days.length} ${days.length===1?'Tag':'Tage'} · ${eventCount} ${eventCount===1?'Ereignis':'Ereignisse'}</span></div></div><div class="wd-table-wrap"><table class="wd-table" role="table"><caption class="sr-only">Erfasste Tage: ${esc(project(projectId).name)}</caption><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader"><span class="sr-only">Details</span></th><th scope="col" role="columnheader">Tag und Zeit</th><th scope="col" role="columnheader" class="wd-num">Mitarbeitende</th><th scope="col" role="columnheader" class="wd-num">Arbeitszeilen</th><th scope="col" role="columnheader" class="wd-num">Ereignisse</th><th scope="col" role="columnheader">Status</th><th scope="col" role="columnheader">Aktionen</th></tr></thead>${days.map(card).join('')}</table></div>`;
   }).join('') || '<div class="empty">Noch kein Tag gespeichert. In „Baustellentag erfassen“ einen Tag eintragen und „Speichern → Mission Control“ wählen.<div class="empty-action"><button class="primary" type="button" data-view="ac01" data-new-day><i class="ic-wrap" data-icon="plus"></i>Baustellentag erfassen</button></div></div>';
+  alignDetailColumns();
   const evAll = rows.flatMap(({report:r}) => r.events.map(v=>({v,r})));
   $('#wd-event-count').textContent = `${evAll.length} ${evAll.length===1?'Ereignis':'Ereignisse'}`;
   $('#wd-events').innerHTML = evAll.map(({v,r})=>`<div class="wd-event-row"><button class="list-item wd-event" type="button" data-wd-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}"><div class="item-top"><strong>${esc(v.description.trim().slice(0,62)||'Beschreibung fehlt')}</strong><span class="item-arrow" aria-hidden="true">↗</span></div><div class="item-sub">${esc(project(r.projectId).name)} · ${esc(dateText(r.date))} · Ort: ${esc(v.location.trim()||'fehlt')}</div><div class="item-meta">${v.reasons.map(k=>`<span class="badge ${k==='Baubehinderung'?'red':'orange'}">${esc(reasonShort[k]||(globalThis.DisruptionCatalog?globalThis.DisruptionCatalog.label(k):k))}</span>`).join('')||'<span class="badge">Grund fehlt</span>'}<span class="badge">Gespeichert · ungeprüft</span></div></button>${v.reasons.includes('Baubehinderung')?`<div class="wd-doc-row"><button class="outline wd-doc" type="button" title="Behinderungsanzeige als Entwurf" aria-label="Behinderungsanzeige als Entwurf" data-bh-open data-project="${esc(r.projectId)}" data-date="${esc(r.date)}" data-event="${esc(v.id)}"><i class="ic-wrap" data-icon="triangle-alert"></i>Behinderungsanzeige-Entwurf</button></div>`:''}</div>`).join('') || '<div class="empty">Keine besonderen Ereignisse erfasst.</div>';
@@ -462,6 +482,7 @@ document.addEventListener('click', e => {
     const expand = row.hidden;
     row.hidden = !expand; toggle.setAttribute('aria-expanded', String(expand));
     expand ? openDetails.add(key) : openDetails.delete(key);
+    alignDetailColumns();
     return;
   }
   const open=e.target.closest('[data-wd-open],[data-wd-copy]'), force=e.target.closest('[data-wd-force]');
