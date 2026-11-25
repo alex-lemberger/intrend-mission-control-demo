@@ -86,9 +86,6 @@ small,dt,.badge,.item-sub,.count-pill,.wd-figures,.nav-sub,.demo-chip,.dashboard
 @media(min-width:1024px){
   .ac01-assignment{align-items:start}
   .ac01-assignment>*{align-self:start}
-  .ac01-where:has(.ac01-chip:nth-child(2)){display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:var(--sp-2);min-width:0}
-  .ac01-where:has(.ac01-chip:nth-child(2)) .ac01-chip-add{order:-1;display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:var(--sp-1);flex:none}
-  .ac01-where:has(.ac01-chip:nth-child(2)) .ac01-chips{display:flex;flex-wrap:wrap;gap:var(--sp-1) var(--sp-2)}
   .ac01-where .ac01-chip{min-height:26px;line-height:1.2}
 }
 @media(min-width:1024px) and (max-width:1239px){
@@ -363,5 +360,77 @@ strong .ic-wrap{margin-right:.3em}
   .ac01-bulk-mode{flex:none;max-width:none}
   .ac01-bulk-buttons{flex-direction:column;align-items:stretch;width:100%;margin-left:0}
   #ac01-view .ac01-bulk-buttons :is(.ac01-add,.ac01-action){width:100%;justify-content:center}
+}
+
+/* Ereignisse / Tickets and the people table: one calm structure.
+   - Every add button sits at the right end under its list ("Mitarbeiter hinzufügen", "Ereignis hinzufügen"); the heading row carries only the heading.
+   - An event is a card of three lines on one left edge (the heading's): line 1 "Ereignis n" with the remove button at the right end, line 2 the fields
+     (Ort / Bauteil, Beschreibung, Foto / Plan, Betroffene), line 3 the kind of event.
+   - Every remove button of the editor (person, work line, event) is the same icon-only button. */
+.ac01-events-panel{padding-top:var(--sp-4)}
+.ac01-add-row{display:flex;justify-content:flex-end;margin-top:var(--sp-4)}
+.ac01-events-panel .ac01-add-row{margin-top:var(--sp-3)}
+@media(max-width:760px){.ac01-add-row .ac01-add{width:100%;justify-content:center}}
+@media(min-width:1024px){
+  body #ac01-view{--ac-ev-cols:minmax(120px,1fr) minmax(0,2.2fr) max-content}
+  @media(min-width:1240px){body #ac01-view{--ac-ev-cols:minmax(120px,1fr) minmax(0,2.2fr) minmax(364px,max-content)}}   /* wide enough: one width for the detail column, so every event card keeps its fields in the same columns */
+  body #ac01-view .ac01-event{padding:var(--sp-3) 0;gap:var(--sp-2) var(--sp-3);align-items:center}
+  body #ac01-view .ac01-event:nth-child(even){background:transparent}
+  body #ac01-view .ac01-event-label{grid-column:1/3;grid-row:1;justify-self:start}
+  body #ac01-view .ac01-event-remove{grid-column:3;grid-row:1;justify-self:end}
+  body #ac01-view .ac01-event-where{grid-column:1;grid-row:2}
+  body #ac01-view .ac01-event-desc{grid-column:2;grid-row:2}
+  body #ac01-view .ac01-event .ac01-event-more{grid-column:3;grid-row:2}
+  body #ac01-view .ac01-reasons{grid-column:1/-1;grid-row:3;margin:0}
+  body #ac01-view .ac01-remove{width:28px;min-width:28px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:var(--r-control);text-decoration:none;background:transparent;color:var(--stoer)}
+  body #ac01-view .ac01-remove:hover{background:var(--stoer-soft)}
+  body #ac01-view .ac01-remove .ic-wrap{margin:0}
+  body #ac01-view .ac01-remove .ic{width:17px;height:17px}
+  body #ac01-view .ac01-event-remove{width:40px;min-height:40px}
+}
+
+/* "Foto / Plan" and "Betroffene" of an event open a fold-out: they look like what they are, secondary buttons with an icon (a bare text label did not say it could be used). */
+@media(min-width:1024px){
+  body #ac01-view .ac01-event :is(.ac01-evidence,.ac01-affected)>summary{display:inline-flex;align-items:center;gap:var(--sp-2);min-height:36px;padding:0 var(--sp-3);border:1px solid var(--teal);border-radius:var(--r-control);background:var(--panel);color:var(--teal-d);font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;list-style:none}
+  body #ac01-view .ac01-event :is(.ac01-evidence,.ac01-affected)>summary::-webkit-details-marker{display:none}
+  body #ac01-view .ac01-event :is(.ac01-evidence,.ac01-affected)>summary:hover{background:var(--ok-bg)}
+  body #ac01-view .ac01-event :is(.ac01-evidence,.ac01-affected)[open]>summary{background:var(--ok-bg)}
+  body #ac01-view .ac01-event :is(.ac01-evidence,.ac01-affected)>summary .ic-wrap{margin:0}
+  body #ac01-view .ac01-event :is(.ac01-evidence,.ac01-affected)>summary .ic{width:16px;height:16px}
+  body #ac01-view .ac01-event :is(.ac01-evidence,.ac01-affected)>summary [data-evidence-count],body #ac01-view .ac01-event :is(.ac01-evidence,.ac01-affected)>summary [data-affected-count]{font-weight:500;color:var(--muted)}
+  body #ac01-view .ac01-event .ac01-event-more{gap:var(--sp-2)}
+}
+
+/* Locations of a work line: ONE structure for 0, 1 and many. The field comes first and keeps its place and width aligned with the other inputs of the row; the chips
+   form a wrapping strip BELOW it (nothing is reordered or squeezed when the first chip arrives). The row grows downward by one chip line, only where a location exists.
+   The two buttons of a row are distinct icons; chips get a 28 px remove target. */
+.ac01-where{display:flex;flex-direction:column;align-items:stretch;gap:var(--sp-1)}
+.ac01-where .ac01-chip-add{order:1;flex:none}
+.ac01-where .ac01-chips{order:2;display:flex;flex-wrap:wrap;gap:var(--sp-1) var(--sp-2);margin:0}
+.ac01-where .ac01-chips:empty{display:none}
+@media(min-width:1024px){
+  .ac01-where .ac01-chip-add{display:grid;grid-template-columns:minmax(0,1fr) 34px;gap:var(--sp-1)}
+  .ac01-where .ac01-chip{min-height:28px;padding:0 0 0 var(--sp-2)}
+  .ac01-where .ac01-chip button{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:50%}
+  .ac01-chip .ic-wrap{margin:0}.ac01-chip .ic{width:14px;height:14px}
+  .ac01-chip-add .ac01-add .ic-wrap,.ac01-add-inline .ic-wrap{margin:0}
+  .ac01-chip-add .ac01-add .ic,.ac01-add-inline .ic{width:17px;height:17px}
+  .ac01-add-inline{width:34px;justify-self:center}
+  .ac01-table-head span:nth-child(9){font-size:11px;text-align:center}
+}
+/* spacing scale around the people table and the events: 16 between a list and its add button, 24 between sections */
+.ac01-table+.ac01-add-row{margin-top:0}
+.ac01-events-panel .ac01-add-row{margin-top:var(--sp-4)}
+
+/* Work line (desktop): the field, its add button and the chips never leave their column (a long chip is cut with an ellipsis and keeps its full name as a title), and
+   every control of the row has the same height, so tops and bottoms line up and nothing touches its neighbour. */
+@media(min-width:1024px){
+  .ac01-where,.ac01-where .ac01-chip-add,.ac01-where .ac01-chips{min-width:0;max-width:100%;width:100%}
+  .ac01-where .ac01-chip-add input{min-width:0;width:100%}
+  .ac01-where .ac01-chip{max-width:100%;min-width:0}
+  .ac01-chip-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #ac01-view .ac01-assignment .ac01-photo-btn{min-height:40px;height:40px}
+  #ac01-view .ac01-assignment .ac01-remove{min-height:40px;height:40px}
+  .ac01-chip-add .ac01-add,.ac01-add-inline{height:40px}
 }
 

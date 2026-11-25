@@ -182,7 +182,7 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
 
 /* ---- Table mode (desktop): one compact line per employee; extra activities are indented sub-rows ---- */
 @media(min-width:1024px){
-#ac01-view{--ac-cols:142px 78px 78px 52px minmax(104px,1fr) minmax(56px,.5fr) minmax(152px,1.6fr) 54px 30px 28px}
+#ac01-view{--ac-cols:142px 78px 78px 52px minmax(104px,1fr) minmax(56px,.5fr) minmax(152px,1.6fr) 54px 36px 28px}
 .ac01-table-head span{min-width:0;overflow-wrap:normal;hyphens:none}
 .ac01-table-head span:nth-child(6){letter-spacing:-.2px;font-size:11px;line-height:1.15}
 .ac01-table-head{display:grid;grid-template-columns:var(--ac-cols);column-gap:6px;align-items:end;margin:0 0 2px 42px;padding:6px 0;position:sticky;top:0;z-index:3;background:#fff;border-bottom:2px solid #b8cbbf;color:#33493e;font-size:11px;font-weight:850;letter-spacing:.2px}
@@ -278,7 +278,7 @@ body:has(#ac01-view:not([hidden])) .mobile-nav button.active{border-radius:10px;
         tooltips via title), so navigation does not change width when the view changes; page paddings shrink on the AC-01
         view only. At 1240px and above nothing changes, below 1024px the cards remain. Required grid width is about 810px. ---- */
 @media(min-width:1024px) and (max-width:1239px){
-#ac01-view{--ac-cols:142px 78px 78px 50px minmax(104px,.9fr) minmax(56px,.5fr) minmax(148px,1.5fr) 54px 30px 28px}
+#ac01-view{--ac-cols:142px 78px 78px 50px minmax(104px,.9fr) minmax(56px,.5fr) minmax(148px,1.5fr) 54px 36px 28px}
 .rail{width:72px;padding:24px 10px}
 .rail .brand{padding:0 0 28px;justify-content:center}
 .rail .brand>div:last-child{display:none}

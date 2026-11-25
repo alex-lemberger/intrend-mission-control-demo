@@ -84,21 +84,23 @@
   }
 
   const chipsMarkup = assignment => assignment.locations.map((location, index) =>
-    `<span class="ac01-chip">${escapeHtml(location)}<button type="button" data-action="remove-location" data-index="${index}" aria-label="Ort ${escapeHtml(location)} entfernen">×</button></span>`).join('');
+    `<span class="ac01-chip" title="${escapeHtml(location)}"><span class="ac01-chip-text">${escapeHtml(location)}</span><button type="button" data-action="remove-location" data-index="${index}" aria-label="Ort ${escapeHtml(location)} entfernen"><i class="ic-wrap" data-icon="x"></i></button></span>`).join('');
   const photosText = assignment => assignment.photos.length ? `${assignment.photos.join(', ')} · nur lokale Auswahl, kein Upload` : 'Keine Fotos ausgewählt';
 
+  // One hidden live region for what happens inside a table row (a chip added or removed, a work line added): the screen alone would say nothing to a screen reader.
+  const announce = text => { const live = $('#ac01-live'); if (live) { live.textContent = ''; window.setTimeout(() => { live.textContent = text; }, 30); } };
   const shortLong = (long, short) => `<span class="ac01-long">${long}</span><span class="ac01-short" aria-hidden="true">${short}</span>`;
 
   // The name sits inside the first activity row so that table rows stay one line; one person stays one identity.
   function renderHead(employee, index) {
-    return `<header class="ac01-employee-head"><div class="ac01-name"><label for="${employee.id}-name">Mitarbeiter ${index + 1}</label><input id="${employee.id}-name" data-employee-field="name" list="ac01-people" value="${escapeHtml(employee.name)}" placeholder="Name">${employee.prefill ? `<span class="ac01-prefill-tag" title="${escapeHtml(employee.prefill)}">übernommen, bitte prüfen</span>` : ''}${employee.pseudonym ? '<span class="ac01-pseudonym-tag" title="Subunternehmer-Kennung, kein Klarname; gilt nur für diesen Tag">Kennung, kein Klarname</span>' : ''}</div><button class="ac01-remove" type="button" data-action="remove-employee" aria-label="Mitarbeiter ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button></header>`;
+    return `<header class="ac01-employee-head"><div class="ac01-name"><label for="${employee.id}-name">Mitarbeiter ${index + 1}</label><input id="${employee.id}-name" data-employee-field="name" list="ac01-people" value="${escapeHtml(employee.name)}" placeholder="Name">${employee.prefill ? `<span class="ac01-prefill-tag" title="${escapeHtml(employee.prefill)}">übernommen, bitte prüfen</span>` : ''}${employee.pseudonym ? '<span class="ac01-pseudonym-tag" title="Subunternehmer-Kennung, kein Klarname; gilt nur für diesen Tag">Kennung, kein Klarname</span>' : ''}</div><button class="ac01-remove" type="button" data-action="remove-employee" data-tip="Mitarbeiter entfernen" aria-label="Mitarbeiter ${index + 1} entfernen">${shortLong('Entfernen', '<i class="ic-wrap" data-icon="trash-2"></i>')}</button></header>`;
   }
 
   function renderAssignment(employee, assignment, index, employeeIndex) {
     const id = assignment.id;
     return `<div class="ac01-assignment" data-assignment="${id}">
       ${index === 0 ? renderHead(employee, employeeIndex) : ''}
-      <div class="ac01-assignment-head"><strong>Arbeit ${index + 1}</strong>${employee.assignments.length > 1 ? `<button class="ac01-remove" type="button" data-action="remove-assignment" aria-label="Arbeit ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button>` : ''}</div>
+      <div class="ac01-assignment-head"><strong>Arbeit ${index + 1}</strong>${employee.assignments.length > 1 ? `<button class="ac01-remove" type="button" data-action="remove-assignment" data-tip="Arbeit entfernen" aria-label="Arbeit ${index + 1} entfernen">${shortLong('Entfernen', '<i class="ic-wrap" data-icon="trash-2"></i>')}</button>` : ''}</div>
       <div class="ac01-times">
         <div class="ac01-timefield" data-empty="${assignment.start === ''}"><label for="${id}-start">Beginn</label><input id="${id}-start" data-field="start" type="time" value="${escapeHtml(assignment.start)}"></div>
         <div class="ac01-timefield" data-empty="${assignment.end === ''}"><label for="${id}-end">Ende</label><input id="${id}-end" data-field="end" type="time" value="${escapeHtml(assignment.end)}"></div>
@@ -108,14 +110,14 @@
       <div class="ac01-where">
         <label for="${id}-location">Ort / Bauteil (mehrere möglich)</label>
         <div class="ac01-chips" data-chips>${chipsMarkup(assignment)}</div>
-        <div class="ac01-chip-add"><input id="${id}-location" data-field="locationDraft" list="ac01-locations" value="${escapeHtml(assignment.locationDraft)}" placeholder="Ort"><button class="ac01-add" type="button" data-action="add-location" aria-label="Ort hinzufügen">${shortLong('Ort hinzufügen', '＋')}</button></div>
+        <div class="ac01-chip-add"><input id="${id}-location" data-field="locationDraft" list="ac01-locations" value="${escapeHtml(assignment.locationDraft)}" placeholder="Ort"><button class="ac01-add" type="button" data-action="add-location" data-tip="Ort hinzufügen" aria-label="Ort hinzufügen">${shortLong('Ort hinzufügen', '<i class="ic-wrap" data-icon="map-pin-plus"></i>')}</button></div>
       </div>
       <div class="ac01-extra-fields">
         <div class="ac01-lv"><label for="${id}-lv">LV-Position oder eigene Tätigkeit (optional)</label><input id="${id}-lv" data-field="lv" value="${escapeHtml(assignment.lv)}" placeholder="LV"></div>
         <div class="ac01-photo"><input class="ac01-file" id="${id}-photos" data-field="photos" type="file" accept="image/*" multiple><label class="ac01-photo-btn" for="${id}-photos" title="Lokale Demoauswahl: nur Dateinamen, kein Upload">${shortLong('Fotos wählen', 'Fotos')}<span data-photo-count>${assignment.photos.length ? ` (${assignment.photos.length})` : ''}</span></label><span class="ac01-photo-names" data-photo-names>${assignment.photos.length ? escapeHtml(photosText(assignment)) : ''}</span></div>
       </div>
       <p class="ac01-row-note" role="status" hidden></p>
-      ${index === 0 ? '<button class="ac01-add ac01-add-inline" type="button" data-action="add-assignment" aria-label="Weitere Arbeit für diese Person hinzufügen">＋</button>' : ''}
+      ${index === 0 ? '<button class="ac01-add ac01-add-inline" type="button" data-action="add-assignment" data-tip="Weitere Arbeit für diese Person" aria-label="Weitere Arbeit für diese Person hinzufügen"><i class="ic-wrap" data-icon="list-plus"></i></button>' : ''}
     </div>`;
   }
 
@@ -178,15 +180,15 @@
       <strong class="ac01-event-label">Ereignis ${index + 1}</strong>
       <div class="ac01-event-where"><label for="${event.id}-location">Ort / Bauteil</label><input id="${event.id}-location" data-event-field="location" list="ac01-locations" value="${escapeHtml(event.location)}" placeholder="Ort / Bauteil"></div>
       <div class="ac01-event-desc"><label for="${event.id}-description">Beschreibung</label><textarea id="${event.id}-description" data-event-field="description" rows="1" placeholder="Soll · Ist · Ursache · Folgen (kurz)" title="Kurz beschreiben: Was sollte sein (Soll)? Was ist nicht möglich (Ist)? Warum (Ursache)? Was folgt daraus (Folgen)? Betroffene Arbeiten nennen.">${escapeHtml(event.description)}</textarea></div>
-      <button class="ac01-remove ac01-event-remove" type="button" data-action="remove-event" aria-label="Ereignis ${index + 1} entfernen">${shortLong('Entfernen', '×')}</button>
+      <button class="ac01-remove ac01-event-remove" type="button" data-action="remove-event" data-tip="Ereignis entfernen" aria-label="Ereignis ${index + 1} entfernen">${shortLong('Entfernen', '<i class="ic-wrap" data-icon="trash-2"></i>')}</button>
       <fieldset class="ac01-reasons"><legend>Art des Ereignisses <small>(mehrere möglich)</small></legend><div class="ac01-pills">${eventReasons.map(reason => `<label class="ac01-pill"><input type="checkbox" data-event-reason="${escapeHtml(reason)}"${event.reasons.includes(reason) ? ' checked' : ''}><span title="${escapeHtml(reason)}">${escapeHtml(reasonLabel(reason))}</span></label>`).join('')}</div></fieldset>
-      <div class="ac01-event-more"><details class="ac01-evidence"${event.photos.length || event.planRef || event.planMark ? ' open' : ''}><summary>${evidenceLabel(event)} <span data-evidence-count>${evidenceBadge(event)}</span></summary><div class="ac01-evidence-body">${disruptionBlock(event)}
+      <div class="ac01-event-more"><details class="ac01-evidence"${event.photos.length || event.planRef || event.planMark ? ' open' : ''}><summary><i class="ic-wrap" data-icon="camera"></i>${evidenceLabel(event)} <span data-evidence-count>${evidenceBadge(event)}</span></summary><div class="ac01-evidence-body">${disruptionBlock(event)}
         <div class="ac01-photo"><input class="ac01-file" id="${event.id}-photos" data-event-photos type="file" accept="image/*" multiple><label class="ac01-photo-btn" for="${event.id}-photos" title="Lokale Demoauswahl: nur Dateinamen, kein Upload">${shortLong('Fotos wählen', 'Fotos')}</label><span class="ac01-photo-names" data-event-photo-names>${event.photos.length ? escapeHtml(`${event.photos.join(', ')} · nur lokale Auswahl, kein Upload`) : ''}</span></div>
         <div><label for="${event.id}-planref">Planbezug (Planname / Stand)</label><input id="${event.id}-planref" data-event-field="planRef" value="${escapeHtml(event.planRef)}" placeholder="z. B. Plan EG, Stand B"></div>
         <div><label for="${event.id}-planmark">Markierung im Plan</label><input id="${event.id}-planmark" data-event-field="planMark" value="${escapeHtml(event.planMark)}" placeholder="z. B. Achse 4 / Feld C"></div>
         <p class="ac01-hint">Frei eingetragene Hinweise: kein Planupload, keine Markierung auf einem Plan-Bild, keine Planversionsprüfung.</p>
         <div class="ac01-evidence-foot"><span class="ac01-evidence-status" data-evidence-status aria-live="polite">${evidenceStatus(event)}</span><button class="primary" type="button" data-evidence-done>Fertig</button></div></div></details>
-      <details class="ac01-affected"><summary>${shortLong('Betroffene Mitarbeiter', 'Betroffene')} <span data-affected-count>${affected ? `(${affected})` : '(optional)'}</span></summary><div class="ac01-affected-list">${employees.map((employee, employeeIndex) => `<label class="ac01-check"><input type="checkbox" data-event-person="${employee.id}" ${event.people.includes(employee.id) ? 'checked' : ''}> ${escapeHtml(employeeLabel(employee, employeeIndex))}</label>`).join('') || '<span class="ac01-hint">Zuerst Mitarbeitende erfassen.</span>'}</div></details></div>
+      <details class="ac01-affected"><summary><i class="ic-wrap" data-icon="users"></i>${shortLong('Betroffene Mitarbeiter', 'Betroffene')} <span data-affected-count>${affected ? `(${affected})` : '(optional)'}</span></summary><div class="ac01-affected-list">${employees.map((employee, employeeIndex) => `<label class="ac01-check"><input type="checkbox" data-event-person="${employee.id}" ${event.people.includes(employee.id) ? 'checked' : ''}> ${escapeHtml(employeeLabel(employee, employeeIndex))}</label>`).join('') || '<span class="ac01-hint">Zuerst Mitarbeitende erfassen.</span>'}</div></details></div>
     </article>`;
     }).join('') : '<p class="ac01-empty">Noch keine Ereignisse erfasst.</p>';
     renderReport();
@@ -438,6 +440,7 @@
     assignment.locationDraft = '';
     row.querySelector('[data-field="locationDraft"]').value = '';
     row.querySelector('[data-chips]').innerHTML = chipsMarkup(assignment);
+    announce(`Ort „${value}“ hinzugefügt. ${assignment.locations.length} ${assignment.locations.length === 1 ? 'Ort' : 'Orte'} bei dieser Arbeit.`);
     refresh();
   }
 
@@ -482,8 +485,9 @@
       return;
     }
     if (action === 'remove-location' && assignment) {
-      assignment.locations.splice(Number(button.dataset.index), 1);
+      const [gone] = assignment.locations.splice(Number(button.dataset.index), 1);
       button.closest('[data-chips]').innerHTML = chipsMarkup(assignment);
+      announce(`Ort „${gone}“ entfernt.`);
       refresh();
       return;
     }
@@ -496,6 +500,7 @@
     if (action === 'add-assignment' && employee) {
       const created = newAssignment();
       employee.assignments.push(created);
+      announce(`Arbeit ${employee.assignments.length} hinzugefügt.`);
       focusSelector = `[data-assignment="${created.id}"] [data-field="start"]`;
     }
     if (action === 'remove-assignment' && employee && assignment) employee.assignments = employee.assignments.filter(item => item !== assignment);
@@ -581,7 +586,7 @@
       holder.querySelector('[data-disruption]')?.remove();
       const fold = holder.querySelector('.ac01-evidence');
       fold.querySelector('.ac01-evidence-body').insertAdjacentHTML('afterbegin', disruptionBlock(item));
-      fold.querySelector(':scope > summary').innerHTML = `${evidenceLabel(item)} <span data-evidence-count>${evidenceBadge(item)}</span>`;
+      fold.querySelector(':scope > summary').innerHTML = `<i class="ic-wrap" data-icon="camera"></i>${evidenceLabel(item)} <span data-evidence-count>${evidenceBadge(item)}</span>`;
       syncEvidence(holder, item);
       if (hasDisruption(item) && event.target.checked) fold.open = true;
     }
