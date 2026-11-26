@@ -391,3 +391,10 @@ Erwartet: genau fünf statische Dateien unter `site/`, keine Symlinks und gülti
 - [x] Lokal: Workflow-Prüfung nachgestellt (sauber), SPFx-Unit-Tests 489/489, Typprüfung sauber, Planer 33/33, Stundenzettel 15/15, Store 21/21, UI-Tests 63/63, Integrationstests 61/61 (privat) und 62/62 (öffentliches Paket).
 - [x] GitHub-Pages-Lauf `45644003467` (Commit `a53f5f6`) erfolgreich; SHA-256 aller 15 Dateien stimmt mit `site/` überein; Release-Token `2026-11-25-s67` in allen 13 Verweisen; Headless-Chrome-Smoke auf der Live-URL sauber. Die neuen Oberflächenteile selbst wurden auf der Live-URL **nicht** durchgeklickt (Bytes identisch mit dem lokal geprüften Paket). Weiterhin synthetisch, keine echten Daten. Kein Beschluss und keine Freigabe durch Peter.
 
+## s68, 2026-11-26 (zwei Korrekturen im Editor) — veröffentlicht auf ausdrückliche Anweisung des Nutzers
+
+- [x] Geänderte Dateien: `site/ac01.css`, `site/ac01.js`, `site/index.html`. Dateiliste unverändert (15 Dateien).
+- [x] Inhalt: Das Symbol „Ort hinzufügen“ öffnet bei leerem Feld die Vorschlagsliste (mit Text fügt es wie bisher den Ort hinzu). Die Beschriftung „Fotos“ ist zentriert; die Anzahl gewählter Fotos steht in der Tabelle darunter innerhalb der Schaltfläche. Alles erfunden, nichts wird gesendet, kein neuer Speicherschlüssel.
+- [x] Lokal: Workflow-Prüfung nachgestellt (sauber), SPFx-Unit-Tests 489/489, Typprüfung sauber, Planer 33/33, Stundenzettel 15/15, Store 21/21, UI-Tests 63/63, Integrationstests 63/63 (privat) und 64/64 (öffentliches Paket).
+- [x] GitHub-Pages-Lauf `45797353632` (Commit `aca170d`) erfolgreich; SHA-256 aller 15 Dateien stimmt mit `site/` überein; Release-Token `2026-11-26-s68`; Headless-Chrome-Smoke auf der Live-URL sauber. Die beiden Korrekturen wurden auf der Live-URL **nicht** durchgeklickt. Das Öffnen der Liste hat der Nutzer lokal bestätigt; Safari / iPhone nicht geprüft. Kein Beschluss und keine Freigabe durch Peter.
+
