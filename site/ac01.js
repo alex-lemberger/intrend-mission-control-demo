@@ -479,9 +479,13 @@
     }
     if (action === 'add-location' && assignment) {
       const row = button.closest('[data-assignment]');
-      assignment.locationDraft = row.querySelector('[data-field="locationDraft"]').value;
+      const input = row.querySelector('[data-field="locationDraft"]');
+      const empty = !input.value.trim();   // read before the commit, which clears the field
+      assignment.locationDraft = input.value;
       commitLocation(employee, assignment, row);
-      row.querySelector('[data-field="locationDraft"]').focus();
+      input.focus();
+      // Nothing typed: the icon leads where the field leads, to its suggestion list. Choosing there adds the Ort through 'change'.
+      if (empty) { try { input.showPicker?.(); } catch { /* no programmatic list in this browser: the field keeps the focus */ } }
       return;
     }
     if (action === 'remove-location' && assignment) {

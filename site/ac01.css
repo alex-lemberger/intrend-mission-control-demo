@@ -406,3 +406,5 @@ button.ac01-stat{min-height:44px;border-color:#9dc2ad;cursor:pointer}
 /* Person rows with a state: the whole border carries it (no side stripe); the words stay in the tag under the name. */
 .ac01-employee.has-prefill{border-color:var(--note-line);background:var(--note-bg)}
 .ac01-employee.is-pseudonym{border-style:dashed}
+.ac01-photo-btn [data-photo-count]:empty{display:none}   /* an empty flex item would still take the button gap and push the caption off centre */
+@media(min-width:1024px){#ac01-view .ac01-assignment .ac01-photo-btn{flex-direction:column;gap:0;line-height:1.15}}   /* table: the counter goes under the caption, the 54px column stays */
